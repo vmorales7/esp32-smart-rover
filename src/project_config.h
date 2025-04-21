@@ -12,7 +12,7 @@
 #define OEPRATIVE_MODE
 
 // Parámetros físicos del vegículo
-constexpr float WHEEL_RADIUS = 0.033f;  // en metros
+constexpr float WHEEL_RADIUS = 0.034f;  // en metros
 constexpr float WHEEL_DISTANCE = 0.14f;   // distancia entre ruedas (L)
 
 // Encoder data
