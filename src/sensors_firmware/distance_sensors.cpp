@@ -33,12 +33,12 @@ namespace DistanceSensors {
         return (uint8_t) distance_f;
     }
 
-    void update_ultrasonic_distances(DistanceSensorData* data) {
+    void update_ultrasonic_distances(volatile DistanceSensorData* data) {
         data->left_distance = us_read_distance(US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN);
         data->right_distance = us_read_distance(US_RIGHT_TRIG_PIN, US_RIGHT_ECHO_PIN);
     }
 
-    void update_ir_state(DistanceSensorData* data) {
+    void update_ir_state(volatile DistanceSensorData* data) {
         const bool current = digitalRead(IR_SENSOR_PIN);
         const unsigned long start_time = micros();
         
@@ -50,14 +50,14 @@ namespace DistanceSensors {
         if (data->obstacle_detected != current) data->obstacle_detected = current;
     }
 
-    void clear_obstacle_detection(DistanceSensorData* data) {
+    void clear_obstacle_detection(volatile DistanceSensorData* data) {
         data->obstacle_detected = false;
     }
 
     void Task_DistanceSensors(void* pvParameters) {
         const TickType_t period = pdMS_TO_TICKS(IR_SENSOR_READ_PERIOD_MS);
         TickType_t xLastWakeTime = xTaskGetTickCount();
-        DistanceSensorData* data_ptr = static_cast<DistanceSensorData*>(pvParameters);
+        volatile DistanceSensorData* data_ptr = static_cast<DistanceSensorData*>(pvParameters);
         for (;;) {
             vTaskDelayUntil(&xLastWakeTime, period);
             update_ir_state(data_ptr);

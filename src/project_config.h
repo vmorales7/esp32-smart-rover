@@ -27,8 +27,8 @@ constexpr float MS_TO_S = 0.001f;
 // Assigned pins
 constexpr uint8_t MOTOR_LEFT_PWM_PIN = 18;
 constexpr uint8_t MOTOR_RIGHT_PWM_PIN = 19;
-constexpr uint8_t MOTOR_LEFT_DIR_PIN1 = 32;
-constexpr uint8_t MOTOR_LEFT_DIR_PIN2 = 33;
+constexpr uint8_t MOTOR_LEFT_DIR_PIN1  = 32;
+constexpr uint8_t MOTOR_LEFT_DIR_PIN2  = 33;
 constexpr uint8_t MOTOR_RIGHT_DIR_PIN1 = 25;
 constexpr uint8_t MOTOR_RIGHT_DIR_PIN2 = 26;
 
@@ -46,10 +46,10 @@ constexpr uint16_t WHEEL_CONTROL_PERIOD_MS = 10;
 
 /* -------------- Constantes del Encoder Reader --------------*/
 // Assigned pins
-constexpr uint8_t ENCODER_LEFT_A_PIN = 34;
-constexpr uint8_t ENCODER_LEFT_B_PIN = 35;
-constexpr uint8_t ENCODER_RIGHT_A_PIN = 36;
-constexpr uint8_t ENCODER_RIGHT_B_PIN = 39;
+constexpr uint8_t ENCODER_LEFT_A_PIN = 16;
+constexpr uint8_t ENCODER_LEFT_B_PIN = 17;
+constexpr uint8_t ENCODER_RIGHT_A_PIN = 22;
+constexpr uint8_t ENCODER_RIGHT_B_PIN = 23;
 
 // RTOS
 constexpr uint16_t ENCODER_READ_PERIOD_MS = 10;
@@ -65,12 +65,12 @@ constexpr uint16_t POSE_ESTIMATOR_PERIOD_MS = 200; // Incluso podría subir a 50
 /* -------------- Constantes de sensores de distancia --------------*/
 // Sensores ultrasónicos (diagonales)
 constexpr uint8_t US_LEFT_TRIG_PIN  = 27;
-constexpr uint8_t US_LEFT_ECHO_PIN  = 4;
+constexpr uint8_t US_LEFT_ECHO_PIN  = 5;
 constexpr uint8_t US_RIGHT_TRIG_PIN = 14;
 constexpr uint8_t US_RIGHT_ECHO_PIN = 13;
 
 // Sensor infrarrojo
-constexpr uint8_t IR_SENSOR_PIN = 15;
+constexpr uint8_t IR_SENSOR_PIN = 21;
 
 // RTOS
 constexpr uint16_t IR_SENSOR_READ_PERIOD_MS = 1000;

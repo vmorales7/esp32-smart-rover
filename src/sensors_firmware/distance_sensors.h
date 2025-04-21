@@ -56,8 +56,6 @@ constexpr uint16_t IR_DEBOUNCE_TIME_US = 1000U;
 
 /* -------------------- Funciones de sensores de distancia -------------------- */
 
-#include "project_config.h"
-
 namespace DistanceSensors {
 
     /**
@@ -80,21 +78,21 @@ namespace DistanceSensors {
      *
      * @param data Puntero a estructura donde se guardan los resultados.
      */
-    void update_ultrasonic_distances(DistanceSensorData* data);
+    void update_ultrasonic_distances(volatile DistanceSensorData* data);
     
     /**
      * @brief Actualiza el estado del sensor infrarrojo con lógica de debounce.
      *
      * @param data Puntero a estructura de sensores a actualizar.
      */
-    void update_ir_state(DistanceSensorData* data);
+    void update_ir_state(volatile DistanceSensorData* data);
 
     /**
      * @brief Limpia la detección actual de obstáculo por IR (fuerza el estado a "libre").
      *
      * @param data Puntero a la estructura de sensores.
      */
-    void clear_obstacle_detection(DistanceSensorData* data);
+    void clear_obstacle_detection(volatile DistanceSensorData* data);
 
     /**
      * @brief Tarea FreeRTOS que actualiza periódicamente los sensores.
