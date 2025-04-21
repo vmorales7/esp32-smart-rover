@@ -29,7 +29,7 @@ namespace EncoderReader {
 
     /**
      * @brief Pausa el conteo de los encoders, actualiza velocidades, y deja las velocidades en cero.
-     * El acumulador de pasos se conserva. Actualiza el estado como INACTIVE.
+     * El acumulador de pasos se conserva (solo pose_estimator lo puede limpiar). Actualiza el estado como INACTIVE.
      * 
      * @param encoder_state_ptr Puntero al estado del encoder (activo/inactivo).
      * @param steps_left_ptr Puntero al acumulador de pasos de la rueda izquierda.

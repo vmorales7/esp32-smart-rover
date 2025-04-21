@@ -18,7 +18,7 @@ namespace EncoderReader {
         encoderLeft.attachHalfQuad(ENCODER_LEFT_A_PIN, ENCODER_LEFT_B_PIN);
         encoderRight.attachHalfQuad(ENCODER_RIGHT_A_PIN, ENCODER_RIGHT_B_PIN);
         pause(encoder_state_ptr, steps_left_ptr, steps_right_ptr, wL_measured_ptr, wR_measured_ptr);
-        *steps_left_ptr = 0;
+        *steps_left_ptr = 0; // Unica instancia en que encoder_reader modifica estos contadores
         *steps_right_ptr = 0;
     }
 
@@ -38,12 +38,13 @@ namespace EncoderReader {
             encoder_state_ptr, steps_left_ptr, steps_right_ptr, wL_measured_ptr, wR_measured_ptr
         );
 
-        // Reset hardware y control interno
+        // Reset hardware y control interno 
+        // Importante que no se limpien las variables steps_right_ptr ya que esto solo lo puede hacer pose_estimator
         encoderLeft.clearCount();
         encoderRight.clearCount();
         lastCountLeft = 0;
         lastCountRight = 0;
-        lastMillis = millis();  // importante reiniciar tiempo aquí
+        lastMillis = millis();
 
         // Dejar en cero las mediciones de velocidad
         *wL_measured_ptr = 0.0f;
