@@ -12,9 +12,9 @@
 // --- Otras opciones de prueba ---
 // #define USE_MAIN_MOTOR_DUTY
 // #define USE_MAIN_ENCODER_BASIC
-// #define USE_MAIN_ENCODER
+ #define USE_MAIN_ENCODER
 // #define USE_MAIN_DISTANCE_SENSORS_BASIC
- #define USE_MAIN_DISTANCE_SENSORS
+// #define USE_MAIN_DISTANCE_SENSORS
 // #define USE_MAIN_WHEEL_CONTROL
 
 
