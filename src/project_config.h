@@ -16,7 +16,7 @@ constexpr float WHEEL_RADIUS = 0.034f;  // en metros
 constexpr float WHEEL_DISTANCE = 0.14f;   // distancia entre ruedas (L)
 
 // Encoder data
-constexpr int PULSES_PER_REV = 400;  // Ajustar
+constexpr int PULSES_PER_REV = 226;  // Ajustar
 constexpr float RAD_PER_PULSE = (2.0f * PI) / PULSES_PER_REV;
 
 // Auxiliares
