@@ -124,6 +124,9 @@ namespace MotorController {
                 if (duty < MIN_EFFECTIVE_DUTY) duty = MIN_EFFECTIVE_DUTY;
                 if (duty > MAX_DUTY) duty = MAX_DUTY; // limitar al duty máximo (100%)
                 uint32_t pwm = duty * PWM_MAX + 0.5f;
+                
+                // Escribir los valores
+                if (!INVERT_MOTORS) forward = !forward; // invertir dirección por reflejo físico de las ruedas
                 digitalWrite(MOTOR_LEFT_DIR_PIN1, forward ? HIGH : LOW);
                 digitalWrite(MOTOR_LEFT_DIR_PIN2, forward ? LOW : HIGH);
                 ledcWrite(PWM_CHANNEL_LEFT, pwm);
@@ -139,10 +142,13 @@ namespace MotorController {
                 ledcWrite(PWM_CHANNEL_RIGHT, 0U);
                 *dutyR_ptr = 0.0f;
             } else {
+                // Limitar el duty
                 if (duty < MIN_EFFECTIVE_DUTY) duty = MIN_EFFECTIVE_DUTY;
                 if (duty > MAX_DUTY) duty = MAX_DUTY;
                 uint32_t pwm = duty * PWM_MAX + 0.5f;
-                forward = !forward; // invertir dirección por reflejo físico de las ruedas
+                
+                // Escribir los valores
+                if (INVERT_MOTORS) forward = !forward; // invertir dirección por reflejo físico de las ruedas
                 digitalWrite(MOTOR_RIGHT_DIR_PIN1, forward ? HIGH : LOW);
                 digitalWrite(MOTOR_RIGHT_DIR_PIN2, forward ? LOW : HIGH);
                 ledcWrite(PWM_CHANNEL_RIGHT, pwm);

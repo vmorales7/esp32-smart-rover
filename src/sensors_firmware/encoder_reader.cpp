@@ -78,6 +78,13 @@ namespace EncoderReader {
         // Cambio en el giro desde la ultima lectura
         int64_t currentCountLeft = encoderLeft.getCount();
         int64_t currentCountRight = encoderRight.getCount();
+
+        if (!INVERT_MOTORS) {
+            currentCountLeft = -currentCountLeft;
+        } else {
+            currentCountRight = -currentCountRight;
+        }
+
         int64_t deltaLeft = (currentCountLeft - lastCountLeft) ; 
         int64_t deltaRight = (currentCountRight - lastCountRight) ;
 
