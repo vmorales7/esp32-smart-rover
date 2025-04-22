@@ -126,7 +126,7 @@ namespace MotorController {
                 uint32_t pwm = duty * PWM_MAX + 0.5f;
                 
                 // Escribir los valores
-                if (INVERT_MOTORS) forward = !forward; // invertir dirección por reflejo físico de las ruedas
+                if (INVERT_MOTOR_LEFT) forward = !forward; // invertir dirección por reflejo físico de las ruedas
                 digitalWrite(MOTOR_LEFT_DIR_PIN1, forward ? HIGH : LOW);
                 digitalWrite(MOTOR_LEFT_DIR_PIN2, forward ? LOW : HIGH);
                 ledcWrite(PWM_CHANNEL_LEFT, pwm);
@@ -148,7 +148,7 @@ namespace MotorController {
                 uint32_t pwm = duty * PWM_MAX + 0.5f;
                 
                 // Escribir los valores
-                if (!INVERT_MOTORS) forward = !forward; // invertir dirección por reflejo físico de las ruedas
+                if (INVERT_MOTOR_RIGHT) forward = !forward; // invertir dirección por reflejo físico de las ruedas
                 digitalWrite(MOTOR_RIGHT_DIR_PIN1, forward ? HIGH : LOW);
                 digitalWrite(MOTOR_RIGHT_DIR_PIN2, forward ? LOW : HIGH);
                 ledcWrite(PWM_CHANNEL_RIGHT, pwm);
