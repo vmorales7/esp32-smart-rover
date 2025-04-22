@@ -79,7 +79,7 @@ namespace EncoderReader {
         int64_t currentCountLeft = encoderLeft.getCount();
         int64_t currentCountRight = encoderRight.getCount();
 
-        if (!INVERT_MOTORS) {
+        if (INVERT_MOTORS) {
             currentCountLeft = -currentCountLeft;
         } else {
             currentCountRight = -currentCountRight;
