@@ -25,7 +25,9 @@ constexpr float RAD_PER_PULSE = (2.0f * PI) / PULSES_PER_REV;
 constexpr float MS_TO_S = 0.001f;
 
 // Constante para invertir motores
-constexpr bool INVERT_MOTORS = true;
+constexpr bool INVERT_MOTOR_LEFT = true;
+constexpr bool INVERT_MOTOR_RIGHT = false;
+
 
 /* -------------- Constantes del Motor Controller --------------*/
 // Assigned pins

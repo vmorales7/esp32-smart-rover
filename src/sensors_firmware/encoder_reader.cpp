@@ -75,16 +75,15 @@ namespace EncoderReader {
         float dt = (currentMillis - lastMillis) * MS_TO_S;  // Tiempo (s) transcurrido desde la ultima actualización
         if (dt < 0.001f) return; // si es menor a 1ms no lo consideramos
 
-        // Cambio en el giro desde la ultima lectura
+        // Lectura de la cuenta que se lleva internamente mediante ESP32Encoder
         int64_t currentCountLeft = encoderLeft.getCount();
         int64_t currentCountRight = encoderRight.getCount();
 
-        if (INVERT_MOTORS) {
-            currentCountLeft = -currentCountLeft;
-        } else {
-            currentCountRight = -currentCountRight;
-        }
+        // Modificación para corregir el sentido positivo hacia adelante
+        if (INVERT_MOTOR_LEFT) currentCountLeft = -currentCountLeft;
+        if (INVERT_MOTOR_RIGHT) currentCountRight = -currentCountRight;
 
+        // Cambio en el giro desde la ultima lectura
         int64_t deltaLeft = (currentCountLeft - lastCountLeft) ; 
         int64_t deltaRight = (currentCountRight - lastCountRight) ;
 
