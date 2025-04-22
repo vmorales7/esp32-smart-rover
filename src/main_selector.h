@@ -11,8 +11,10 @@
 
 // --- Otras opciones de prueba ---
 // #define USE_MAIN_MOTOR_DUTY
-// #define USE_MAIN_MOTOR_DUTY_ENCODER
-#define USE_MAIN_WHEEL_CONTROL
+// #define USE_MAIN_ENCODER_BASIC
+ #define USE_MAIN_ENCODER
+// #define USE_MAIN_WHEEL_CONTROL
+// #define USE_MAIN_DISTANCE_SENSORS_BASIC
 // #define USE_MAIN_DISTANCE_SENSORS
 
 // ===================================================
@@ -23,10 +25,14 @@
   #include "entrypoints/main_final.cpp"
 #elif defined(USE_MAIN_MOTOR_DUTY)
   #include "entrypoints/main_motor_duty.cpp"
-#elif defined(USE_MAIN_MOTOR_DUTY_ENCODER)
-  #include "entrypoints/main_motor_duty_encoder.cpp"
+#elif defined(USE_MAIN_ENCODER_BASIC)
+  #include "entrypoints/main_encoder_basic.cpp"
+#elif defined(USE_MAIN_ENCODER)
+  #include "entrypoints/main_encoder.cpp"
 #elif defined(USE_MAIN_WHEEL_CONTROL)
   #include "entrypoints/main_wheel_control.cpp"
+#elif defined(USE_MAIN_DISTANCE_SENSORS_BASIC)
+  #include "entrypoints/main_distance_sensors_basic.cpp"
 #elif defined(USE_MAIN_DISTANCE_SENSORS)
   #include "entrypoints/main_distance_sensors.cpp"
 #else

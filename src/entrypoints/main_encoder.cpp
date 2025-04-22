@@ -1,7 +1,7 @@
 #include "project_config.h"
 #include "motor_drive/motor_controller.h"
 #include "sensors_firmware/encoder_reader.h"
-#warning "Compilando main_motor_duty_encoder.cpp"
+#warning "Compilando main_encoder.cpp"
 
 // ====================== VARIABLES GLOBALES ======================
 
@@ -53,6 +53,8 @@ void ejecutar_fase(const char* msg, float dutyL, float dutyR, uint32_t duracion_
             print_encoder_state();
             t_print += 500;
         }
+
+        delay(10);  // ← Espera para garantizar al menos 10 ms entre actualizaciones
     }
 }
 
@@ -81,13 +83,14 @@ void setup() {
         &wheels_data.duty_right
     );
     EncoderReader::resume(&system_states.encoder);
-
+    Serial.println();
+    
     // Secuencia de prueba
-    ejecutar_fase("Avanzando recto (50%)", 0.5f, 0.5f, 5000);
-    ejecutar_fase("Frenando antes de girar", 0.0f, 0.0f, 2000);
-    ejecutar_fase("Girando en el lugar (izq, 30%)", -0.3f, 0.3f, 3000);
-    ejecutar_fase("Frenando antes de avanzar", 0.0f, 0.0f, 2000);
     ejecutar_fase("Avanzando recto (70%)", 0.7f, 0.7f, 5000);
+    ejecutar_fase("Frenando antes de girar", 0.0f, 0.0f, 2000);
+    ejecutar_fase("Girando en el lugar (izq, 30%)", -0.3f, 0.3f, 2000);
+    ejecutar_fase("Frenando antes de avanzar", 0.0f, 0.0f, 2000);
+    ejecutar_fase("Avanzando recto (50%)", 0.5f, 0.5f, 5000);
 
     MotorController::set_motor_mode(
         MOTOR_IDLE,

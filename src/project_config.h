@@ -24,6 +24,8 @@ constexpr float RAD_PER_PULSE = (2.0f * PI) / PULSES_PER_REV;
 // Auxiliares
 constexpr float MS_TO_S = 0.001f;
 
+// Constante para invertir motores
+constexpr bool INVERT_MOTORS = false;
 
 /* -------------- Constantes del Motor Controller --------------*/
 // Assigned pins
@@ -48,10 +50,10 @@ constexpr uint16_t WHEEL_CONTROL_PERIOD_MS = 10;
 
 /* -------------- Constantes del Encoder Reader --------------*/
 // Assigned pins
-constexpr uint8_t ENCODER_LEFT_A_PIN = 16;
-constexpr uint8_t ENCODER_LEFT_B_PIN = 17;
-constexpr uint8_t ENCODER_RIGHT_A_PIN = 22;
-constexpr uint8_t ENCODER_RIGHT_B_PIN = 23;
+constexpr uint8_t ENCODER_LEFT_A_PIN = 16; // Amarillo
+constexpr uint8_t ENCODER_LEFT_B_PIN = 17; // Verde
+constexpr uint8_t ENCODER_RIGHT_A_PIN = 22; // Amarillo
+constexpr uint8_t ENCODER_RIGHT_B_PIN = 23; // Verde
 
 // RTOS
 constexpr uint16_t ENCODER_READ_PERIOD_MS = 10;

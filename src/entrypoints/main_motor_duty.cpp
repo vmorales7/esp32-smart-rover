@@ -57,13 +57,13 @@ void setup() {
     delay(3000);
     Serial.println("Test: Duty Cycle Motor - Iniciando secuencia...");
 
-    // Avance recto 50% por 3 segundos
+    // Avance recto 70% por 3 segundos
     MotorController::set_motor_duty(
-        0.5f, 0.5f,
+        0.7f, 0.7f,
         &wheels_data.duty_left, &wheels_data.duty_right,
         &system_states.motor_operation
     );
-    print_duty_state("Avanzando recto (50%)");
+    print_duty_state("Avanzando recto (90%)");
     delay(5000);
 
     // Freno antes de girar
@@ -77,12 +77,12 @@ void setup() {
 
     // Giro en el lugar hacia la izquierda por 2 segundos
     MotorController::set_motor_duty(
-        -0.3f, 0.3f,
+        -0.4f, 0.4f,
         &wheels_data.duty_left, &wheels_data.duty_right,
         &system_states.motor_operation
     );
-    print_duty_state("Girando en el lugar (izquierda, 30%)");
-    delay(3000);
+    print_duty_state("Girando en el lugar (izquierda, 50%)");
+    delay(2000);
 
     // Freno antes de avanzar nuevamente
     MotorController::set_motor_duty(
