@@ -11,20 +11,12 @@ volatile SystemStates system_states = {
     .imu                  = INACTIVE,
     .distance             = INACTIVE,
     .pose_estimator       = INACTIVE,
-    .position_controller  = INACTIVE,
+    .position_controller  = SPEED_REF_INACTIVE,
     .evade_controller     = INACTIVE
 };
 
 volatile WheelsData wheels_data = {0};
-volatile KinematicState kinematic_data = {0};
-volatile DistanceSensorData sensor_data = {0};
 
-GlobalContext global_ctx = {
-    .systems_ptr = &system_states,
-    .kinematic_ptr = &kinematic_data,
-    .wheels_ptr = &wheels_data,
-    .distance_ptr = &sensor_data
-};
 
 // ====================== FUNCIONES AUXILIARES ======================
 
@@ -77,16 +69,16 @@ void setup() {
         &wheels_data.duty_left,
         &wheels_data.duty_right
     );
+    EncoderReader::init(
+        &system_states.encoder,
+        &wheels_data.steps_left, &wheels_data.steps_right,
+        &wheels_data.w_measured_left, &wheels_data.w_measured_right
+    );
     MotorController::set_motor_mode(
         MOTOR_ACTIVE,
         &system_states.motor_operation,
         &wheels_data.duty_left,
         &wheels_data.duty_right
-    );
-    EncoderReader::init(
-        &system_states.encoder,
-        &wheels_data.steps_left, &wheels_data.steps_right,
-        &wheels_data.w_measured_left, &wheels_data.w_measured_right
     );
     EncoderReader::resume(&system_states.encoder);
 

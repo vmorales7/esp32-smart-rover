@@ -10,7 +10,7 @@ volatile SystemStates system_states = {
     .imu                  = INACTIVE,
     .distance             = INACTIVE,
     .pose_estimator       = INACTIVE,
-    .position_controller  = INACTIVE,
+    .position_controller  = SPEED_REF_INACTIVE,
     .evade_controller     = INACTIVE
 };
 
@@ -25,25 +25,6 @@ volatile WheelsData wheels_data = {
     .duty_right = 0.0f
 };
 
-volatile KinematicState kinematic_data = {
-    .x = 0.0f, .y = 0.0f, .theta = 0.0f,
-    .x_d = 0.0f, .y_d = 0.0f, .theta_d = 0.0f,
-    .v = 0.0f, .w = 0.0f,
-    .v_ref = 0.0f, .w_ref = 0.0f
-};
-
-volatile DistanceSensorData sensor_data = {
-    .obstacle_detected = false,
-    .left_distance = 0,
-    .right_distance = 0
-};
-
-GlobalContext global_ctx = {
-    .systems_ptr = &system_states,
-    .kinematic_ptr = &kinematic_data,
-    .wheels_ptr = &wheels_data,
-    .distance_ptr = &sensor_data
-};
 
 // ====================== FUNCIONES AUXILIARES ======================
 

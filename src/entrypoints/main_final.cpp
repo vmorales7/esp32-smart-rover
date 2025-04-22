@@ -57,7 +57,7 @@ volatile SystemStates system_states = {
     .imu                  = INACTIVE,
     .distance             = INACTIVE,
     .pose_estimator       = INACTIVE,
-    .position_controller  = INACTIVE,
+    .position_controller  = SPEED_REF_INACTIVE,
     .evade_controller     = INACTIVE
 };
 
