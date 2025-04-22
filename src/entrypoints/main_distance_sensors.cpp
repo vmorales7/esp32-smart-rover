@@ -1,43 +1,104 @@
 #include "project_config.h"
+#include "motor_drive/motor_controller.h"
 #include "sensors_firmware/distance_sensors.h"
-#warning "Compilando main_distance_sensors.cpp"
-
+#warning "Compilando main_motor_duty_obstacle.cpp"
 
 // ====================== VARIABLES GLOBALES ======================
 
-volatile DistanceSensorData sensor_data = {
-    .obstacle_detected = false,
-    .left_distance = 0,
-    .right_distance = 0
+volatile SystemStates system_states = {
+    .motor_operation      = MOTOR_IDLE,
+    .encoder              = INACTIVE,
+    .imu                  = INACTIVE,
+    .distance             = ACTIVE,
+    .pose_estimator       = INACTIVE,
+    .position_controller  = SPEED_REF_INACTIVE,
+    .evade_controller     = INACTIVE
 };
 
-// ====================== SETUP Y LOOP ======================
+volatile WheelsData wheels_data = {0};
+
+volatile DistanceSensorData distance_data = {
+    .obstacle_detected = false,
+    .left_distance = US_MAX_DISTANCE_CM,
+    .right_distance = US_MAX_DISTANCE_CM
+};
+
+// ====================== CONFIG ======================
+
+constexpr float DUTY_FORWARD = 0.5f;
+constexpr uint16_t LOOP_DELAY_MS = 200;
+
+// ====================== SETUP ======================
 
 void setup() {
     Serial.begin(115200);
+    delay(1000);
+    Serial.println("Test: Movimiento con evasión básica de obstáculos");
+
+    // Inicialización de motores y sensores
+    MotorController::init(
+        &system_states.motor_operation,
+        &wheels_data.duty_left,
+        &wheels_data.duty_right
+    );
     DistanceSensors::init();
-    Serial.println("Test sensores IR + US LEFT iniciado");
+
+    // Activar motores
+    MotorController::set_motor_mode(
+        MOTOR_ACTIVE,
+        &system_states.motor_operation,
+        &wheels_data.duty_left,
+        &wheels_data.duty_right
+    );
+
+    // Comenzar movimiento recto
+    MotorController::set_motor_duty(
+        DUTY_FORWARD, DUTY_FORWARD,
+        &wheels_data.duty_left, &wheels_data.duty_right,
+        &system_states.motor_operation
+    );
 }
 
+// ====================== LOOP ======================
+
 void loop() {
-    delay(2000);  // Leer cada 2 segundos
+    // Leer sensor ultrasónico izquierdo
+    uint8_t distancia = DistanceSensors::us_read_distance(US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN);
+    distance_data.left_distance = distancia;
 
-    // Leer estado del sensor IR
-    DistanceSensors::update_ir_state(&sensor_data);
-    Serial.print("Sensor IR: ");
-    Serial.println(sensor_data.obstacle_detected ? "OBSTÁCULO DETECTADO" : "LIBRE");
+    // Verificar obstáculo
+    if (distancia < OBSTACLE_THRESHOLD_CM) {
+        if (!distance_data.obstacle_detected) {
+            distance_data.obstacle_detected = true;
+            Serial.print("Obstáculo detectado a ");
+            Serial.print(distancia);
+            Serial.println(" cm — deteniendo motores");
 
-    // Leer sensor US izquierdo
-    uint8_t dist = DistanceSensors::us_read_distance(US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN);
-
-    Serial.print("Sensor US LEFT: ");
-    if (dist == US_ERROR_VALUE) {
-        Serial.println("ERROR (sin eco o timeout)");
-    } else if (dist > US_MAX_DISTANCE_CM) {
-        Serial.println("NO DETECTADO (fuera de rango)");
+            MotorController::set_motor_mode(
+                MOTOR_IDLE,
+                &system_states.motor_operation,
+                &wheels_data.duty_left,
+                &wheels_data.duty_right
+            );
+        }
     } else {
-        Serial.print(dist);
-        Serial.println(" cm");
+        if (distance_data.obstacle_detected) {
+            distance_data.obstacle_detected = false;
+            Serial.println("Obstáculo despejado — reanudando movimiento");
+
+            MotorController::set_motor_mode(
+                MOTOR_ACTIVE,
+                &system_states.motor_operation,
+                &wheels_data.duty_left,
+                &wheels_data.duty_right
+            );
+            MotorController::set_motor_duty(
+                DUTY_FORWARD, DUTY_FORWARD,
+                &wheels_data.duty_left, &wheels_data.duty_right,
+                &system_states.motor_operation
+            );
+        }
     }
-    Serial.println("------------------------------");
+
+    delay(LOOP_DELAY_MS);
 }

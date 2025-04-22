@@ -16,14 +16,6 @@
 constexpr float US_CM_PER_US = 0.01715f;
 
 /**
- * @brief Tiempo máximo de espera del pulso de eco [µs].
- * 
- * Limita el alcance máximo del sensor para evitar bloqueos largos.
- * Se recomienda calcular como: `MAX_DISTANCE_CM / US_CM_PER_US`
- */
-constexpr uint32_t US_PULSE_TIMEOUT_US = 6000;
-
-/**
  * @brief Distancia máxima considerada válida para el sensor [cm].
  * 
  * Si la distancia estimada supera este valor, se considera inválida
@@ -32,12 +24,22 @@ constexpr uint32_t US_PULSE_TIMEOUT_US = 6000;
 constexpr uint8_t US_MAX_DISTANCE_CM = 100;
 
 /**
+ * @brief Tiempo máximo de espera del pulso de eco [µs].
+ * 
+ * Limita el alcance máximo del sensor para evitar bloqueos largos.
+ */
+constexpr uint32_t US_PULSE_TIMEOUT_US = US_MAX_DISTANCE_CM / US_CM_PER_US;
+//constexpr uint32_t US_PULSE_TIMEOUT_US = 5000;
+
+/**
  * @brief Valor especial que representa error o lectura no válida del sensor US.
  * 
- * Este valor será retornado por `us_read_distance()` si hay timeout
- * o si la distancia medida supera el máximo permitido.
+ * Este valor será retornado por `us_read_distance()` si hay timeout.
  */
 constexpr uint8_t US_ERROR_VALUE = 0;
+
+
+constexpr uint8_t OBSTACLE_THRESHOLD_CM = 30;  // para lógica de evasión
 
 /* -------------------- Parámetros del sensor infrarrojo (IR digital) -------------------- */
 

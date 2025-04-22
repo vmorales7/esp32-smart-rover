@@ -25,11 +25,9 @@ namespace DistanceSensors {
         digitalWrite(trig_pin, LOW);
 
         uint32_t duration = pulseIn(echo_pin, HIGH, US_PULSE_TIMEOUT_US);
-        if (duration == 0) return US_ERROR_VALUE;
-
+        //Serial.print("Duración: "); Serial.println(duration);
+        if (duration == 0) return (uint8_t) US_MAX_DISTANCE_CM;
         float distance_f = duration * US_CM_PER_US;
-        if (distance_f > US_MAX_DISTANCE_CM) return US_ERROR_VALUE;
-
         return (uint8_t) distance_f;
     }
 
