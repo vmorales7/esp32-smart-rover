@@ -8,14 +8,16 @@
 #define ACTIVE   1U
 #define INACTIVE 0U
 
-#define DEBUG_MODE
-#define OEPRATIVE_MODE
+#define WHEEL_LEFT 0U
+#define WHEEL_RIGHT 1U
 
 // Parámetros físicos del vegículo
-constexpr float WHEEL_RADIUS = 0.034f;  // en metros
-constexpr float WHEEL_DISTANCE = 0.14f;   // distancia entre ruedas (L)
+constexpr float WHEEL_RADIUS = 0.03f;    // en metros
+constexpr float WHEEL_DISTANCE = 0.2f;   // distancia entre ruedas (L)
 
-// Encoder data
+// Datos de los motores + encoder
+constexpr uint16_t RPM_NOM = 280U;
+constexpr float WM_NOM = RPM_NOM * 2*PI/60.0;
 constexpr int PULSES_PER_REV = 226;  // Ajustar
 constexpr float RAD_PER_PULSE = (2.0f * PI) / PULSES_PER_REV;
 
@@ -74,6 +76,15 @@ constexpr uint8_t IR_SENSOR_PIN = 21;
 
 // RTOS
 constexpr uint16_t IR_SENSOR_READ_PERIOD_MS = 1000;
+
+
+/* -------------- Constantes del control de posición --------------*/
+enum PositionControlMode : uint8_t {
+    SPEED_REF_INACTIVE = 0U,
+    SPEED_REF_MANUAL = 1U,
+    SPEED_REF_AUTO = 2U,   
+};
+
 
 /* -------------------- Estructuras con la data del sistema --------------------*/
 /**
