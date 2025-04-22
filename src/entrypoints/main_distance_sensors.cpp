@@ -1,5 +1,7 @@
 #include "project_config.h"
 #include "sensors_firmware/distance_sensors.h"
+#warning "Compilando main_distance_sensors.cpp"
+
 
 // ====================== VARIABLES GLOBALES ======================
 

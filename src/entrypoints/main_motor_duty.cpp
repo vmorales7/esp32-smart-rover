@@ -1,6 +1,6 @@
-#include <Arduino.h>
 #include "project_config.h"
 #include "motor_drive/motor_controller.h"
+#warning "Compilando main_motor_duty.cpp"
 
 // ====================== VARIABLES GLOBALES ======================
 
@@ -41,22 +41,31 @@ volatile DistanceSensorData sensor_data = {
 GlobalContext global_ctx = {
     .systems_ptr = &system_states,
     .kinematic_ptr = &kinematic_data,
-    .wheels_ptr = &wheels_data
+    .wheels_ptr = &wheels_data,
+    .distance_ptr = &sensor_data
 };
+
+// ====================== FUNCIONES AUXILIARES ======================
+
+void print_duty_state(const char* msg) {
+    Serial.print(msg);
+    Serial.print(" | duty_left: ");
+    Serial.print(wheels_data.duty_left, 3);
+    Serial.print(" | duty_right: ");
+    Serial.println(wheels_data.duty_right, 3);
+}
 
 // ====================== SETUP Y LOOP ======================
 
 void setup() {
     Serial.begin(115200);
 
-    // Inicializar controlador de motor
     MotorController::init(
         &system_states.motor_operation,
         &wheels_data.duty_left,
         &wheels_data.duty_right
     );
 
-    // Activar subsistema de motores
     MotorController::set_motor_mode(
         MOTOR_ACTIVE,
         &system_states.motor_operation,
@@ -64,34 +73,53 @@ void setup() {
         &wheels_data.duty_right
     );
 
+    delay(3000);
     Serial.println("Test: Duty Cycle Motor - Iniciando secuencia...");
 
     // Avance recto 50% por 3 segundos
-    Serial.println("Avanzando recto (50%)");
     MotorController::set_motor_duty(
         0.5f, 0.5f,
         &wheels_data.duty_left, &wheels_data.duty_right,
         &system_states.motor_operation
     );
-    delay(3000);
+    print_duty_state("Avanzando recto (50%)");
+    delay(5000);
+
+    // Freno antes de girar
+    MotorController::set_motor_duty(
+        0.0f, 0.0f,
+        &wheels_data.duty_left, &wheels_data.duty_right,
+        &system_states.motor_operation
+    );
+    print_duty_state("Frenando antes de girar");
+    delay(2000);
 
     // Giro en el lugar hacia la izquierda por 2 segundos
-    Serial.println("Girando en el lugar (izquierda, 30%)");
     MotorController::set_motor_duty(
         -0.3f, 0.3f,
         &wheels_data.duty_left, &wheels_data.duty_right,
         &system_states.motor_operation
     );
-    delay(2000);
+    print_duty_state("Girando en el lugar (izquierda, 30%)");
+    delay(3000);
 
-    // Nuevamente avance recto 50% por 3 segundos
-    Serial.println("Avanzando recto nuevamente (50%)");
+    // Freno antes de avanzar nuevamente
     MotorController::set_motor_duty(
-        0.5f, 0.5f,
+        0.0f, 0.0f,
         &wheels_data.duty_left, &wheels_data.duty_right,
         &system_states.motor_operation
     );
-    delay(3000);
+    print_duty_state("Frenando antes de avanzar");
+    delay(2000);
+
+    // Nuevamente avance recto 50% por 3 segundos
+    MotorController::set_motor_duty(
+        0.7f, 0.7f,
+        &wheels_data.duty_left, &wheels_data.duty_right,
+        &system_states.motor_operation
+    );
+    print_duty_state("Avanzando recto nuevamente (70%)");
+    delay(5000);
 
     // Detener motores
     MotorController::set_motor_mode(

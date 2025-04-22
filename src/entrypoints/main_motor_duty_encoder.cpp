@@ -1,6 +1,7 @@
 #include "project_config.h"
 #include "motor_drive/motor_controller.h"
 #include "sensors_firmware/encoder_reader.h"
+#warning "Compilando main_motor_duty_encoder.cpp"
 
 // ====================== VARIABLES GLOBALES ======================
 
@@ -41,7 +42,8 @@ volatile DistanceSensorData sensor_data = {
 GlobalContext global_ctx = {
     .systems_ptr = &system_states,
     .kinematic_ptr = &kinematic_data,
-    .wheels_ptr = &wheels_data
+    .wheels_ptr = &wheels_data,
+    .distance_ptr = &sensor_data
 };
 
 // ====================== SETUP Y LOOP ======================

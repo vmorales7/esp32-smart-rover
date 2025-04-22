@@ -230,6 +230,7 @@ struct GlobalContext {
     volatile SystemStates* systems_ptr;
     volatile KinematicState* kinematic_ptr;
     volatile WheelsData* wheels_ptr;
+    volatile DistanceSensorData* distance_ptr;
 };
 
 #endif

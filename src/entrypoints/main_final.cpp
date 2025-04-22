@@ -4,6 +4,8 @@
 #include "sensors_firmware/encoder_reader.h"
 #include "position_system/position_controller.h"
 #include "position_system/pose_estimator.h"
+#warning "Compilando main_final.cpp"
+
 
 void setup() {
     //Serial.begin(115200);
@@ -83,9 +85,9 @@ volatile DistanceSensorData sensor_data = {
     .right_distance = 0
 };
 
-/* ----- Struct auxiliares para pasar varios punteros a las tareas de RTOS ----*/
 GlobalContext global_ctx = {
     .systems_ptr = &system_states,
     .kinematic_ptr = &kinematic_data,
-    .wheels_ptr = &wheels_data
+    .wheels_ptr = &wheels_data,
+    .distance_ptr = &sensor_data
 };

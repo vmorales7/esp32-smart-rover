@@ -127,7 +127,7 @@ namespace MotorController {
                 digitalWrite(MOTOR_LEFT_DIR_PIN1, forward ? HIGH : LOW);
                 digitalWrite(MOTOR_LEFT_DIR_PIN2, forward ? LOW : HIGH);
                 ledcWrite(PWM_CHANNEL_LEFT, pwm);
-                *dutyL_ptr = forward ? duty : -duty;
+                *dutyL_ptr = duty_left;
             }
         }
         { // Motor derecho
@@ -146,7 +146,7 @@ namespace MotorController {
                 digitalWrite(MOTOR_RIGHT_DIR_PIN1, forward ? HIGH : LOW);
                 digitalWrite(MOTOR_RIGHT_DIR_PIN2, forward ? LOW : HIGH);
                 ledcWrite(PWM_CHANNEL_RIGHT, pwm);
-                *dutyR_ptr = forward ? duty : -duty;
+                *dutyR_ptr = duty_right;
             }
         }
     }

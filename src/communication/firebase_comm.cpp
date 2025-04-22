@@ -2,7 +2,7 @@
 
 using namespace firebase_ns;
 
-// Objeto global
+Objeto global
 static FirebaseClient fb;
 
 namespace FirebaseComm {
