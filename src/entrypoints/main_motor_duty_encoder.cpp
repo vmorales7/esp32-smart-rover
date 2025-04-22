@@ -7,7 +7,7 @@
 
 volatile SystemStates system_states = {
     .motor_operation      = MOTOR_IDLE,
-    .encoder              = INACTIVE,
+    .encoder              = ACTIVE,
     .imu                  = INACTIVE,
     .distance             = INACTIVE,
     .pose_estimator       = INACTIVE,
@@ -15,29 +15,9 @@ volatile SystemStates system_states = {
     .evade_controller     = INACTIVE
 };
 
-volatile WheelsData wheels_data = {
-    .steps_left = 0,
-    .steps_right = 0,
-    .w_measured_left = 0.0f,
-    .w_measured_right = 0.0f,
-    .w_ref_left = 0.0f,
-    .w_ref_right = 0.0f,
-    .duty_left = 0.0f,
-    .duty_right = 0.0f
-};
-
-volatile KinematicState kinematic_data = {
-    .x = 0.0f, .y = 0.0f, .theta = 0.0f,
-    .x_d = 0.0f, .y_d = 0.0f, .theta_d = 0.0f,
-    .v = 0.0f, .w = 0.0f,
-    .v_ref = 0.0f, .w_ref = 0.0f
-};
-
-volatile DistanceSensorData sensor_data = {
-    .obstacle_detected = false,
-    .left_distance = 0,
-    .right_distance = 0
-};
+volatile WheelsData wheels_data = {0};
+volatile KinematicState kinematic_data = {0};
+volatile DistanceSensorData sensor_data = {0};
 
 GlobalContext global_ctx = {
     .systems_ptr = &system_states,
@@ -46,61 +26,86 @@ GlobalContext global_ctx = {
     .distance_ptr = &sensor_data
 };
 
+// ====================== FUNCIONES AUXILIARES ======================
+
+void print_encoder_state() {
+    Serial.print("Steps L/R: ");
+    Serial.print(wheels_data.steps_left);
+    Serial.print(" / ");
+    Serial.print(wheels_data.steps_right);
+    Serial.print(" | wL: ");
+    Serial.print(wheels_data.w_measured_left, 3);
+    Serial.print(" rad/s | wR: ");
+    Serial.println(wheels_data.w_measured_right, 3);
+}
+
+void ejecutar_fase(const char* msg, float dutyL, float dutyR, uint32_t duracion_ms) {
+    Serial.println(msg);
+    MotorController::set_motor_duty(
+        dutyL, dutyR,
+        &wheels_data.duty_left, &wheels_data.duty_right,
+        &system_states.motor_operation
+    );
+
+    unsigned long t0 = millis();
+    unsigned long t_print = t0;
+
+    while (millis() - t0 < duracion_ms) {
+        EncoderReader::update_encoder_data(
+            &system_states.encoder,
+            &wheels_data.steps_left, &wheels_data.steps_right,
+            &wheels_data.w_measured_left, &wheels_data.w_measured_right
+        );
+
+        if (millis() - t_print >= 500) {
+            print_encoder_state();
+            t_print += 500;
+        }
+    }
+}
+
 // ====================== SETUP Y LOOP ======================
 
 void setup() {
     Serial.begin(115200);
+    delay(1000);
+    Serial.println("Test: Encoder + Duty Control");
 
-    // Inicializar motores y encoders
+    // Inicialización de motor y encoder
     MotorController::init(
         &system_states.motor_operation,
         &wheels_data.duty_left,
         &wheels_data.duty_right
     );
-
-    EncoderReader::init(
-        &system_states.encoder,
-        &wheels_data.steps_left,
-        &wheels_data.steps_right,
-        &wheels_data.w_measured_left,
-        &wheels_data.w_measured_right
-    );
-
     MotorController::set_motor_mode(
         MOTOR_ACTIVE,
         &system_states.motor_operation,
         &wheels_data.duty_left,
         &wheels_data.duty_right
     );
-
+    EncoderReader::init(
+        &system_states.encoder,
+        &wheels_data.steps_left, &wheels_data.steps_right,
+        &wheels_data.w_measured_left, &wheels_data.w_measured_right
+    );
     EncoderReader::resume(&system_states.encoder);
 
-    Serial.println("Motores activos - Encoders inicializados");
+    // Secuencia de prueba
+    ejecutar_fase("Avanzando recto (50%)", 0.5f, 0.5f, 5000);
+    ejecutar_fase("Frenando antes de girar", 0.0f, 0.0f, 2000);
+    ejecutar_fase("Girando en el lugar (izq, 30%)", -0.3f, 0.3f, 3000);
+    ejecutar_fase("Frenando antes de avanzar", 0.0f, 0.0f, 2000);
+    ejecutar_fase("Avanzando recto (70%)", 0.7f, 0.7f, 5000);
 
-    MotorController::set_motor_duty(
-        0.25f, 0.25f,
+    MotorController::set_motor_mode(
+        MOTOR_IDLE,
+        &system_states.motor_operation,
         &wheels_data.duty_left,
-        &wheels_data.duty_right,
-        &system_states.motor_operation
+        &wheels_data.duty_right
     );
-
-    Serial.println("Avance a 0.25 iniciado...");
+    Serial.println("Secuencia completada. Motores en IDLE.");
 }
 
 void loop() {
-    // Actualización de encoders cada 1000 ms (manual, no RTOS)
-    EncoderReader::update_encoder_data(
-        &system_states.encoder,
-        &wheels_data.steps_left,
-        &wheels_data.steps_right,
-        &wheels_data.w_measured_left,
-        &wheels_data.w_measured_right
-    );
-
-    Serial.print("wL [rad/s]: ");
-    Serial.print(wheels_data.w_measured_left);
-    Serial.print("\t wR [rad/s]: ");
-    Serial.println(wheels_data.w_measured_right);
-
-    delay(1000);
-} 
+    // Nada
+}

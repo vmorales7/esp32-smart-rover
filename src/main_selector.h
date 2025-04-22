@@ -10,8 +10,8 @@
 //#define USE_MAIN_FINAL
 
 // --- Otras opciones de prueba ---
-#define USE_MAIN_MOTOR_DUTY
-// #define USE_MAIN_MOTOR_DUTY_ENCODER
+// #define USE_MAIN_MOTOR_DUTY
+#define USE_MAIN_MOTOR_DUTY_ENCODER
 // #define USE_MAIN_DISTANCE_SENSORS
 
 
