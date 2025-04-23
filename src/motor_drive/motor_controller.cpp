@@ -182,10 +182,10 @@ namespace MotorController {
         volatile uint8_t* motor_state_ptr = &ctx_ptr->systems_ptr->motor_operation;
         volatile float* v_ref_ptr         = &ctx_ptr->kinematic_ptr->v_ref;
         volatile float* w_ref_ptr         = &ctx_ptr->kinematic_ptr->w_ref;
-        volatile float* wL_ref_ptr        = &ctx_ptr->wheels_ptr->w_ref_left;
-        volatile float* wR_ref_ptr        = &ctx_ptr->wheels_ptr->w_ref_right;
-        volatile float* wL_measured_ptr   = &ctx_ptr->wheels_ptr->w_measured_left;
-        volatile float* wR_measured_ptr   = &ctx_ptr->wheels_ptr->w_measured_right;
+        volatile float* wL_ref_ptr        = &ctx_ptr->wheels_ptr->wL_ref;
+        volatile float* wR_ref_ptr        = &ctx_ptr->wheels_ptr->wR_ref;
+        volatile float* wL_measured_ptr   = &ctx_ptr->wheels_ptr->wL_measured;
+        volatile float* wR_measured_ptr   = &ctx_ptr->wheels_ptr->wR_measured;
         volatile float* dutyL_ptr         = &ctx_ptr->wheels_ptr->duty_left;
         volatile float* dutyR_ptr         = &ctx_ptr->wheels_ptr->duty_right;
     

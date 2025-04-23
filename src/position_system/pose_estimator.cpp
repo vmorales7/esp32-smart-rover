@@ -114,8 +114,8 @@ namespace PoseEstimator {
         volatile float* theta_ptr         = &ctx_ptr->kinematic_ptr->theta;
         volatile float* v_ptr             = &ctx_ptr->kinematic_ptr->v;
         volatile float* w_ptr             = &ctx_ptr->kinematic_ptr->w;
-        volatile float* wL_ptr            = &ctx_ptr->wheels_ptr->w_measured_left;
-        volatile float* wR_ptr            = &ctx_ptr->wheels_ptr->w_measured_right;
+        volatile float* wL_ptr            = &ctx_ptr->wheels_ptr->wL_measured;
+        volatile float* wR_ptr            = &ctx_ptr->wheels_ptr->wR_measured;
         volatile int64_t* steps_left_ptr  = &ctx_ptr->wheels_ptr->steps_left;
         volatile int64_t* steps_right_ptr = &ctx_ptr->wheels_ptr->steps_right;
     

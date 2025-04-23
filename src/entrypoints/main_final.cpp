@@ -18,7 +18,7 @@ void setup() {
     EncoderReader::init(
         &(system_states.encoder), 
         &(wheels_data.steps_left), &(wheels_data.steps_right),
-        &(wheels_data.w_measured_left), &(wheels_data.w_measured_right)
+        &(wheels_data.wL_measured), &(wheels_data.wR_measured)
     );
 
     // Crear tarea de control de ruedas
@@ -51,40 +51,10 @@ void loop() {
 
 
 /* -------- Inicialización de variables globales ---------- */
-volatile SystemStates system_states = {
-    .motor_operation      = MOTOR_IDLE,
-    .encoder              = INACTIVE,
-    .imu                  = INACTIVE,
-    .distance             = INACTIVE,
-    .pose_estimator       = INACTIVE,
-    .position_controller  = SPEED_REF_INACTIVE,
-    .evade_controller     = INACTIVE
-};
-
-volatile WheelsData wheels_data = {
-    .steps_left = 0,
-    .steps_right = 0,
-    .w_measured_left = 0.0f,
-    .w_measured_right = 0.0f,
-    .w_ref_left = 0.0f,
-    .w_ref_right = 0.0f,
-    .duty_left = 0.0f,
-    .duty_right = 0.0f
-};
-
-volatile KinematicState kinematic_data = {
-    .x = 0.0f, .y = 0.0f, .theta = 0.0f,
-    .x_d = 0.0f, .y_d = 0.0f, .theta_d = 0.0f,
-    .v = 0.0f, .w = 0.0f,
-    .v_ref = 0.0f, .w_ref = 0.0f
-};
-
-volatile DistanceSensorData sensor_data = {
-    .obstacle_detected = false,
-    .left_distance = 0,
-    .right_distance = 0
-};
-
+volatile SystemStates system_states = {0};
+volatile WheelsData wheels_data = {0};
+volatile KinematicState kinematic_data = {0};
+volatile DistanceSensorData sensor_data = {0};
 GlobalContext global_ctx = {
     .systems_ptr = &system_states,
     .kinematic_ptr = &kinematic_data,

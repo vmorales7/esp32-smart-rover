@@ -6,24 +6,15 @@
 #warning "Compilando main_wheel_speed.cpp"
 
 // ====================== VARIABLES GLOBALES ======================
-
-volatile SystemStates system_states = {
-    .motor_operation      = MOTOR_IDLE,
-    .encoder              = INACTIVE,
-    .imu                  = INACTIVE,
-    .distance             = INACTIVE,
-    .pose_estimator       = INACTIVE,
-    .position_controller  = SPEED_REF_MANUAL,
-    .evade_controller     = INACTIVE
-};
-
+volatile SystemStates system_states = {0};
 volatile WheelsData wheels_data = {0};
-
+volatile KinematicState kinematic_data = {0};
 volatile DistanceSensorData distance_data = {
     .obstacle_detected = false,
     .left_distance = US_MAX_DISTANCE_CM,
     .right_distance = US_MAX_DISTANCE_CM
 };
+
 
 // ====================== FUNCIONES AUXILIARES ======================
 
@@ -33,9 +24,9 @@ void print_encoder_state() {
     Serial.print(" / ");
     Serial.print(wheels_data.steps_right);
     Serial.print(" | wL: ");
-    Serial.print(wheels_data.w_measured_left, 3);
+    Serial.print(wheels_data.wL_measured, 3);
     Serial.print(" rad/s | wR: ");
-    Serial.print(wheels_data.w_measured_right, 3);
+    Serial.print(wheels_data.wR_measured, 3);
     Serial.print(" rad/s | dutyL: ");
     Serial.print(wheels_data.duty_left, 2);
     Serial.print(" | dutyR: ");
@@ -69,7 +60,7 @@ void ejecutar_fase_con_obstaculo(const char* msg, float wL_ref, float wR_ref, ui
 
                 PositionController::set_wheel_speed_ref(
                     0.0f, 0.0f,
-                    &wheels_data.w_ref_left, &wheels_data.w_ref_right,
+                    &wheels_data.wL_ref, &wheels_data.wR_ref,
                     &system_states.position_controller
                 );
                 en_movimiento = false;
@@ -80,7 +71,7 @@ void ejecutar_fase_con_obstaculo(const char* msg, float wL_ref, float wR_ref, ui
 
                 PositionController::set_wheel_speed_ref(
                     wL_ref, wR_ref,
-                    &wheels_data.w_ref_left, &wheels_data.w_ref_right,
+                    &wheels_data.wL_ref, &wheels_data.wR_ref,
                     &system_states.position_controller
                 );
                 t_anterior = millis();
@@ -91,12 +82,12 @@ void ejecutar_fase_con_obstaculo(const char* msg, float wL_ref, float wR_ref, ui
             EncoderReader::update_encoder_data(
                 &system_states.encoder,
                 &wheels_data.steps_left, &wheels_data.steps_right,
-                &wheels_data.w_measured_left, &wheels_data.w_measured_right
+                &wheels_data.wL_measured, &wheels_data.wR_measured
             );
 
             MotorController::update_motor_control(
-                &wheels_data.w_ref_left, &wheels_data.w_ref_right,
-                &wheels_data.w_measured_left, &wheels_data.w_measured_right,
+                &wheels_data.wL_ref, &wheels_data.wR_ref,
+                &wheels_data.wL_measured, &wheels_data.wR_measured,
                 &wheels_data.duty_left, &wheels_data.duty_right,
                 &system_states.motor_operation
             );
@@ -117,12 +108,12 @@ void ejecutar_fase_con_obstaculo(const char* msg, float wL_ref, float wR_ref, ui
     // Detener al final de la fase
     PositionController::set_wheel_speed_ref(
         0.0f, 0.0f,
-        &wheels_data.w_ref_left, &wheels_data.w_ref_right,
+        &wheels_data.wL_ref, &wheels_data.wR_ref,
         &system_states.position_controller
     );
     MotorController::update_motor_control(
-        &wheels_data.w_ref_left, &wheels_data.w_ref_right,
-        &wheels_data.w_measured_left, &wheels_data.w_measured_right,
+        &wheels_data.wL_ref, &wheels_data.wR_ref,
+        &wheels_data.wL_measured, &wheels_data.wR_measured,
         &wheels_data.duty_left, &wheels_data.duty_right,
         &system_states.motor_operation
     );
@@ -135,7 +126,10 @@ void setup() {
     delay(1000);
     Serial.println("Test: velocidad de ruedas + obstáculo");
 
-    PositionController::set_position_control_mode(SPEED_REF_MANUAL, &system_states.position_controller);
+    PositionController::init(
+        &kinematic_data.v_ref, &kinematic_data.w_ref, &wheels_data.wL_ref, &wheels_data.wR_ref, &system_states.position_controller
+    );
+    PositionController::set_control_mode(SPEED_REF_MANUAL, &system_states.position_controller);
 
     MotorController::init(&system_states.motor_operation,
                           &wheels_data.duty_left, &wheels_data.duty_right);
@@ -144,7 +138,7 @@ void setup() {
 
     EncoderReader::init(&system_states.encoder,
                         &wheels_data.steps_left, &wheels_data.steps_right,
-                        &wheels_data.w_measured_left, &wheels_data.w_measured_right);
+                        &wheels_data.wL_measured, &wheels_data.wR_measured);
     EncoderReader::resume(&system_states.encoder);
 
     DistanceSensors::init(&system_states.distance);
