@@ -16,9 +16,9 @@ constexpr float WHEEL_RADIUS = 0.03f;    // en metros
 constexpr float WHEEL_DISTANCE = 0.2f;   // distancia entre ruedas (L)
 
 // Datos de los motores + encoder
-constexpr uint16_t RPM_NOM = 280U;
+constexpr uint16_t RPM_NOM = 215U;
 constexpr float WM_NOM = RPM_NOM * 2*PI/60.0;
-constexpr int PULSES_PER_REV = 226;  // Ajustar
+constexpr float PULSES_PER_REV = 11 * 21.3;  // Ticks encoder x reduction ratio (datasheet)
 constexpr float RAD_PER_PULSE = (2.0f * PI) / PULSES_PER_REV;
 
 // Auxiliares
