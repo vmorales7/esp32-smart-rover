@@ -3,6 +3,15 @@
 #warning "Compilando main_distance_sensors_basic.cpp"
 
 // ====================== VARIABLES GLOBALES ======================
+volatile SystemStates system_states = {
+    .motor_operation      = MOTOR_IDLE,
+    .encoder              = INACTIVE,
+    .imu                  = INACTIVE,
+    .distance             = INACTIVE,
+    .pose_estimator       = INACTIVE,
+    .position_controller  = SPEED_REF_INACTIVE,
+    .evade_controller     = INACTIVE
+};
 
 volatile DistanceSensorData distance_data = {
     .obstacle_detected = false,
@@ -17,13 +26,14 @@ void setup() {
     delay(1000);
     Serial.println("Test: Sensor Ultrasónico Izquierdo");
 
-    DistanceSensors::init();
+    DistanceSensors::init(&system_states.distance);
+    DistanceSensors::set_distance_sensor_state(ACTIVE, &system_states.distance);
 }
 
 void loop() {
     // Actualiza solo el sensor izquierdo
     uint8_t distancia_actual = DistanceSensors::us_read_distance(
-        US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN
+        US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN, &system_states.distance
     );
     distance_data.left_distance = distancia_actual;
 

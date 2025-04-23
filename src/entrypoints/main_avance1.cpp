@@ -8,7 +8,7 @@
 
 volatile SystemStates system_states = {
     .motor_operation      = MOTOR_IDLE,
-    .encoder              = ACTIVE,
+    .encoder              = INACTIVE,
     .imu                  = INACTIVE,
     .distance             = INACTIVE,
     .pose_estimator       = INACTIVE,
@@ -49,11 +49,14 @@ void ejecutar_fase_con_obstaculo(const char* msg, float dutyL, float dutyR, uint
 
     while (tiempo_acumulado < duracion_ms) {
         // Leer distancia
-        uint8_t distancia = DistanceSensors::us_read_distance(US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN);
+        uint8_t distancia = DistanceSensors::us_read_distance(
+            US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN, &system_states.distance
+        );
         distance_data.left_distance = distancia;
 
         // Condición de obstáculo
         bool obstaculo = distancia < OBSTACLE_THRESHOLD_CM;
+        distance_data.obstacle_detected = obstaculo;
 
         if (obstaculo) {
             if (en_movimiento) {
@@ -109,7 +112,7 @@ void ejecutar_fase_con_obstaculo(const char* msg, float dutyL, float dutyR, uint
 void setup() {
     Serial.begin(115200);
     delay(1000);
-    Serial.println("Test: Encoder + Duty Control");
+    Serial.println("Test: Avance 1 - duty + encoder + obstacle");
 
     // Inicialización de motor y encoder
     MotorController::init(
