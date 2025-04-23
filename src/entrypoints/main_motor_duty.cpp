@@ -3,31 +3,11 @@
 #warning "Compilando main_motor_duty.cpp"
 
 // ====================== VARIABLES GLOBALES ======================
-
-volatile SystemStates system_states = {
-    .motor_operation      = MOTOR_IDLE,
-    .encoder              = INACTIVE,
-    .imu                  = INACTIVE,
-    .distance             = INACTIVE,
-    .pose_estimator       = INACTIVE,
-    .position_controller  = SPEED_REF_INACTIVE,
-    .evade_controller     = INACTIVE
-};
-
-volatile WheelsData wheels_data = {
-    .steps_left = 0,
-    .steps_right = 0,
-    .w_measured_left = 0.0f,
-    .w_measured_right = 0.0f,
-    .w_ref_left = 0.0f,
-    .w_ref_right = 0.0f,
-    .duty_left = 0.0f,
-    .duty_right = 0.0f
-};
+volatile SystemStates system_states = {0};
+volatile WheelsData wheels_data = {0};
 
 
 // ====================== FUNCIONES AUXILIARES ======================
-
 void print_duty_state(const char* msg) {
     Serial.print(msg);
     Serial.print(" | duty_left: ");
@@ -37,7 +17,6 @@ void print_duty_state(const char* msg) {
 }
 
 // ====================== SETUP Y LOOP ======================
-
 void setup() {
     Serial.begin(115200);
 

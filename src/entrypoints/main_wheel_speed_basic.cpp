@@ -5,26 +5,17 @@
 #warning "Compilando main_wheel_speed_basic.cpp"
 
 // ====================== VARIABLES GLOBALES ======================
-
-volatile SystemStates system_states = {
-    .motor_operation      = MOTOR_IDLE,
-    .encoder              = INACTIVE,
-    .imu                  = INACTIVE,
-    .distance             = INACTIVE,
-    .pose_estimator       = INACTIVE,
-    .position_controller  = SPEED_REF_INACTIVE,
-    .evade_controller     = INACTIVE
-};
-
+volatile SystemStates system_states = {0};
 volatile WheelsData wheels_data = {0};
+volatile KinematicState kinematic_data = {0};
 
 // ====================== FUNCIONES AUXILIARES ======================
 
 void print_wheel_speeds() {
     Serial.print("wL_measured: ");
-    Serial.print(wheels_data.w_measured_left, 1);
+    Serial.print(wheels_data.wL_measured, 1);
     Serial.print(" rad/s | wR_measured: ");
-    Serial.print(wheels_data.w_measured_right, 1);
+    Serial.print(wheels_data.wR_measured, 1);
     Serial.print(" rad/s");
 
     Serial.print(" | dutyL: ");
@@ -41,8 +32,8 @@ void set_speed_reference(float w_ref) {
 
     PositionController::set_wheel_speed_ref(
         w_ref, w_ref,
-        &wheels_data.w_ref_left,
-        &wheels_data.w_ref_right,
+        &wheels_data.wL_ref,
+        &wheels_data.wR_ref,
         &system_states.position_controller
     );
 }
@@ -55,7 +46,10 @@ void setup() {
     Serial.println("Test: Motor PI Control (ajuste Kp/Ki/Kw)");
 
     // Inicializar módulos
-    PositionController::set_position_control_mode(SPEED_REF_MANUAL, &system_states.position_controller);
+    PositionController::init(
+        &kinematic_data.v_ref, &kinematic_data.w_ref, &wheels_data.wL_ref, &wheels_data.wR_ref, &system_states.position_controller
+    );
+    PositionController::set_control_mode(SPEED_REF_MANUAL, &system_states.position_controller);
     MotorController::init(
         &system_states.motor_operation,
         &wheels_data.duty_left, &wheels_data.duty_right
@@ -68,7 +62,7 @@ void setup() {
     EncoderReader::init(
         &system_states.encoder,
         &wheels_data.steps_left, &wheels_data.steps_right,
-        &wheels_data.w_measured_left, &wheels_data.w_measured_right
+        &wheels_data.wL_measured, &wheels_data.wR_measured
     );
     EncoderReader::resume(&system_states.encoder);
 }
@@ -97,12 +91,12 @@ void loop() {
         EncoderReader::update_encoder_data(
             &system_states.encoder,
             &wheels_data.steps_left, &wheels_data.steps_right,
-            &wheels_data.w_measured_left, &wheels_data.w_measured_right
+            &wheels_data.wL_measured, &wheels_data.wR_measured
         );
 
         MotorController::update_motor_control(
-            &wheels_data.w_ref_left, &wheels_data.w_ref_right,
-            &wheels_data.w_measured_left, &wheels_data.w_measured_right,
+            &wheels_data.wL_ref, &wheels_data.wR_ref,
+            &wheels_data.wL_measured, &wheels_data.wR_measured,
             &wheels_data.duty_left, &wheels_data.duty_right,
             &system_states.motor_operation
         );

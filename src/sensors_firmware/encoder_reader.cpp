@@ -111,8 +111,8 @@ namespace EncoderReader {
         volatile uint8_t* encoder_state_ptr = &ctx_ptr->systems_ptr->encoder;
         volatile int64_t* steps_left_ptr      = &ctx_ptr->wheels_ptr->steps_left;
         volatile int64_t* steps_right_ptr      = &ctx_ptr->wheels_ptr->steps_right;
-        volatile float* wL_measured_ptr     = &ctx_ptr->wheels_ptr->w_measured_left;
-        volatile float* wR_measured_ptr     = &ctx_ptr->wheels_ptr->w_measured_right;
+        volatile float* wL_measured_ptr     = &ctx_ptr->wheels_ptr->wL_measured;
+        volatile float* wR_measured_ptr     = &ctx_ptr->wheels_ptr->wR_measured;
         for (;;) {
             vTaskDelayUntil(&xLastWakeTime, period);
             update_encoder_data(

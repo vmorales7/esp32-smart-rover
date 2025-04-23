@@ -199,20 +199,20 @@ struct WheelsData {
     /// Velocidad angular medida de la rueda izquierda [rad/s].
     /// Calculada a partir del número de pasos y el intervalo de muestreo.
     /// Se utiliza en el controlador PI realimentar y ajustar la velocidad.
-    float w_measured_left;
+    float wL_measured;
 
     /// Velocidad angular medida de la rueda derecha [rad/s].
     /// Calculada a partir del número de pasos y el intervalo de muestreo.
     /// Se utiliza en el controlador PI realimentar y ajustar la velocidad.
-    float w_measured_right;
+    float wR_measured;
 
     /// Velocidad angular de referencia para la rueda izquierda [rad/s].
     /// Calculada desde la velocidad lineal/angular deseada. Se ajusta por el controlador de posición.
-    float w_ref_left;
+    float wL_ref;
 
     /// Velocidad angular de referencia para la rueda derecha [rad/s].
     /// Calculada desde la velocidad lineal/angular deseada. Se ajusta por el controlador de posición.
-    float w_ref_right;
+    float wR_ref;
 
     /// Duty aplicado al PWM del motor izquierdo (normalizado en [-1, 1]).
     /// Su signo determina el sentido de giro de la rueda.

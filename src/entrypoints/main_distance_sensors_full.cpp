@@ -33,9 +33,9 @@ void print_encoder_state() {
     Serial.print(" / ");
     Serial.print(wheels_data.steps_right);
     Serial.print(" | wL: ");
-    Serial.print(wheels_data.w_measured_left, 3);
+    Serial.print(wheels_data.wL_measured, 3);
     Serial.print(" rad/s | wR: ");
-    Serial.println(wheels_data.w_measured_right, 3);
+    Serial.println(wheels_data.wR_measured, 3);
 }
 
 void ejecutar_fase_con_obstaculo(const char* msg, float dutyL, float dutyR, uint32_t duracion_ms) {
@@ -85,7 +85,7 @@ void ejecutar_fase_con_obstaculo(const char* msg, float dutyL, float dutyR, uint
             EncoderReader::update_encoder_data(
                 &system_states.encoder,
                 &wheels_data.steps_left, &wheels_data.steps_right,
-                &wheels_data.w_measured_left, &wheels_data.w_measured_right
+                &wheels_data.wL_measured, &wheels_data.wR_measured
             );
 
             uint32_t t_actual = millis();
@@ -123,7 +123,7 @@ void setup() {
     EncoderReader::init(
         &system_states.encoder,
         &wheels_data.steps_left, &wheels_data.steps_right,
-        &wheels_data.w_measured_left, &wheels_data.w_measured_right
+        &wheels_data.wL_measured, &wheels_data.wR_measured
     );
     MotorController::set_motor_mode(
         MOTOR_ACTIVE,

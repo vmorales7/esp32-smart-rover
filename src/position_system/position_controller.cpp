@@ -2,7 +2,7 @@
 
 namespace PositionController {
 
-    void init_position_controller(
+    void init(
         volatile float* v_ref_ptr, volatile float* w_ref_ptr,
         volatile float* wL_ref_ptr, volatile float* wR_ref_ptr,
         volatile uint8_t* control_mode_ptr
@@ -14,7 +14,7 @@ namespace PositionController {
         *control_mode_ptr = SPEED_REF_INACTIVE;
     }
 
-    void set_position_control_mode(
+    void set_control_mode(
         uint8_t mode,
         volatile uint8_t* control_mode_ptr
     ) {
