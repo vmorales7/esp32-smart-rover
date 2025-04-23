@@ -37,7 +37,7 @@ void loop() {
     distance_data.left_distance = distancia_actual;
 
     // Verifica si hay obstáculo cerca (< 30 cm)
-    //Serial.println(distancia_actual);
+    Serial.println(distancia_actual);
     if (distancia_actual < OBSTACLE_THRESHOLD_CM) {
         if (!distance_data.obstacle_detected) {
             distance_data.obstacle_detected = true;

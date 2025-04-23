@@ -35,12 +35,12 @@ namespace DistanceSensors {
 
         // Se espera el echo desde el sensor
         uint32_t duration = pulseIn(echo_pin, HIGH, US_PULSE_TIMEOUT_US);
-        
+
         // Se verifica que no haya timeout, en cuyo caso se devuelve distancia max
         if (duration == 0) return (uint8_t) US_MAX_DISTANCE_CM;
 
         // Cálculo de la distancia
-        return (uint8_t) duration * US_CM_PER_US;
+        return (uint8_t) (duration * US_CM_PER_US);
     }
 
     void update_ultrasonic_distances(

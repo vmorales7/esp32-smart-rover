@@ -13,7 +13,7 @@ constexpr uint32_t PWM_MAX = (1 << PWM_RES_BITS) - 1;  // Duty máximo según re
 
 // Motor duty limits
 constexpr float ZERO_DUTY_THRESHOLD = 0.05f; // por debajo de esto se considera 0
-constexpr float MIN_EFFECTIVE_DUTY = 0.2f;   // duty mínimo con efecto real
+constexpr float MIN_EFFECTIVE_DUTY = 0.5f;   // duty mínimo con efecto real
 constexpr float MAX_DUTY = 1.0f;
 
 // Speed controller parameters
