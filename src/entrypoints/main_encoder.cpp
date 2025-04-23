@@ -87,9 +87,9 @@ void setup() {
     
     // Secuencia de prueba
     ejecutar_fase("Avanzando recto (70%)", 0.7f, 0.7f, 5000);
-    ejecutar_fase("Frenando antes de girar", 0.0f, 0.0f, 2000);
-    ejecutar_fase("Girando en el lugar (izq, 30%)", -0.3f, 0.3f, 2000);
-    ejecutar_fase("Frenando antes de avanzar", 0.0f, 0.0f, 2000);
+    ejecutar_fase("Frenando antes de girar", 0.0f, 0.0f, 1000);
+    ejecutar_fase("Girando en el lugar (izq, 30%)", 0.0f, 0.4f, 1000);
+    ejecutar_fase("Frenando antes de avanzar", 0.0f, 0.0f, 1000);
     ejecutar_fase("Avanzando recto (50%)", 0.5f, 0.5f, 5000);
 
     MotorController::set_motor_mode(
