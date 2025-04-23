@@ -112,7 +112,7 @@ namespace DistanceSensors {
      * @param mode Valor deseado del estado (ACTIVE o INACTIVE).
      * @param distance_state_ptr Puntero al estado global del módulo.
      */
-    void set_distance_sensor_state(uint8_t mode, volatile uint8_t* distance_state_ptr);
+    void set_state(uint8_t mode, volatile uint8_t* distance_state_ptr);
 
     /**
      * @brief Tarea RTOS que actualiza periódicamente el estado del sensor IR y sensores ultrasónicos.

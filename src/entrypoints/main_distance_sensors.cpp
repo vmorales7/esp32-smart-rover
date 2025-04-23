@@ -41,8 +41,6 @@ void setup() {
         &wheels_data.duty_left,
         &wheels_data.duty_right
     );
-
-    // Activar motores
     MotorController::set_motor_mode(
         MOTOR_ACTIVE,
         &system_states.motor_operation,
@@ -52,7 +50,7 @@ void setup() {
 
     // Inicializar y activar sensor de distancia
     DistanceSensors::init(&system_states.distance);
-    DistanceSensors::set_distance_sensor_state(ACTIVE, &system_states.distance);
+    DistanceSensors::set_state(ACTIVE, &system_states.distance);
 
     // Comenzar movimiento recto
     MotorController::set_motor_duty(

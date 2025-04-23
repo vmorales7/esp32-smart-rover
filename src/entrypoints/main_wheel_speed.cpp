@@ -17,7 +17,6 @@ volatile DistanceSensorData distance_data = {
 
 
 // ====================== FUNCIONES AUXILIARES ======================
-
 void print_encoder_state() {
     Serial.print("Steps L/R: ");
     Serial.print(wheels_data.steps_left);
@@ -120,7 +119,6 @@ void ejecutar_fase_con_obstaculo(const char* msg, float wL_ref, float wR_ref, ui
 }
 
 // ====================== SETUP ======================
-
 void setup() {
     Serial.begin(115200);
     delay(1000);
@@ -136,17 +134,16 @@ void setup() {
     MotorController::set_motor_mode(MOTOR_AUTO, &system_states.motor_operation,
                                     &wheels_data.duty_left, &wheels_data.duty_right);
 
-    EncoderReader::init(&system_states.encoder,
-                        &wheels_data.steps_left, &wheels_data.steps_right,
-                        &wheels_data.wL_measured, &wheels_data.wR_measured);
-    EncoderReader::resume(&system_states.encoder);
-
     DistanceSensors::init(&system_states.distance);
-    DistanceSensors::set_distance_sensor_state(ACTIVE, &system_states.distance);
+    DistanceSensors::set_state(ACTIVE, &system_states.distance);
+
+    EncoderReader::init(&system_states.encoder,
+        &wheels_data.steps_left, &wheels_data.steps_right,
+        &wheels_data.wL_measured, &wheels_data.wR_measured);
+    EncoderReader::resume(&system_states.encoder);
 }
 
 // ====================== LOOP ======================
-
 void loop() {
     ejecutar_fase_con_obstaculo("Avanzando recto (70%)", 0.7f * WM_NOM, 0.7f * WM_NOM, 4000);
     delay(1000);

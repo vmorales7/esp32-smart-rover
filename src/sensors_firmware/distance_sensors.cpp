@@ -74,7 +74,7 @@ namespace DistanceSensors {
         data->obstacle_detected = false;
     }
 
-    void set_distance_sensor_state(uint8_t mode, volatile uint8_t* distance_state_ptr) {
+    void set_state(uint8_t mode, volatile uint8_t* distance_state_ptr) {
         *distance_state_ptr = (mode == ACTIVE) ? ACTIVE : INACTIVE;
     }
 
