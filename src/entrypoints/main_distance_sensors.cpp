@@ -1,7 +1,7 @@
 #include "project_config.h"
 #include "motor_drive/motor_controller.h"
 #include "sensors_firmware/distance_sensors.h"
-#warning "Compilando main_motor_duty_obstacle.cpp"
+#warning "Compilando main_distance_sensor.cpp"
 
 // ====================== VARIABLES GLOBALES ======================
 
