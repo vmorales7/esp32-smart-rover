@@ -16,6 +16,7 @@
 // #define USE_MAIN_DISTANCE_SENSORS_BASIC
 // #define USE_MAIN_DISTANCE_SENSORS
 // #define USE_MAIN_WHEEL_CONTROL
+// #define USE_MAIN_AVANCE1
 
 
 // ===================================================
@@ -36,6 +37,8 @@
   #include "entrypoints/main_distance_sensors_basic.cpp"
 #elif defined(USE_MAIN_DISTANCE_SENSORS)
   #include "entrypoints/main_distance_sensors.cpp"
+#elif defined(USE_MAIN_AVANCE1)
+  #include "entrypoints/main_avance1.cpp"
 #else
   #error "⚠️ No se ha definido ningún main activo en main_selector.h"
 #endif

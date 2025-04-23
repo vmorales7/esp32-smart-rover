@@ -9,7 +9,7 @@ volatile SystemStates system_states = {
     .motor_operation      = MOTOR_IDLE,
     .encoder              = INACTIVE,
     .imu                  = INACTIVE,
-    .distance             = ACTIVE,
+    .distance             = INACTIVE,
     .pose_estimator       = INACTIVE,
     .position_controller  = SPEED_REF_INACTIVE,
     .evade_controller     = INACTIVE
@@ -41,7 +41,6 @@ void setup() {
         &wheels_data.duty_left,
         &wheels_data.duty_right
     );
-    DistanceSensors::init();
 
     // Activar motores
     MotorController::set_motor_mode(
@@ -50,6 +49,10 @@ void setup() {
         &wheels_data.duty_left,
         &wheels_data.duty_right
     );
+
+    // Inicializar y activar sensor de distancia
+    DistanceSensors::init(&system_states.distance);
+    DistanceSensors::set_distance_sensor_state(ACTIVE, &system_states.distance);
 
     // Comenzar movimiento recto
     MotorController::set_motor_duty(
@@ -63,7 +66,9 @@ void setup() {
 
 void loop() {
     // Leer sensor ultrasónico izquierdo
-    uint8_t distancia = DistanceSensors::us_read_distance(US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN);
+    uint8_t distancia = DistanceSensors::us_read_distance(
+        US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN, &system_states.distance
+    );
     distance_data.left_distance = distancia;
 
     // Verificar obstáculo

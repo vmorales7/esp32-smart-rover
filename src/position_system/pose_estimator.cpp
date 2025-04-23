@@ -27,7 +27,7 @@ namespace PoseEstimator {
         float dy = ddist * sinf(avg_theta);
 
         // Actualizar posición
-        pose.theta = theta;
+        pose.theta = fmodf(theta + PI, 2.0f * PI) - PI; // Mantener entre -pi y +pi
         pose.x = x_prev + dx;
         pose.y = y_prev + dy;
         
