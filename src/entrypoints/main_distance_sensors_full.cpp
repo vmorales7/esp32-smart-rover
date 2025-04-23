@@ -5,19 +5,8 @@
 #warning "Compilando main_distance_sensors_full.cpp"
 
 // ====================== VARIABLES GLOBALES ======================
-
-volatile SystemStates system_states = {
-    .motor_operation      = MOTOR_IDLE,
-    .encoder              = INACTIVE,
-    .imu                  = INACTIVE,
-    .distance             = INACTIVE,
-    .pose_estimator       = INACTIVE,
-    .position_controller  = SPEED_REF_INACTIVE,
-    .evade_controller     = INACTIVE
-};
-
+volatile SystemStates system_states = {0};
 volatile WheelsData wheels_data = {0};
-
 volatile DistanceSensorData distance_data = {
     .obstacle_detected = false,
     .left_distance = US_MAX_DISTANCE_CM,
@@ -120,18 +109,23 @@ void setup() {
         &wheels_data.duty_left,
         &wheels_data.duty_right
     );
-    EncoderReader::init(
-        &system_states.encoder,
-        &wheels_data.steps_left, &wheels_data.steps_right,
-        &wheels_data.wL_measured, &wheels_data.wR_measured
-    );
     MotorController::set_motor_mode(
         MOTOR_ACTIVE,
         &system_states.motor_operation,
         &wheels_data.duty_left,
         &wheels_data.duty_right
     );
+
+    DistanceSensors::init(&system_states.distance);
+    DistanceSensors::set_state(ACTIVE,&system_states.distance);    
+
+    EncoderReader::init(
+        &system_states.encoder,
+        &wheels_data.steps_left, &wheels_data.steps_right,
+        &wheels_data.wL_measured, &wheels_data.wR_measured
+    );
     EncoderReader::resume(&system_states.encoder);
+    
     Serial.println();
     
     // Secuencia de prueba

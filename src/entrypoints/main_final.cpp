@@ -1,7 +1,7 @@
-#include <Arduino.h>
 #include "project_config.h"
 #include "motor_drive/motor_controller.h"
 #include "sensors_firmware/encoder_reader.h"
+#include "sensors_firmware/distance_sensors.h"
 #include "position_system/position_controller.h"
 #include "position_system/pose_estimator.h"
 #warning "Compilando main_final.cpp"
@@ -54,10 +54,14 @@ void loop() {
 volatile SystemStates system_states = {0};
 volatile WheelsData wheels_data = {0};
 volatile KinematicState kinematic_data = {0};
-volatile DistanceSensorData sensor_data = {0};
+volatile DistanceSensorData distance_data = {
+    .obstacle_detected = false,
+    .left_distance = US_MAX_DISTANCE_CM,
+    .right_distance = US_MAX_DISTANCE_CM
+};
 GlobalContext global_ctx = {
     .systems_ptr = &system_states,
     .kinematic_ptr = &kinematic_data,
     .wheels_ptr = &wheels_data,
-    .distance_ptr = &sensor_data
+    .distance_ptr = &distance_data
 };
