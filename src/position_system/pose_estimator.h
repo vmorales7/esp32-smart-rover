@@ -75,11 +75,13 @@ namespace PoseEstimator {
      * @param theta_ptr Puntero a orientación θ.
      * @param v_ptr Puntero a velocidad lineal.
      * @param w_ptr Puntero a velocidad angular.
+     * @param pose_estimator_state_ptr Puntero a la variable de estado del módulo
      */
     void update_pose(
         PoseData* pose_ptr,
         volatile float* x_ptr, volatile float* y_ptr, volatile float* theta_ptr,
-        volatile float* v_ptr, volatile float* w_ptr
+        volatile float* v_ptr, volatile float* w_ptr,
+        volatile uint8_t* pose_estimator_state_ptr
     );
 
     /**
@@ -88,7 +90,7 @@ namespace PoseEstimator {
      * @param mode Debe ser ACTIVE o INACTIVE.
      * @param pose_estimator_state_ptr Puntero al estado del estimador.
      */
-    void set_pose_estimator_state(uint8_t mode, volatile uint8_t* pose_estimator_state_ptr);
+    void set_state(uint8_t mode, volatile uint8_t* pose_estimator_state_ptr);
 
     /**
      * @brief Reinicia la pose estimada del vehículo y los pasos acumulados de los encoders.
@@ -106,6 +108,8 @@ namespace PoseEstimator {
         volatile int64_t* steps_left_ptr, volatile int64_t* steps_right_ptr
     );
 
+    float wrap_to_pi(float angle);
+    
     /**
      * @brief Tarea FreeRTOS que ejecuta periódicamente la estimación de pose por encoder.
      *

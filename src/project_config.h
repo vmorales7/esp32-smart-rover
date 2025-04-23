@@ -53,6 +53,7 @@ constexpr uint16_t WHEEL_CONTROL_PERIOD_MS = 10;
 
 /* -------------- Constantes del Encoder Reader --------------*/
 // Assigned pins
+// Azul = Vcc & Negro = GND 
 constexpr uint8_t ENCODER_LEFT_A_PIN = 14; // Amarillo
 constexpr uint8_t ENCODER_LEFT_B_PIN = 27; // Verde
 constexpr uint8_t ENCODER_RIGHT_A_PIN = 16; // Amarillo

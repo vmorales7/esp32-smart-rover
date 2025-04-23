@@ -11,7 +11,6 @@ namespace PoseEstimator {
         float wL_measured, float wR_measured,
         float x_prev, float y_prev, float theta_prev
     ) {
-
         PoseData pose;
 
         // Calcular variación de giro y avance
@@ -20,6 +19,7 @@ namespace PoseEstimator {
 
         // Integración numérica del giro global
         float theta = theta_prev + dtheta;
+        theta = wrap_to_pi(theta); // Mantener entre 0 y 2pi
 
         // Integración numérica de la posición global
         float avg_theta = (theta_prev + theta) / 2.0f;
@@ -27,7 +27,7 @@ namespace PoseEstimator {
         float dy = ddist * sinf(avg_theta);
 
         // Actualizar posición
-        pose.theta = fmodf(theta + PI, 2.0f * PI) - PI; // Mantener entre -pi y +pi
+        pose.theta = theta;
         pose.x = x_prev + dx;
         pose.y = y_prev + dy;
         
@@ -69,7 +69,7 @@ namespace PoseEstimator {
         return pose;
     }
 
-    void set_pose_estimator_state(uint8_t mode, volatile uint8_t* pose_estimator_state_ptr) {
+    void set_state(uint8_t mode, volatile uint8_t* pose_estimator_state_ptr) {
         *pose_estimator_state_ptr = (mode == ACTIVE) ? ACTIVE : INACTIVE;
     }
 
@@ -89,15 +89,28 @@ namespace PoseEstimator {
     void update_pose(
         PoseData* pose_ptr,
         volatile float* x_ptr, volatile float* y_ptr, volatile float* theta_ptr,
-        volatile float* v_ptr, volatile float* w_ptr
+        volatile float* v_ptr, volatile float* w_ptr,
+        volatile uint8_t* pose_estimator_state_ptr
     ) {
+        if (*pose_estimator_state_ptr != ACTIVE) return;
         *x_ptr   = pose_ptr->x;
         *y_ptr   = pose_ptr->y;
         *theta_ptr = pose_ptr->theta;
         *v_ptr   = pose_ptr->v;
         *w_ptr   = pose_ptr->w;
     }
+
+    float normalize_angle(float angle) {
+        if (angle > PI)  {angle -= 2.0f * PI;}
+        else if (angle < -PI) {angle += 2.0f * PI;}
+        return angle;
+    }
     
+    float wrap_to_pi(float angle) {
+        angle = fmodf(angle + PI, 2.0f * PI);
+        if (angle < 0.0f) angle += 2.0f * PI;
+        return angle - PI;
+    }
 
     void Task_PoseEstimatorEncoder(void* pvParameters) {
         // Datos de RTOS
@@ -125,7 +138,7 @@ namespace PoseEstimator {
                 PoseData pose = estimate_pose_from_encoder(
                     x_ptr, y_ptr, theta_ptr, v_ptr, w_ptr, wL_ptr, wR_ptr, steps_left_ptr, steps_right_ptr
                 );
-                update_pose(&pose, x_ptr, y_ptr, theta_ptr, v_ptr, w_ptr);
+                update_pose(&pose, x_ptr, y_ptr, theta_ptr, v_ptr, w_ptr, pose_state_ptr);
             }
         }
     }
