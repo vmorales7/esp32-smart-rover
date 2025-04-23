@@ -12,14 +12,14 @@ constexpr uint32_t PWM_MAX = (1 << PWM_RES_BITS) - 1;  // Duty máximo según re
 #define PWM_CHANNEL_RIGHT 1U
 
 // Motor duty limits
-constexpr float ZERO_DUTY_THRESHOLD = 0.03f; // por debajo de esto se considera 0
-constexpr float MIN_EFFECTIVE_DUTY = 0.1f;   // duty mínimo con efecto real
+constexpr float ZERO_DUTY_THRESHOLD = 0.05f; // por debajo de esto se considera 0
+constexpr float MIN_EFFECTIVE_DUTY = 0.2f;   // duty mínimo con efecto real
 constexpr float MAX_DUTY = 1.0f;
 
 // Speed controller parameters
 constexpr float KP_WHEEL = 2.0f;
 constexpr float KI_WHEEL = 1.0f;
-constexpr float KW_WHEEL = 0.5f;
+constexpr float KW_WHEEL = 0.1f;
 
 /* ---------------- Operación ------------------*/
 /**

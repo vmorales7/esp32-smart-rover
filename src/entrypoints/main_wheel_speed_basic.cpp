@@ -2,11 +2,7 @@
 #include "motor_drive/motor_controller.h"
 #include "sensors_firmware/encoder_reader.h"
 #include "position_system/position_controller.h"
-#warning "Compilando main_motor_wheel_control.cpp"
-
-// ====================== DEFINICIONES ======================
-
-constexpr float WHEEL_W_NOM = WM_NOM;  // Velocidad nominal para pruebas
+#warning "Compilando main_wheel_speed_basic.cpp"
 
 // ====================== VARIABLES GLOBALES ======================
 
@@ -16,7 +12,7 @@ volatile SystemStates system_states = {
     .imu                  = INACTIVE,
     .distance             = INACTIVE,
     .pose_estimator       = INACTIVE,
-    .position_controller  = SPEED_REF_MANUAL,  // Activamos el módulo de referencia manual
+    .position_controller  = SPEED_REF_INACTIVE,
     .evade_controller     = INACTIVE
 };
 
@@ -28,8 +24,15 @@ void print_wheel_speeds() {
     Serial.print("wL_measured: ");
     Serial.print(wheels_data.w_measured_left, 1);
     Serial.print(" rad/s | wR_measured: ");
-    Serial.println(wheels_data.w_measured_right, 1);
+    Serial.print(wheels_data.w_measured_right, 1);
+    Serial.print(" rad/s");
+
+    Serial.print(" | dutyL: ");
+    Serial.print(wheels_data.duty_left, 2);
+    Serial.print(" | dutyR: ");
+    Serial.println(wheels_data.duty_right, 2);
 }
+
 
 void set_speed_reference(float w_ref) {
     Serial.print("Nueva referencia de velocidad: ");
@@ -52,17 +55,16 @@ void setup() {
     Serial.println("Test: Motor PI Control (ajuste Kp/Ki/Kw)");
 
     // Inicializar módulos
+    PositionController::set_position_control_mode(SPEED_REF_MANUAL, &system_states.position_controller);
     MotorController::init(
         &system_states.motor_operation,
         &wheels_data.duty_left, &wheels_data.duty_right
     );
-
     MotorController::set_motor_mode(
         MOTOR_AUTO,
         &system_states.motor_operation,
         &wheels_data.duty_left, &wheels_data.duty_right
     );
-
     EncoderReader::init(
         &system_states.encoder,
         &wheels_data.steps_left, &wheels_data.steps_right,
@@ -85,7 +87,7 @@ void loop() {
     if ((t - t0) >= 5000) {
         t0 = t;
         fase = (fase + 1) % 2;
-        float ref = (fase == 0) ? 0.5f * WHEEL_W_NOM : 0.2f * WHEEL_W_NOM;
+        float ref = (fase == 0) ? 0.5f * WM_NOM : 0.2f * WM_NOM;
         set_speed_reference(ref);
     }
 
