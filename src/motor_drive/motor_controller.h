@@ -16,10 +16,15 @@ constexpr float ZERO_DUTY_THRESHOLD = 0.05f; // por debajo de esto se considera 
 constexpr float MIN_EFFECTIVE_DUTY = 0.5f;   // duty mínimo con efecto real
 constexpr float MAX_DUTY = 1.0f;
 
-// Speed controller parameters
+// Speed controller PI parameters
 constexpr float KP_WHEEL = 2.0f;
 constexpr float KI_WHEEL = 1.0f;
 constexpr float KW_WHEEL = 0.1f;
+
+// Speed control limits
+constexpr float MIN_PID_DT = 0.1f;  // Tiempo mínimo entre ejecuciones [s]
+constexpr float W_INVERT_THRESHOLD = 1.5f;  // [rad/s]
+constexpr float W_BRAKE_THRESHOLD = 0.2 * WM_NOM;  // Threshold de velocidad para freno activo [rad/s]
 
 /* ---------------- Operación ------------------*/
 /**

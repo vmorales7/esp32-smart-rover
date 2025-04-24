@@ -18,7 +18,15 @@ constexpr float WHEEL_DISTANCE = 0.2f;   // distancia entre ruedas (L)
 // Datos de los motores + encoder
 constexpr uint16_t RPM_NOM = 215U;
 constexpr float WM_NOM = RPM_NOM * 2*PI/60.0;
-constexpr float PULSES_PER_REV = 11 * 21.3;  // Ticks encoder x reduction ratio (datasheet)
+
+// Datos encoder
+#define ENCODER_HALFQUAD
+//#define ENCODER_FULLQUAD
+#if defined(ENCODER_HALFQUAD)
+constexpr float PULSES_PER_REV = 11 * 21.3 * 2;  // HalfQuad
+#else
+constexpr float PULSES_PER_REV = 11 * 21.3 * 4;  // HalfQuad
+#endif
 constexpr float RAD_PER_PULSE = (2.0f * PI) / PULSES_PER_REV;
 
 // Auxiliares
@@ -27,6 +35,8 @@ constexpr float MS_TO_S = 0.001f;
 // Constante para invertir motores
 constexpr bool INVERT_MOTOR_LEFT = true;
 constexpr bool INVERT_MOTOR_RIGHT = false;
+constexpr bool INVERT_ENCODER_LEFT = true;
+constexpr bool INVERT_ENCODER_RIGHT = false;
 
 
 /* -------------- Constantes del Motor Controller --------------*/
