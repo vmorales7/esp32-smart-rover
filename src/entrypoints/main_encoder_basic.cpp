@@ -1,4 +1,3 @@
-
 #include "project_config.h"
 #include "motor_drive/motor_controller.h"
 #include <ESP32Encoder.h>
@@ -6,37 +5,27 @@
 
 // ====================== VARIABLES GLOBALES ======================
 
-volatile SystemStates system_states = {
-    .motor_operation      = MOTOR_IDLE,
-    .encoder              = ACTIVE,
-    .imu                  = INACTIVE,
-    .distance             = INACTIVE,
-    .pose_estimator       = INACTIVE,
-    .position_controller  = SPEED_REF_INACTIVE,
-    .evade_controller     = INACTIVE
-};
-
+volatile SystemStates system_states = {0};
 volatile WheelsData wheels_data = {0};
 
 ESP32Encoder encoderLeft;
 ESP32Encoder encoderRight;
+
+int64_t lastCountLeft = 0;
+int64_t lastCountRight = 0;
 
 // ====================== SETUP Y LOOP ======================
 
 void setup() {
     Serial.begin(115200);
     delay(1000);
-    Serial.println("Test básico: ESP32Encoder lectura directa");
+    Serial.println("Test básico: ESP32Encoder lectura directa + velocidad");
 
-    // Inicializar motor y encoder
+    // Inicializar motor
     MotorController::init(
         &system_states.motor_operation,
         &wheels_data.duty_left, &wheels_data.duty_right
     );
-
-    ESP32Encoder::useInternalWeakPullResistors = puType::up;
-    encoderLeft.attachHalfQuad(ENCODER_LEFT_A_PIN, ENCODER_LEFT_B_PIN);
-    encoderRight.attachHalfQuad(ENCODER_RIGHT_A_PIN, ENCODER_RIGHT_B_PIN);
 
     MotorController::set_motor_mode(
         MOTOR_ACTIVE,
@@ -44,7 +33,11 @@ void setup() {
         &wheels_data.duty_left, &wheels_data.duty_right
     );
 
-    // Fijar un duty bajo constante para mover lentamente
+    // Inicializar encoder
+    ESP32Encoder::useInternalWeakPullResistors = puType::up;
+    encoderLeft.attachHalfQuad(ENCODER_LEFT_A_PIN, ENCODER_LEFT_B_PIN);
+
+    // Fijar un duty bajo constante
     MotorController::set_motor_duty(
         0.5f, 0.5f,
         &wheels_data.duty_left, &wheels_data.duty_right,
@@ -56,19 +49,28 @@ void setup() {
 
 void loop() {
     static unsigned long t_last = 0;
-    unsigned long t = millis();
+    unsigned long t_now = millis();
 
-    // Leer encoder
-    int64_t currentCountLeft = encoderLeft.getCount();
-    int64_t currentCountRight = encoderRight.getCount();
+    if ((t_now - t_last) >= 500) {
+        float dt = (t_now - t_last) * MS_TO_S;  // en segundos
+        t_last = t_now;
 
-    // Imprimir cada 500 ms
-    if ((t - t_last) >= 500) {
-        t_last = t;
+        // Leer pasos actuales
+        int64_t countLeft = encoderLeft.getCount();
 
-        Serial.print("Steps L: ");
-        Serial.print(-currentCountLeft);
-        Serial.print(" | Steps R: ");
-        Serial.println(currentCountRight);
+        // Calcular deltas
+        int64_t deltaLeft = countLeft - lastCountLeft;
+        lastCountLeft = countLeft;
+
+        // Calcular velocidad angular
+        float wLeft = deltaLeft * RAD_PER_PULSE / dt;
+
+        // Mostrar resultados
+        Serial.print("Steps: ");
+        Serial.print(countLeft);
+        Serial.print(" | delta steps: ");
+        Serial.print(deltaLeft);
+        Serial.print(" | w (rad/s): ");
+        Serial.println(wLeft, 2);
     }
 }

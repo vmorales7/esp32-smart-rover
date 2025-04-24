@@ -3,29 +3,38 @@
 WheelSpeedPID::WheelSpeedPID(float kp, float ki, float kw)
     : Kp(kp), Ki(ki), Kw(kw), integral(0), lastDuty(0), lastTime(0) {}
 
-float WheelSpeedPID::compute(float setpoint, float measured) {
-    // Necesitamos el tiempo para el calculo integral
-    float now = millis() * MS_TO_S; 
-    float dt = now - lastTime; // Importante que externamente nos hagamos cargo de que el cálculo se haga con dt constante
-    dt = min(dt, 0.1f);  // max 100ms por si acaso para que no sea tan grande
-
-    // Control PI
-    float error = setpoint - measured;
-    float duty = Kp * error + Ki * integral; // calcular el duty necesario (con el error integral de k-1)
+    float WheelSpeedPID::compute(float setpoint, float measured) {
+        // Tiempo actual y delta tiempo
+        float now = millis() * MS_TO_S;
+        float dt = now - lastTime;
     
-    // Saturador y anti wind-up
-    float saturatedDuty = constrain(duty, -MAX_DUTY, MAX_DUTY); // evitar que se salga de los límites
-    float dutyError = duty - saturatedDuty;
-    float anti_wp = Kw * dutyError;
+        // Protección: solo actualizar cada cierto tiempo
+        if (dt < MIN_PID_DT) return lastDuty;
     
-    // Cálculo integral corregido
-    integral += (error - anti_wp) * dt;
-
-    // Valores finales (guardar en memoria)
-    lastTime = now;
-    //lastDuty = saturatedDuty;
-    return saturatedDuty;
-}
+        // Control PI
+        float error = setpoint - measured;
+        float rawDuty = Kp * error + Ki * integral;
+    
+        // Saturar dentro de [-MAX_DUTY, MAX_DUTY]
+        float duty_output = constrain(rawDuty, -MAX_DUTY, MAX_DUTY);
+    
+        // ------------------- Protección contra cambio brusco de signo -------------------
+        bool inversion = (duty_output * measured < 0);
+        if (inversion && abs(measured) > W_INVERT_THRESHOLD) {
+            duty_output = 0.0f;  // Evitar el cambio brusco de sentido
+        }
+    
+        // ------------------- Anti-windup clásico (con duty saturado final) -------------------
+        float dutyError = rawDuty - duty_output;
+        float anti_wp = Kw * dutyError;
+        integral += (error - anti_wp) * dt;
+    
+        // Finalizar
+        lastTime = now;
+        lastDuty = duty_output;
+        return duty_output;
+    }
+    
 
 void WheelSpeedPID::reset() {
     integral = 0.0;
@@ -68,6 +77,33 @@ namespace MotorController {
         set_motor_mode(MOTOR_IDLE, motor_state_ptr, dutyL_ptr, dutyR_ptr);
     }
 
+    
+    void set_motor_break(int wheel) {
+        // Los pines de control se fuerzan a HIGH para frenado            
+        if (wheel == WHEEL_LEFT) {
+            digitalWrite(MOTOR_LEFT_DIR_PIN1, HIGH);
+            digitalWrite(MOTOR_LEFT_DIR_PIN2, HIGH);
+            ledcWrite(PWM_CHANNEL_LEFT, PWM_MAX);    
+        } else if (wheel == WHEEL_RIGHT){
+            digitalWrite(MOTOR_RIGHT_DIR_PIN1, HIGH);
+            digitalWrite(MOTOR_RIGHT_DIR_PIN2, HIGH);
+            ledcWrite(PWM_CHANNEL_RIGHT, PWM_MAX); 
+        }
+    }
+
+    void set_motor_idle(int wheel) {
+        // Los pines de control se fuerzan a LOW
+        if (wheel == WHEEL_LEFT) {
+            digitalWrite(MOTOR_LEFT_DIR_PIN1, LOW);
+            digitalWrite(MOTOR_LEFT_DIR_PIN2, LOW);
+            ledcWrite(PWM_CHANNEL_LEFT, 0);    
+        } else if (wheel == WHEEL_RIGHT){
+            digitalWrite(MOTOR_RIGHT_DIR_PIN1, LOW);
+            digitalWrite(MOTOR_RIGHT_DIR_PIN2, LOW);
+            ledcWrite(PWM_CHANNEL_RIGHT, 0); 
+        }
+    }
+
     void set_motor_mode(
         volatile uint8_t mode, volatile uint8_t* motor_state_ptr,
         volatile float* dutyL_ptr, volatile float* dutyR_ptr
@@ -79,25 +115,22 @@ namespace MotorController {
         if (mode == MOTOR_AUTO) { // Resetear los integradores de PID al pasar a AUTO
             pidLeft.reset();
             pidRight.reset();
-        } else if (mode != MOTOR_ACTIVE) { // Motores desactivados (IDLE o BREAK)
-            // Los pines de control se fuerzan a LOW si no hay active
-            digitalWrite(MOTOR_LEFT_DIR_PIN1, LOW);
-            digitalWrite(MOTOR_LEFT_DIR_PIN2, LOW);
-            digitalWrite(MOTOR_RIGHT_DIR_PIN1, LOW);
-            digitalWrite(MOTOR_RIGHT_DIR_PIN2, LOW);
+        } else if (mode == MOTOR_BREAK) {
+            set_motor_break(WHEEL_LEFT);
+            set_motor_break(WHEEL_RIGHT);
+            // Los duty se dejan en cero
+            *dutyL_ptr = 0.0;
+            *dutyR_ptr = 0.0;
+
+        } else { // Cualquier otro modo se considera IDLE (safe)
+            set_motor_idle(WHEEL_LEFT);
+            set_motor_idle(WHEEL_RIGHT);
+            ledcWrite(PWM_CHANNEL_LEFT, 0);  
+            ledcWrite(PWM_CHANNEL_RIGHT, 0);
             
             // Los duty se dejan en cero
             *dutyL_ptr = 0.0;
             *dutyR_ptr = 0.0;
-            
-            // PWM según el modo
-            if (mode == MOTOR_IDLE) { // La señal PWM se deja en LOW lo cual libera el movimiento 
-                ledcWrite(PWM_CHANNEL_LEFT, 0);           
-                ledcWrite(PWM_CHANNEL_RIGHT, 0);
-            } else if (mode == MOTOR_BREAK) { // La señal PWM se deja en HIGH lo cual frena activamente el movimiento 
-                ledcWrite(PWM_CHANNEL_LEFT, PWM_MAX);     // Aplicar voltaje para frenar
-                ledcWrite(PWM_CHANNEL_RIGHT, PWM_MAX);
-            }  
         }
     }
 
@@ -163,13 +196,33 @@ namespace MotorController {
         volatile float* dutyL_ptr, volatile float* dutyR_ptr,
         volatile uint8_t* motor_state_ptr
     ) {
-        if (*motor_state_ptr == MOTOR_AUTO) {
-            float dutyL  = pidLeft.compute(*wL_ref_ptr, *wL_measured_ptr);
-            float dutyR  = pidRight.compute(*wR_ref_ptr, *wR_measured_ptr);
+        if (*motor_state_ptr != MOTOR_AUTO) return; // Se opera solo en modo auto
+
+        // Cálculo del PI
+        float dutyL = pidLeft.compute(*wL_ref_ptr, *wL_measured_ptr);
+        float dutyR = pidRight.compute(*wR_ref_ptr, *wR_measured_ptr);
+
+        // Si no hay freno, se aplica el duty como de costumbre
+        if (dutyL != 0.0f || dutyR != 0.0f) {
             set_motor_duty(dutyL, dutyR, dutyL_ptr, dutyR_ptr, motor_state_ptr);
         }
-    }
     
+        // Lógica por rueda: si se pide duty = 0 y la rueda sigue girando, frenar activamente
+        if (dutyL == 0.0f && abs(*wL_measured_ptr) < W_BRAKE_THRESHOLD) {
+            set_motor_break(WHEEL_LEFT);
+            *dutyL_ptr = 0.0f;
+        } else {
+            set_motor_idle(WHEEL_LEFT);  // o se reactiva con el nuevo duty más abajo
+        }
+    
+        if (dutyR == 0.0f && abs(*wR_measured_ptr) < W_BRAKE_THRESHOLD) {
+            set_motor_break(WHEEL_RIGHT);
+            *dutyR_ptr = 0.0f;
+        } else {
+            set_motor_idle(WHEEL_RIGHT);
+        }
+    }
+
     void Task_WheelControl(void* pvParameters) {
         // Datos de RTOS
         TickType_t xLastWakeTime = xTaskGetTickCount();
