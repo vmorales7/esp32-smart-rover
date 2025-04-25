@@ -1,4 +1,3 @@
-// Archivo para definir constantes y variables globales
 #ifndef CONFIG_H
 #define CONFIG_H
 
@@ -15,31 +14,15 @@
 constexpr float WHEEL_RADIUS = 0.03f;    // en metros
 constexpr float WHEEL_DISTANCE = 0.2f;   // distancia entre ruedas (L)
 
-// Datos de los motores + encoder
-constexpr uint16_t RPM_NOM = 215U;
-constexpr float WM_NOM = RPM_NOM * 2*PI/60.0;
-
-// Datos encoder
-#define ENCODER_HALFQUAD
-//#define ENCODER_FULLQUAD
-#if defined(ENCODER_HALFQUAD)
-constexpr float PULSES_PER_REV = 11 * 21.3 * 2;  // HalfQuad
-#else
-constexpr float PULSES_PER_REV = 11 * 21.3 * 4;  // HalfQuad
-#endif
-constexpr float RAD_PER_PULSE = (2.0f * PI) / PULSES_PER_REV;
-
 // Auxiliares
 constexpr float MS_TO_S = 0.001f;
 
-// Constante para invertir motores
-constexpr bool INVERT_MOTOR_LEFT = true;
-constexpr bool INVERT_MOTOR_RIGHT = false;
-constexpr bool INVERT_ENCODER_LEFT = true;
-constexpr bool INVERT_ENCODER_RIGHT = false;
-
 
 /* -------------- Constantes del Motor Controller --------------*/
+// Características
+constexpr uint16_t RPM_NOM = 215U;
+constexpr float WM_NOM = RPM_NOM * 2*PI/60.0;
+
 // Assigned pins
 constexpr uint8_t MOTOR_LEFT_PWM_PIN = 26;
 constexpr uint8_t MOTOR_LEFT_DIR_PIN1  = 25;
@@ -71,6 +54,23 @@ constexpr uint8_t ENCODER_RIGHT_B_PIN = 17; // Verde
 
 // RTOS
 constexpr uint16_t ENCODER_READ_PERIOD_MS = 10;
+
+// Según tipo de configuración de encoder
+enum class EncoderMode {
+    SINGLE_EDGE = 1,  // 1x
+    HALF_QUAD   = 2,  // 2x
+    FULL_QUAD   = 4   // 4x
+};
+constexpr EncoderMode ENCODER_MODE = EncoderMode::HALF_QUAD; // Escoger el formato de lectura de encoder
+constexpr float get_encoder_multiplier(EncoderMode mode) {
+    return (mode == EncoderMode::SINGLE_EDGE) ? 1.0f :
+           (mode == EncoderMode::HALF_QUAD)   ? 2.0f :
+           (mode == EncoderMode::FULL_QUAD)   ? 4.0f :
+           1.0f;
+}
+constexpr float RAW_ENCODER_PPR = 11.0f * 21.3f; // Steps del encoder x razón de engranaje de motor
+constexpr float PULSES_PER_REV = RAW_ENCODER_PPR * get_encoder_multiplier(ENCODER_MODE);
+constexpr float RAD_PER_PULSE = (2.0f * PI) / PULSES_PER_REV;
 
 
 /* -------------- Constantes del Pose Estimator --------------*/
