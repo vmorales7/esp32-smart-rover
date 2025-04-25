@@ -54,7 +54,7 @@ void setup() {
         &system_states.motor_operation,
         &wheels_data.duty_left, &wheels_data.duty_right
     );
-    MotorController::set_motor_mode(
+    MotorController::set_motors_mode(
         MOTOR_AUTO,
         &system_states.motor_operation,
         &wheels_data.duty_left, &wheels_data.duty_right
@@ -94,7 +94,7 @@ void loop() {
             &wheels_data.wL_measured, &wheels_data.wR_measured
         );
 
-        MotorController::update_motor_control(
+        MotorController::update_motors_control(
             &wheels_data.wL_ref, &wheels_data.wR_ref,
             &wheels_data.wL_measured, &wheels_data.wR_measured,
             &wheels_data.duty_left, &wheels_data.duty_right,

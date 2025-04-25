@@ -52,16 +52,16 @@ void ejecutar_fase_con_obstaculo(const char* msg, float dutyL, float dutyR, uint
                 Serial.print("Obstáculo detectado a ");
                 Serial.print(distancia);
                 Serial.println(" cm — deteniendo motores");
-                MotorController::set_motor_mode(MOTOR_IDLE, &system_states.motor_operation,
+                MotorController::set_motors_mode(MOTOR_IDLE, &system_states.motor_operation,
                                                 &wheels_data.duty_left, &wheels_data.duty_right);
                 en_movimiento = false;
             }
         } else {
             if (!en_movimiento) {
                 Serial.println("Obstáculo despejado — reanudando movimiento");
-                MotorController::set_motor_mode(MOTOR_ACTIVE, &system_states.motor_operation,
+                MotorController::set_motors_mode(MOTOR_ACTIVE, &system_states.motor_operation,
                                                 &wheels_data.duty_left, &wheels_data.duty_right);
-                MotorController::set_motor_duty(
+                MotorController::set_motors_duty(
                     dutyL, dutyR,
                     &wheels_data.duty_left, &wheels_data.duty_right,
                     &system_states.motor_operation
@@ -91,7 +91,7 @@ void ejecutar_fase_con_obstaculo(const char* msg, float dutyL, float dutyR, uint
     }
 
     // Detener al final de la fase
-    MotorController::set_motor_mode(MOTOR_IDLE, &system_states.motor_operation,
+    MotorController::set_motors_mode(MOTOR_IDLE, &system_states.motor_operation,
                                     &wheels_data.duty_left, &wheels_data.duty_right);
 }
 
@@ -109,7 +109,7 @@ void setup() {
         &wheels_data.duty_left,
         &wheels_data.duty_right
     );
-    MotorController::set_motor_mode(
+    MotorController::set_motors_mode(
         MOTOR_ACTIVE,
         &system_states.motor_operation,
         &wheels_data.duty_left,

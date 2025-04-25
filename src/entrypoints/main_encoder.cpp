@@ -5,16 +5,7 @@
 
 // ====================== VARIABLES GLOBALES ======================
 
-volatile SystemStates system_states = {
-    .motor_operation      = MOTOR_IDLE,
-    .encoder              = ACTIVE,
-    .imu                  = INACTIVE,
-    .distance             = INACTIVE,
-    .pose_estimator       = INACTIVE,
-    .position_controller  = SPEED_REF_INACTIVE,
-    .evade_controller     = INACTIVE
-};
-
+volatile SystemStates system_states = {0};
 volatile WheelsData wheels_data = {0};
 
 
@@ -33,7 +24,7 @@ void print_encoder_state() {
 
 void ejecutar_fase(const char* msg, float dutyL, float dutyR, uint32_t duracion_ms) {
     Serial.println(msg);
-    MotorController::set_motor_duty(
+    MotorController::set_motors_duty(
         dutyL, dutyR,
         &wheels_data.duty_left, &wheels_data.duty_right,
         &system_states.motor_operation
@@ -76,7 +67,7 @@ void setup() {
         &wheels_data.steps_left, &wheels_data.steps_right,
         &wheels_data.wL_measured, &wheels_data.wR_measured
     );
-    MotorController::set_motor_mode(
+    MotorController::set_motors_mode(
         MOTOR_ACTIVE,
         &system_states.motor_operation,
         &wheels_data.duty_left,
@@ -92,7 +83,7 @@ void setup() {
     ejecutar_fase("Frenando antes de avanzar", 0.0f, 0.0f, 1000);
     ejecutar_fase("Avanzando recto (50%)", 0.5f, 0.5f, 5000);
 
-    MotorController::set_motor_mode(
+    MotorController::set_motors_mode(
         MOTOR_IDLE,
         &system_states.motor_operation,
         &wheels_data.duty_left,
