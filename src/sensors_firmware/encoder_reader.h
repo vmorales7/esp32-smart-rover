@@ -4,6 +4,13 @@
 #include "project_config.h"
 #include <ESP32Encoder.h>
 
+/* ---------------- Constantes del sistema ------------------*/
+constexpr bool INVERT_ENCODER_LEFT = true;
+constexpr bool INVERT_ENCODER_RIGHT = false;
+
+
+/* ---------------- Funciones del sistema ------------------*/
+
 /**
  * @brief Módulo encargado de la lectura de los encoders incrementales.
  * Utiliza el periférico PCNT de la ESP32 para contar los pulsos generados por encoders cuadratura.

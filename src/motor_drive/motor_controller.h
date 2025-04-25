@@ -26,6 +26,10 @@ constexpr float MIN_PID_DT = 0.1f;  // Tiempo mínimo entre ejecuciones [s]
 constexpr float W_INVERT_THRESHOLD = 1.5f;  // [rad/s]
 constexpr float W_BRAKE_THRESHOLD = 0.2 * WM_NOM;  // Threshold de velocidad para freno activo [rad/s]
 
+// Corrección de pines
+constexpr bool INVERT_MOTOR_LEFT = true;
+constexpr bool INVERT_MOTOR_RIGHT = false;
+
 /* ---------------- Operación ------------------*/
 /**
  * @brief Clase para el control de velocidad de rueda usando un controlador PI con anti-windup.
