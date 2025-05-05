@@ -150,6 +150,10 @@ namespace MotorController {
         volatile uint8_t* motor_state_ptr
     );
 
+    float protect_motor_duty(
+        float duty, float w_measured
+    );
+
     /**
      * @brief Ejecuta un paso de control para ambos motores.
      * 

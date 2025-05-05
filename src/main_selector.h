@@ -9,13 +9,13 @@
 // #define USE_MAIN_FINAL
 
 // --- Otras opciones de prueba ---
-// #define USE_MAIN_MOTOR_DUTY             // Rutina de desplazamiento por duty
+#define USE_MAIN_MOTOR_DUTY             // Rutina de desplazamiento por duty
 // #define USE_MAIN_ENCODER_INTERRUPT_TEST
 // #define USE_MAIN_ENCODER_BASIC          // Lectura simple de encoder
 // #define USE_MAIN_ENCODER                // Rutina de desplazamiento por duty con lectura de encoder   
 // #define USE_MAIN_DISTANCE_SENSORS_BASIC // Solo prueba de lectura de distancia
 // #define USE_MAIN_DISTANCE_SENSORS       // Prueba de detención de rueda con la detección de obstáculo + encoder
-#define USE_MAIN_DISTANCE_SENSORS_FULL  // Rutina de duty + detención por obtáculo + encoder
+//#define USE_MAIN_DISTANCE_SENSORS_FULL  // Rutina de duty + detención por obtáculo + encoder
 // #define USE_MAIN_POSE_BASIC             // Rutina de prueba para pose_estimator
 // #define USE_MAIN_POSE                   // Rutina de duty + detención por obtáculo + encoder + pose estimation
 // #define USE_MAIN_WHEEL_SPEED_BASIC      // Rutina para tuneo de controlador de rueda
