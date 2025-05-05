@@ -28,7 +28,7 @@ constexpr float W_BRAKE_THRESHOLD = 0.5 * WM_NOM;  // Threshold de velocidad par
 
 // Corrección de pines
 constexpr bool INVERT_MOTOR_LEFT = true;
-constexpr bool INVERT_MOTOR_RIGHT = false;
+constexpr bool INVERT_MOTOR_RIGHT = true;
 
 /* ---------------- Operación ------------------*/
 /**

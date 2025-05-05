@@ -7,7 +7,7 @@
 
 volatile SystemStates system_states = {0};
 volatile WheelsData wheels_data = {0};
-
+constexpr uint32_t PRINT_PERIOD = 250; //ms
 
 // ====================== FUNCIONES AUXILIARES ======================
 
@@ -40,9 +40,9 @@ void ejecutar_fase(const char* msg, float dutyL, float dutyR, uint32_t duracion_
             &wheels_data.wL_measured, &wheels_data.wR_measured
         );
 
-        if (millis() - t_print >= 500) {
+        if (millis() - t_print >= PRINT_PERIOD) {
             print_encoder_state();
-            t_print += 500;
+            t_print += PRINT_PERIOD;
         }
 
         delay(10);  // ← Espera para garantizar al menos 10 ms entre actualizaciones
@@ -77,11 +77,11 @@ void setup() {
     Serial.println();
     
     // Secuencia de prueba
-    ejecutar_fase("Avanzando recto (70%)", 0.7f, 0.7f, 5000);
+    ejecutar_fase("Avanzando recto (70%)", 0.7f, 0.7f, 10000);
     ejecutar_fase("Frenando antes de girar", 0.0f, 0.0f, 1000);
-    ejecutar_fase("Girando en el lugar (izq, 30%)", 0.0f, 0.4f, 1000);
+    ejecutar_fase("Girando en el lugar (izq, 40%)", 0.0f, 0.4f, 10000);
     ejecutar_fase("Frenando antes de avanzar", 0.0f, 0.0f, 1000);
-    ejecutar_fase("Avanzando recto (50%)", 0.5f, 0.5f, 5000);
+    ejecutar_fase("Avanzando recto (50%)", 0.5f, 0.5f, 10000);
 
     MotorController::set_motors_mode(
         MOTOR_IDLE,

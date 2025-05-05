@@ -42,7 +42,7 @@ void setup() {
         &wheels_data.duty_left, &wheels_data.duty_right,
         &system_states.motor_operation
     );
-    print_duty_state("Avanzando recto (90%)");
+    print_duty_state("Avanzando recto (70%)");
     delay(5000);
 
     // Freno antes de girar
@@ -60,7 +60,7 @@ void setup() {
         &wheels_data.duty_left, &wheels_data.duty_right,
         &system_states.motor_operation
     );
-    print_duty_state("Girando en el lugar (izquierda, 50%)");
+    print_duty_state("Girando en el lugar (izquierda, 40%)");
     delay(2000);
 
     // Freno antes de avanzar nuevamente

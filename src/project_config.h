@@ -20,17 +20,17 @@ constexpr float MS_TO_S = 0.001f;
 
 /* -------------- Constantes del Motor Controller --------------*/
 // Características
-constexpr uint16_t RPM_NOM = 215U;
-constexpr float WM_NOM = RPM_NOM * 2*PI/60.0;
+constexpr uint16_t RPM_NOM = 215U;            // rpm nominales bajo carga (son 280 sin carga)       
+constexpr float WM_NOM = RPM_NOM * 2*PI/60.0; // rad/s nominales bajo carga = 22.51 (29.3 sin carga)
 
 // Assigned pins
-constexpr uint8_t MOTOR_LEFT_PWM_PIN = 26;
-constexpr uint8_t MOTOR_LEFT_DIR_PIN1  = 25;
-constexpr uint8_t MOTOR_LEFT_DIR_PIN2  = 33;
+constexpr uint8_t MOTOR_LEFT_PWM_PIN = 26;  // Azul
+constexpr uint8_t MOTOR_LEFT_DIR_PIN1 = 25; // Blanco
+constexpr uint8_t MOTOR_LEFT_DIR_PIN2 = 33; // Verde
 
-constexpr uint8_t MOTOR_RIGHT_PWM_PIN = 18;
-constexpr uint8_t MOTOR_RIGHT_DIR_PIN1 = 19;
-constexpr uint8_t MOTOR_RIGHT_DIR_PIN2 = 21;
+constexpr uint8_t MOTOR_RIGHT_PWM_PIN = 18;  // Azul
+constexpr uint8_t MOTOR_RIGHT_DIR_PIN1 = 19; // Blanco
+constexpr uint8_t MOTOR_RIGHT_DIR_PIN2 = 21; // Verde
 
 // Motor modes
 enum MotorMode : uint8_t {
