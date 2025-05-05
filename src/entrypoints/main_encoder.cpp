@@ -17,9 +17,9 @@ void print_encoder_state() {
     Serial.print(" / ");
     Serial.print(wheels_data.steps_right);
     Serial.print(" | wL: ");
-    Serial.print(wheels_data.wL_measured, 3);
-    Serial.print(" rad/s | wR: ");
-    Serial.println(wheels_data.wR_measured, 3);
+    Serial.print(wheels_data.wL_measured, 2);
+    Serial.print(" | wR: ");
+    Serial.println(wheels_data.wR_measured, 2);
 }
 
 void ejecutar_fase(const char* msg, float dutyL, float dutyR, uint32_t duracion_ms) {

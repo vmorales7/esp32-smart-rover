@@ -13,6 +13,7 @@ ESP32Encoder encoderRight;
 
 int64_t lastCountLeft = 0;
 int64_t lastCountRight = 0;
+constexpr uint32_t PRINT_PERIOD = 250; //ms
 
 // ====================== SETUP Y LOOP ======================
 
@@ -51,7 +52,7 @@ void loop() {
     static unsigned long t_last = 0;
     unsigned long t_now = millis();
 
-    if ((t_now - t_last) >= 500) {
+    if ((t_now - t_last) >= PRINT_PERIOD) {
         float dt = (t_now - t_last) * MS_TO_S;  // en segundos
         t_last = t_now;
 
@@ -62,7 +63,7 @@ void loop() {
         int64_t deltaLeft = countLeft - lastCountLeft;
         lastCountLeft = countLeft;
 
-        // Calcular velocidad angular
+        // Calcular velocidad angular        
         float wLeft = deltaLeft * RAD_PER_PULSE / dt;
 
         // Mostrar resultados

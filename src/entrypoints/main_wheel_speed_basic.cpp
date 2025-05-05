@@ -4,107 +4,82 @@
 #include "position_system/position_controller.h"
 #warning "Compilando main_wheel_speed_basic.cpp"
 
-// ====================== VARIABLES GLOBALES ======================
+constexpr float W1 = 0.5f * WM_NOM;
+constexpr float W2 = 0.6f * WM_NOM;
+constexpr uint32_t TOGGLE_INTERVAL_MS = 10000;
+constexpr uint32_t PRINT_INTERVAL_MS = 1000;
+
 volatile SystemStates system_states = {0};
 volatile WheelsData wheels_data = {0};
 volatile KinematicState kinematic_data = {0};
 
-// ====================== FUNCIONES AUXILIARES ======================
-
-void print_wheel_speeds() {
-    Serial.print("wL_measured: ");
-    Serial.print(wheels_data.wL_measured, 1);
-    Serial.print(" rad/s | wR_measured: ");
-    Serial.print(wheels_data.wR_measured, 1);
-    Serial.print(" rad/s");
-
-    Serial.print(" | dutyL: ");
-    Serial.print(wheels_data.duty_left, 2);
-    Serial.print(" | dutyR: ");
-    Serial.println(wheels_data.duty_right, 2);
-}
-
-
-void set_speed_reference(float w_ref) {
-    Serial.print("Nueva referencia de velocidad: ");
-    Serial.print(w_ref, 1);
-    Serial.println(" rad/s");
-
-    PositionController::set_wheel_speed_ref(
-        w_ref, w_ref,
-        &wheels_data.wL_ref,
-        &wheels_data.wR_ref,
-        &system_states.position_controller
-    );
-}
-
-// ====================== SETUP ======================
-
 void setup() {
     Serial.begin(115200);
-    delay(1000);
-    Serial.println("Test: Motor PI Control (ajuste Kp/Ki/Kw)");
 
-    // Inicializar módulos
-    PositionController::init(
-        &kinematic_data.v_ref, &kinematic_data.w_ref, &wheels_data.wL_ref, &wheels_data.wR_ref, &system_states.position_controller
-    );
-    PositionController::set_control_mode(SPEED_REF_MANUAL, &system_states.position_controller);
     MotorController::init(
         &system_states.motor_operation,
-        &wheels_data.duty_left, &wheels_data.duty_right
+        &wheels_data.duty_left,
+        &wheels_data.duty_right
     );
-    MotorController::set_motors_mode(
-        MOTOR_AUTO,
-        &system_states.motor_operation,
-        &wheels_data.duty_left, &wheels_data.duty_right
-    );
+
     EncoderReader::init(
         &system_states.encoder,
-        &wheels_data.steps_left, &wheels_data.steps_right,
-        &wheels_data.wL_measured, &wheels_data.wR_measured
+        &wheels_data.steps_left,
+        &wheels_data.steps_right,
+        &wheels_data.wL_measured,
+        &wheels_data.wR_measured
     );
+
     EncoderReader::resume(&system_states.encoder);
+
+    MotorController::set_motors_mode(MOTOR_AUTO,
+        &system_states.motor_operation,
+        &wheels_data.duty_left,
+        &wheels_data.duty_right
+    );
 }
 
-// ====================== LOOP ======================
-
 void loop() {
-    static unsigned long t0 = millis();
-    static unsigned long t_last_print = 0;
-    static unsigned long t_last_control = 0;
-    static int fase = 0;
+    static uint32_t lastToggle = millis();
+    static uint32_t lastPrint = millis();
+    static float currentWref = W1;
 
-    unsigned long t = millis();
-
-    // Cambio de fase: cada 5 segundos
-    if ((t - t0) >= 5000) {
-        t0 = t;
-        fase = (fase + 1) % 2;
-        float ref = (fase == 0) ? 0.5f * WM_NOM : 0.2f * WM_NOM;
-        set_speed_reference(ref);
+    // Alternar velocidad de referencia cada 10 segundos
+    if (millis() - lastToggle > TOGGLE_INTERVAL_MS) {
+        currentWref = (currentWref == W1) ? W2 : W1;
+        wheels_data.wL_ref = currentWref;
+        wheels_data.wR_ref = currentWref;
+        lastToggle = millis();
     }
 
-    // Actualizar lectura de encoder cada 10ms
-    if ((t - t_last_control) >= 10) {
-        t_last_control = t;
-        EncoderReader::update_encoder_data(
-            &system_states.encoder,
-            &wheels_data.steps_left, &wheels_data.steps_right,
-            &wheels_data.wL_measured, &wheels_data.wR_measured
-        );
+    // Actualizar encoder y control
+    EncoderReader::update_encoder_data(
+        &system_states.encoder,
+        &wheels_data.steps_left,
+        &wheels_data.steps_right,
+        &wheels_data.wL_measured,
+        &wheels_data.wR_measured
+    );
 
-        MotorController::update_motors_control(
-            &wheels_data.wL_ref, &wheels_data.wR_ref,
-            &wheels_data.wL_measured, &wheels_data.wR_measured,
-            &wheels_data.duty_left, &wheels_data.duty_right,
-            &system_states.motor_operation
-        );
+    MotorController::update_motors_control(
+        &wheels_data.wL_ref,
+        &wheels_data.wR_ref,
+        &wheels_data.wL_measured,
+        &wheels_data.wR_measured,
+        &wheels_data.duty_left,
+        &wheels_data.duty_right,
+        &system_states.motor_operation
+    );
+
+    // Imprimir velocidad cada segundo
+    if (millis() - lastPrint > PRINT_INTERVAL_MS) {
+        float wref = currentWref;
+        float wL = wheels_data.wL_measured;
+        float wR = wheels_data.wR_measured;
+
+        Serial.printf("wref: %.1f  wL: %.1f  wR: %.1f\n", wref, wL, wR);
+        lastPrint = millis();
     }
 
-    // Print de estado cada 500ms
-    if ((t - t_last_print) >= 500) {
-        t_last_print = t;
-        print_wheel_speeds();
-    }
+    delay(WHEEL_CONTROL_PERIOD_MS);  // mantiene periodo de control constante
 }
