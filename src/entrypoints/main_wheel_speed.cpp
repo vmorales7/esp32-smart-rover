@@ -84,7 +84,7 @@ void ejecutar_fase_con_obstaculo(const char* msg, float wL_ref, float wR_ref, ui
                 &wheels_data.wL_measured, &wheels_data.wR_measured
             );
 
-            MotorController::update_motor_control(
+            MotorController::update_motors_control(
                 &wheels_data.wL_ref, &wheels_data.wR_ref,
                 &wheels_data.wL_measured, &wheels_data.wR_measured,
                 &wheels_data.duty_left, &wheels_data.duty_right,
@@ -110,7 +110,7 @@ void ejecutar_fase_con_obstaculo(const char* msg, float wL_ref, float wR_ref, ui
         &wheels_data.wL_ref, &wheels_data.wR_ref,
         &system_states.position_controller
     );
-    MotorController::update_motor_control(
+    MotorController::update_motors_control(
         &wheels_data.wL_ref, &wheels_data.wR_ref,
         &wheels_data.wL_measured, &wheels_data.wR_measured,
         &wheels_data.duty_left, &wheels_data.duty_right,
@@ -131,7 +131,7 @@ void setup() {
 
     MotorController::init(&system_states.motor_operation,
                           &wheels_data.duty_left, &wheels_data.duty_right);
-    MotorController::set_motor_mode(MOTOR_AUTO, &system_states.motor_operation,
+    MotorController::set_motors_mode(MOTOR_AUTO, &system_states.motor_operation,
                                     &wheels_data.duty_left, &wheels_data.duty_right);
 
     DistanceSensors::init(&system_states.distance);

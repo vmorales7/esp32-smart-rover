@@ -12,7 +12,7 @@ constexpr uint32_t PWM_MAX = (1 << PWM_RES_BITS) - 1;  // Duty máximo según re
 #define PWM_CHANNEL_RIGHT 1U
 
 // Motor duty limits
-constexpr float ZERO_DUTY_THRESHOLD = 0.05f; // por debajo de esto se considera 0
+constexpr float ZERO_DUTY_THRESHOLD = 0.1f; // por debajo de esto se considera 0
 constexpr float MIN_EFFECTIVE_DUTY = 0.5f;   // duty mínimo con efecto real
 constexpr float MAX_DUTY = 1.0f;
 
@@ -22,13 +22,13 @@ constexpr float KI_WHEEL = 1.0f;
 constexpr float KW_WHEEL = 0.1f;
 
 // Speed control limits
-constexpr float MIN_PID_DT = 0.1f;  // Tiempo mínimo entre ejecuciones [s]
-constexpr float W_INVERT_THRESHOLD = 1.5f;  // [rad/s]
-constexpr float W_BRAKE_THRESHOLD = 0.2 * WM_NOM;  // Threshold de velocidad para freno activo [rad/s]
+constexpr float MIN_PID_DT = 0.001f;  // Tiempo mínimo entre ejecuciones [s]
+constexpr float W_INVERT_THRESHOLD = 0.1 * WM_NOM;  // [rad/s]
+constexpr float W_BRAKE_THRESHOLD = 0.5 * WM_NOM;  // Threshold de velocidad para freno activo [rad/s]
 
 // Corrección de pines
 constexpr bool INVERT_MOTOR_LEFT = true;
-constexpr bool INVERT_MOTOR_RIGHT = false;
+constexpr bool INVERT_MOTOR_RIGHT = true;
 
 /* ---------------- Operación ------------------*/
 /**
@@ -84,6 +84,38 @@ namespace MotorController {
         volatile float* dutyL_ptr,
         volatile float* dutyR_ptr
     );
+    
+    /**
+     * @brief Establece la señal PWM y dirección para un motor individual.
+     *
+     * Esta función configura los pines de dirección según el sentido (`forward`) y aplica
+     * el valor de PWM correspondiente al canal asociado.
+     *
+     * @param wheel Identificador del motor (`WHEEL_LEFT` o `WHEEL_RIGHT`).
+     * @param duty Valor del duty cycle (0.0–1.0) ya procesado.
+     * @param forward Sentido de giro: `true` para adelante, `false` para reversa.
+     */
+    void set_motor_pwm(uint8_t wheel, float duty, bool forward);
+
+    /**
+     * @brief Aplica freno activo a un motor utilizando el L298N.
+     *
+     * Esta función pone ambos pines de dirección en HIGH y aplica PWM máximo
+     * para forzar el frenado eléctrico (modo `BREAK` del L298N).
+     *
+     * @param wheel Identificador del motor (`WHEEL_LEFT` o `WHEEL_RIGHT`).
+     */
+    void set_motor_break(int wheel);
+
+    /**
+     * @brief Coloca un motor en modo libre (alta impedancia).
+     *
+     * Desactiva la señal PWM y pone ambos pines de dirección en LOW, permitiendo que la rueda
+     * gire libremente sin torque aplicado (modo `IDLE` del L298N).
+     *
+     * @param wheel Identificador del motor (`WHEEL_LEFT` o `WHEEL_RIGHT`).
+     */
+    void set_motor_idle(int wheel);
 
     /**
      * @brief Cambia el modo de operación de los motores (IDLE, ACTIVE, BREAK).
@@ -94,7 +126,7 @@ namespace MotorController {
      * @param dutyL_ptr Puntero al duty actual de la rueda izquierda.
      * @param dutyR_ptr Puntero al duty actual de la rueda derecha.
      */
-    void set_motor_mode(
+    void set_motors_mode(
         volatile uint8_t mode,
         volatile uint8_t* motor_state_ptr,
         volatile float* dutyL_ptr,
@@ -110,12 +142,16 @@ namespace MotorController {
      * @param dutyR_ptr Puntero a la variable donde se almacenará el duty efectivo aplicado a la rueda derecha.
      * @param motor_state_ptr Puntero a la variable con el estado de operación del encoder
      */
-    void set_motor_duty(
+    void set_motors_duty(
         volatile float duty_left,
         volatile float duty_right,
         volatile float* dutyL_ptr,
         volatile float* dutyR_ptr,
         volatile uint8_t* motor_state_ptr
+    );
+
+    float protect_motor_duty(
+        float duty, float w_measured
     );
 
     /**
@@ -129,7 +165,7 @@ namespace MotorController {
      * @param dutyR_ptr Puntero a la variable para el duty aplicado a la rueda derecha.
      * @param motor_state_ptr Puntero a la variable con el estado de operación del encoder
      */
-    void update_motor_control(
+    void update_motors_control(
         volatile float* wL_ref_ptr,
         volatile float* wR_ref_ptr,
         volatile float* wL_measured_ptr,

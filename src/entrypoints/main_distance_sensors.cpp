@@ -41,7 +41,7 @@ void setup() {
         &wheels_data.duty_left,
         &wheels_data.duty_right
     );
-    MotorController::set_motor_mode(
+    MotorController::set_motors_mode(
         MOTOR_ACTIVE,
         &system_states.motor_operation,
         &wheels_data.duty_left,
@@ -53,7 +53,7 @@ void setup() {
     DistanceSensors::set_state(ACTIVE, &system_states.distance);
 
     // Comenzar movimiento recto
-    MotorController::set_motor_duty(
+    MotorController::set_motors_duty(
         DUTY_FORWARD, DUTY_FORWARD,
         &wheels_data.duty_left, &wheels_data.duty_right,
         &system_states.motor_operation
@@ -77,7 +77,7 @@ void loop() {
             Serial.print(distancia);
             Serial.println(" cm — deteniendo motores");
 
-            MotorController::set_motor_mode(
+            MotorController::set_motors_mode(
                 MOTOR_IDLE,
                 &system_states.motor_operation,
                 &wheels_data.duty_left,
@@ -89,13 +89,13 @@ void loop() {
             distance_data.obstacle_detected = false;
             Serial.println("Obstáculo despejado — reanudando movimiento");
 
-            MotorController::set_motor_mode(
+            MotorController::set_motors_mode(
                 MOTOR_ACTIVE,
                 &system_states.motor_operation,
                 &wheels_data.duty_left,
                 &wheels_data.duty_right
             );
-            MotorController::set_motor_duty(
+            MotorController::set_motors_duty(
                 DUTY_FORWARD, DUTY_FORWARD,
                 &wheels_data.duty_left, &wheels_data.duty_right,
                 &system_states.motor_operation

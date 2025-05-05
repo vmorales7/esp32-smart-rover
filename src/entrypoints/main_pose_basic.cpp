@@ -32,10 +32,10 @@ void setup() {
     // Echar a andar motores
     MotorController::init(&system_states.motor_operation,
                           &wheels_data.duty_left, &wheels_data.duty_right);
-    MotorController::set_motor_mode(MOTOR_ACTIVE,
+    MotorController::set_motors_mode(MOTOR_ACTIVE,
                                     &system_states.motor_operation,
                                     &wheels_data.duty_left, &wheels_data.duty_right);
-    MotorController::set_motor_duty(0.5f, 0.5f,
+    MotorController::set_motors_duty(0.5f, 0.5f,
                                     &wheels_data.duty_left, &wheels_data.duty_right,
                                     &system_states.motor_operation);
 }

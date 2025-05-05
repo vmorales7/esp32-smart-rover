@@ -27,7 +27,7 @@ void setup() {
         &wheels_data.duty_left, &wheels_data.duty_right
     );
 
-    MotorController::set_motor_mode(
+    MotorController::set_motors_mode(
         MOTOR_ACTIVE,
         &system_states.motor_operation,
         &wheels_data.duty_left, &wheels_data.duty_right
@@ -38,7 +38,7 @@ void setup() {
     encoderLeft.attachHalfQuad(ENCODER_LEFT_A_PIN, ENCODER_LEFT_B_PIN);
 
     // Fijar un duty bajo constante
-    MotorController::set_motor_duty(
+    MotorController::set_motors_duty(
         0.5f, 0.5f,
         &wheels_data.duty_left, &wheels_data.duty_right,
         &system_states.motor_operation

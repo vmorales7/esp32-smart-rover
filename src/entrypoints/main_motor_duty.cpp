@@ -26,7 +26,7 @@ void setup() {
         &wheels_data.duty_right
     );
 
-    MotorController::set_motor_mode(
+    MotorController::set_motors_mode(
         MOTOR_ACTIVE,
         &system_states.motor_operation,
         &wheels_data.duty_left,
@@ -37,16 +37,16 @@ void setup() {
     Serial.println("Test: Duty Cycle Motor - Iniciando secuencia...");
 
     // Avance recto 70% por 3 segundos
-    MotorController::set_motor_duty(
+    MotorController::set_motors_duty(
         0.7f, 0.7f,
         &wheels_data.duty_left, &wheels_data.duty_right,
         &system_states.motor_operation
     );
-    print_duty_state("Avanzando recto (90%)");
+    print_duty_state("Avanzando recto (70%)");
     delay(5000);
 
     // Freno antes de girar
-    MotorController::set_motor_duty(
+    MotorController::set_motors_duty(
         0.0f, 0.0f,
         &wheels_data.duty_left, &wheels_data.duty_right,
         &system_states.motor_operation
@@ -55,16 +55,16 @@ void setup() {
     delay(2000);
 
     // Giro en el lugar hacia la izquierda por 2 segundos
-    MotorController::set_motor_duty(
+    MotorController::set_motors_duty(
         -0.4f, 0.4f,
         &wheels_data.duty_left, &wheels_data.duty_right,
         &system_states.motor_operation
     );
-    print_duty_state("Girando en el lugar (izquierda, 50%)");
+    print_duty_state("Girando en el lugar (izquierda, 40%)");
     delay(2000);
 
     // Freno antes de avanzar nuevamente
-    MotorController::set_motor_duty(
+    MotorController::set_motors_duty(
         0.0f, 0.0f,
         &wheels_data.duty_left, &wheels_data.duty_right,
         &system_states.motor_operation
@@ -73,7 +73,7 @@ void setup() {
     delay(2000);
 
     // Nuevamente avance recto 50% por 3 segundos
-    MotorController::set_motor_duty(
+    MotorController::set_motors_duty(
         0.7f, 0.7f,
         &wheels_data.duty_left, &wheels_data.duty_right,
         &system_states.motor_operation
@@ -82,7 +82,7 @@ void setup() {
     delay(5000);
 
     // Detener motores
-    MotorController::set_motor_mode(
+    MotorController::set_motors_mode(
         MOTOR_IDLE,
         &system_states.motor_operation,
         &wheels_data.duty_left,
