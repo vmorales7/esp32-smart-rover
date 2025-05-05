@@ -9,6 +9,10 @@ namespace EncoderReader {
     static long lastCountRight = 0;
     static unsigned long lastMillis = 0;
 
+    // Usadas para el filtro de velocidad
+    static float filteredWL = 0.0f;
+    static float filteredWR = 0.0f;
+
     void init(
         volatile uint8_t* encoder_state_ptr,
         volatile int64_t* steps_left_ptr, volatile int64_t* steps_right_ptr,
@@ -52,6 +56,8 @@ namespace EncoderReader {
         lastMillis = millis();
 
         // Dejar en cero las mediciones de velocidad
+        filteredWL = 0.0f;
+        filteredWR = 0.0f;
         *wL_measured_ptr = 0.0f;
         *wR_measured_ptr = 0.0f;
 
@@ -97,9 +103,20 @@ namespace EncoderReader {
         *steps_right_ptr += deltaRight;
 
         // La velocidad es instantánea así que se actualiza con el factor para convertir en radianes
-        *wL_measured_ptr = deltaLeft * RAD_PER_PULSE / dt;
-        *wR_measured_ptr = deltaRight * RAD_PER_PULSE / dt;
-
+        float rawWL = deltaLeft * RAD_PER_PULSE / dt;
+        float rawWR = deltaRight * RAD_PER_PULSE / dt;
+    
+        #if USE_VELOCITY_FILTER
+        // Filtrado exponencial EMA
+        filteredWL = EMA_ALPHA * rawWL + (1.0f - EMA_ALPHA) * filteredWL;
+        filteredWR = EMA_ALPHA * rawWR + (1.0f - EMA_ALPHA) * filteredWR;
+    
+        *wL_measured_ptr = filteredWL;
+        *wR_measured_ptr = filteredWR;
+    #else
+        *wL_measured_ptr = rawWL;
+        *wR_measured_ptr = rawWR;
+    #endif
         // Guardar datos para la próxima iteración
         lastCountLeft = currentCountLeft;
         lastCountRight = currentCountRight;
