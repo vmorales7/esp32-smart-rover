@@ -129,11 +129,11 @@ void setup() {
     Serial.println();
     
     // Secuencia de prueba
-    ejecutar_fase_con_obstaculo("Avanzando recto (50%)", 0.5f, 0.5f, 2000);
+    ejecutar_fase_con_obstaculo("Avanzando recto (50%)", 0.5f, 0.5f, 5000);
     delay(1000);
-    ejecutar_fase_con_obstaculo("Girando en el lugar (izq, 60%)", 0.0f, 0.6f, 1000);
+    ejecutar_fase_con_obstaculo("Girando en el lugar (izq, 60%)", 0.0f, 0.6f, 2000);
     delay(1000);
-    ejecutar_fase_con_obstaculo("Avanzando recto (50%)", 0.5f, 0.5f, 2000);
+    ejecutar_fase_con_obstaculo("Avanzando recto (50%)", 0.5f, 0.5f, 5000);
     delay(1000);
     Serial.println("Secuencia completada. Motores en IDLE.");
 }
