@@ -19,10 +19,10 @@ namespace PoseEstimator {
 
         // Integración numérica del giro global
         float theta = theta_prev + dtheta;
-        theta = wrap_to_pi(theta); // Mantener entre 0 y 2pi
-
+        
         // Integración numérica de la posición global
         float avg_theta = (theta_prev + theta) / 2.0f;
+        avg_theta = wrap_to_pi(avg_theta); // Mantener entre 0 y 2pi
         float dx = ddist * cosf(avg_theta);
         float dy = ddist * sinf(avg_theta);
 

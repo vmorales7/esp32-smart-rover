@@ -2,6 +2,7 @@
 #include "motor_drive/motor_controller.h"
 #include "sensors_firmware/encoder_reader.h"
 #include "position_system/pose_estimator.h"
+#include "position_system/position_controller.h"
 #warning "Compilando main_pose_basic.cpp"
 
 // ====================== VARIABLES GLOBALES ======================
@@ -9,6 +10,7 @@ volatile SystemStates system_states = {0};
 volatile WheelsData wheels_data = {0};
 volatile KinematicState kinematic_state = {0};
 volatile PoseData pose_data = {0};
+volatile uint8_t control_mode = 0;
 
 // ====================== SETUP ======================
 void setup() {
@@ -29,15 +31,25 @@ void setup() {
         &wheels_data.wL_measured, &wheels_data.wR_measured);
     EncoderReader::resume(&system_states.encoder);
 
+    // 
+    
+
+    
     // Echar a andar motores
     MotorController::init(&system_states.motor_operation,
                           &wheels_data.duty_left, &wheels_data.duty_right);
     MotorController::set_motors_mode(MOTOR_ACTIVE,
                                     &system_states.motor_operation,
                                     &wheels_data.duty_left, &wheels_data.duty_right);
-    MotorController::set_motors_duty(0.5f, 0.5f,
-                                    &wheels_data.duty_left, &wheels_data.duty_right,
-                                    &system_states.motor_operation);
+    float WL = PositionController::compute_wheel_speed_ref(1.0f, 0.0f, WHEEL_LEFT);
+
+    
+    PositionController::set_wheel_speed_ref(
+        WL, WL,
+        &wheels_data.wL_ref, &wheels_data.wR_ref,
+        &control_mode
+    );
+
 }
 
 // ====================== LOOP ======================
@@ -75,12 +87,12 @@ void loop() {
     if (now - last_print >= 500) {
         last_print = now;
 
-        Serial.print("Pose => x: ");
-        Serial.print(kinematic_state.x, 3);
-        Serial.print(" | y: ");
-        Serial.print(kinematic_state.y, 3);
-        Serial.print(" | θ: ");
-        Serial.println(kinematic_state.theta, 3);
+        // Serial.print("Pose => x: ");
+        // Serial.print(kinematic_state.x, 3);
+        // Serial.print(" | y: ");
+        // Serial.print(kinematic_state.y, 3);
+        // Serial.print(" | θ: ");
+        // Serial.println(kinematic_state.theta, 3);
 
         Serial.print("Vel  => v: ");
         Serial.print(kinematic_state.v, 3);
