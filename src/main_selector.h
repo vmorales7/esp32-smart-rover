@@ -17,8 +17,8 @@
 // #define USE_MAIN_DISTANCE_SENSORS       // Prueba de detención de rueda con la detección de obstáculo + encoder
 // #define USE_MAIN_DISTANCE_SENSORS_FULL  // Rutina de duty + detención por obtáculo + encoder
 // #define USE_MAIN_WHEEL_SPEED_BASIC      // Rutina para tuneo de controlador de rueda
-#define USE_MAIN_WHEEL_SPEED            // Rutina de wheel ref + detención por obstáculo + encoder + pose estimation
-// #define USE_MAIN_POSE_BASIC             // Rutina de prueba para pose_estimator
+// #define USE_MAIN_WHEEL_SPEED            // Rutina de wheel ref + detención por obstáculo + encoder + pose estimation
+#define USE_MAIN_POSE_BASIC             // Rutina de prueba para pose_estimator
 // #define USE_MAIN_POSE                   // Rutina de duty + detención por obtáculo + encoder + pose estimation
 // #define USE_MAIN_DEBUG
 

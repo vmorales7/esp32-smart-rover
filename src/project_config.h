@@ -11,8 +11,8 @@
 #define WHEEL_RIGHT 1U
 
 // Parámetros físicos del vegículo
-constexpr float WHEEL_RADIUS = 0.03f;    // en metros
-constexpr float WHEEL_DISTANCE = 0.2f;   // distancia entre ruedas (L)
+constexpr float WHEEL_RADIUS = 0.066f / 2.0f;    // en metros
+constexpr float WHEEL_DISTANCE = 0.194f / 2.0f;   // distancia entre ruedas (L)
 
 // Auxiliares
 constexpr float MS_TO_S = 0.001f;
