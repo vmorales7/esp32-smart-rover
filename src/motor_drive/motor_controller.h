@@ -13,18 +13,20 @@ constexpr uint32_t PWM_MAX = (1 << PWM_RES_BITS) - 1;  // Duty máximo según re
 
 // Motor duty limits
 constexpr float ZERO_DUTY_THRESHOLD = 0.1f; // por debajo de esto se considera 0
-constexpr float MIN_EFFECTIVE_DUTY = 0.5f;   // duty mínimo con efecto real
+constexpr float MIN_MOVE_DUTY = 0.17f;   // duty mínimo con efecto real (0.17 sin carga para 1000Hz)
+constexpr float MIN_START_DUTY = 0.22f;   // duty mínimo con efecto real (0.22 sin carga para 1000Hz)
 constexpr float MAX_DUTY = 1.0f;
 
 // Speed controller PI parameters
-constexpr float KP_WHEEL = 2.0f;
-constexpr float KI_WHEEL = 1.0f;
-constexpr float KW_WHEEL = 0.1f;
+constexpr float KP_WHEEL = 0.09f;
+constexpr float KI_WHEEL = 0.07f;
+constexpr float KW_WHEEL = 0.01f;
 
 // Speed control limits
 constexpr float MIN_PID_DT = 0.001f;  // Tiempo mínimo entre ejecuciones [s]
 constexpr float W_INVERT_THRESHOLD = 0.1 * WM_NOM;  // [rad/s]
 constexpr float W_BRAKE_THRESHOLD = 0.5 * WM_NOM;  // Threshold de velocidad para freno activo [rad/s]
+constexpr float W_STOP_THRESHOLD = 0.05 * 2*PI;  // Threshold de velocidad para considerar stop [rad/s]
 
 // Corrección de pines
 constexpr bool INVERT_MOTOR_LEFT = true;
