@@ -32,12 +32,11 @@ WheelSpeedPID::WheelSpeedPID(float kp, float ki, float kw)
         return duty_output;
     }
     
-
-void WheelSpeedPID::reset() {
-    integral = 0.0f;
-    lastTime = millis() * MS_TO_S;
-    lastDuty = 0.0f;
-}    
+    void WheelSpeedPID::reset() {
+        integral = 0.0f;
+        lastTime = millis() * MS_TO_S;
+        lastDuty = 0.0f;
+    }    
 
 // ----- Funciones y variables local (static) de motor_controller -------
 static WheelSpeedPID pidLeft(KP_WHEEL, KI_WHEEL, KW_WHEEL); // Instancia PID motor izq.
@@ -150,7 +149,7 @@ namespace MotorController {
                 set_motor_idle(WHEEL_LEFT);
                 *dutyL_ptr = 0.0f;
             } else {
-                if (duty < MIN_EFFECTIVE_DUTY) duty = MIN_EFFECTIVE_DUTY; // duty pequeño pero insuficiente para avanzar
+                if (duty < MIN_MOVE_DUTY) duty = MIN_MOVE_DUTY; // duty pequeño pero insuficiente para avanzar
                 if (duty > MAX_DUTY) duty = MAX_DUTY; // limitar al duty máximo (100%)
                 *dutyL_ptr = duty;
                 
@@ -166,7 +165,7 @@ namespace MotorController {
                 set_motor_idle(WHEEL_RIGHT);
                 *dutyR_ptr = 0.0f;
             } else {
-                if (duty < MIN_EFFECTIVE_DUTY) duty = MIN_EFFECTIVE_DUTY;
+                if (duty < MIN_MOVE_DUTY) duty = MIN_MOVE_DUTY;
                 if (duty > MAX_DUTY) duty = MAX_DUTY;
                 *dutyR_ptr = duty;
                 if (INVERT_MOTOR_RIGHT) forward = !forward;
@@ -186,6 +185,7 @@ namespace MotorController {
         // Cálculo del PI
         float dutyL = pidLeft.compute(*wL_ref_ptr, *wL_measured_ptr);
         float dutyR = pidRight.compute(*wR_ref_ptr, *wR_measured_ptr);
+        // set_motors_duty(dutyL, dutyR, dutyL_ptr, dutyR_ptr, motor_state_ptr);
 
         // Si no hay freno, se aplica el duty como de costumbre
         if (dutyL != 0.0f || dutyR != 0.0f) {
@@ -206,16 +206,21 @@ namespace MotorController {
             *dutyR_ptr = 0.0f;
         }
     }
-
-    float protect_motor_duty(float duty, float w_measured) {   
-        // Prevenir cambio de signo si ω aún es alta
+    
+    float protect_motor_duty(float duty, float w_measured) {
+        // Prevenir inversión de sentido si la rueda aún gira rápido
         if ((duty * w_measured < 0.0f) && abs(w_measured) > W_INVERT_THRESHOLD) {
-            duty = 0.0f;  // Evita reversa agresiva
+            return 0.0f;
         }
-        // Futuramente, limitar tasa de cambio
+    
+        // Si la rueda está completamente detenida y se quiere mover, duty debe ser al menos MIN_START_DUTY
+        if (abs(w_measured) < W_STOP_THRESHOLD && abs(duty) > 0.0f && abs(duty) < MIN_START_DUTY) {
+            duty = (duty > 0.0f ? 1.0f : -1.0f) * MIN_START_DUTY;
+        }
+    
         return duty;
     }
-    
+
     void Task_WheelControl(void* pvParameters) {
         // Datos de RTOS
         TickType_t xLastWakeTime = xTaskGetTickCount();

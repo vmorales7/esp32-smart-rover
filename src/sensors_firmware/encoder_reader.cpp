@@ -27,7 +27,7 @@ namespace EncoderReader {
             encoderRight.attachFullQuad(ENCODER_RIGHT_A_PIN, ENCODER_RIGHT_B_PIN);
         }
         pause(encoder_state_ptr, steps_left_ptr, steps_right_ptr, wL_measured_ptr, wR_measured_ptr);
-        *steps_left_ptr = 0; // Unica instancia en que encoder_reader modifica estos contadores
+        *steps_left_ptr = 0; // Única instancia en que encoder_reader modifica estos contadores
         *steps_right_ptr = 0;
     }
 
