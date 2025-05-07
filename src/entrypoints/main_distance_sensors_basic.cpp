@@ -55,11 +55,11 @@ void setup() {
         2048, nullptr, 1, nullptr, APP_CPU_NUM
     );
 
-    xTaskCreatePinnedToCore(
-        DistanceSensors::Task_LateralObstacleDetect,
-        "LateralIR",
-        2048, nullptr, 1, nullptr, APP_CPU_NUM
-    );
+    // xTaskCreatePinnedToCore(
+    //     DistanceSensors::Task_LateralObstacleDetect,
+    //     "LateralIR",
+    //     2048, nullptr, 1, nullptr, APP_CPU_NUM
+    // );
 
     xTaskCreatePinnedToCore(
         Task_SerialMonitor,
