@@ -3,6 +3,13 @@
 
 #include "project_config.h"
 
+/* ---------------- Constantes y variables sistema ------------------*/
+enum class PoseEstimatorMode : uint8_t {
+    ENCODER = 1U,
+    FUSION  = 2U
+};
+constexpr PoseEstimatorMode POSE_ESTIMATOR_MODE = PoseEstimatorMode::ENCODER;
+
 /**
  * @brief Estructura que representa la pose estimada del vehículo autónomo.
  *
@@ -16,6 +23,9 @@ struct PoseData {
     float v;      ///< Velocidad lineal [m/s]
     float w;      ///< Velocidad angular [rad/s]
 };
+
+
+/* ---------------- Constantes del sistema ------------------*/
 
 namespace PoseEstimator {
 

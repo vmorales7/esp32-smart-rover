@@ -2,6 +2,7 @@
 
 namespace EncoderReader {
 
+    // Variables internas del sistema
     static ESP32Encoder encoderLeft;
     static ESP32Encoder encoderRight;
 
@@ -9,7 +10,7 @@ namespace EncoderReader {
     static long lastCountRight = 0;
     static unsigned long lastMillis = 0;
 
-    // Usadas para el filtro de velocidad
+    // Variables para el filtro EMA 
     static float filteredWL = 0.0f;
     static float filteredWR = 0.0f;
 
@@ -48,7 +49,7 @@ namespace EncoderReader {
         );
 
         // Reset hardware y control interno 
-        // Importante que no se limpien las variables steps_right_ptr ya que esto solo lo puede hacer pose_estimator
+        // Importante que no se limpien las variables steps_R/L_ptr ya que esto solo lo puede hacer pose_estimator
         encoderLeft.clearCount();
         encoderRight.clearCount();
         lastCountLeft = 0;
@@ -84,18 +85,18 @@ namespace EncoderReader {
         // Paso de tiempo
         unsigned long currentMillis = millis();
         float dt = (currentMillis - lastMillis) * MS_TO_S;  // Tiempo (s) transcurrido desde la ultima actualización
-        if (dt < 0.001f) return; // si es menor a 1ms no lo consideramos
+        if (dt < 0.001f) return; // si es menor a 1ms esperamos hasta la siguiente llamada
 
         // Lectura de la cuenta que se lleva internamente mediante ESP32Encoder
         int64_t currentCountLeft = encoderLeft.getCount();
         int64_t currentCountRight = encoderRight.getCount();
 
         // Modificación para corregir el sentido positivo hacia adelante
-        if (INVERT_ENCODER_LEFT) currentCountLeft = -currentCountLeft;
-        if (INVERT_ENCODER_RIGHT) currentCountRight = -currentCountRight;
+        if constexpr (INVERT_ENCODER_LEFT) currentCountLeft = -currentCountLeft;
+        if constexpr (INVERT_ENCODER_RIGHT) currentCountRight = -currentCountRight;
 
         // Cambio en el giro desde la ultima lectura
-        int64_t deltaLeft = (currentCountLeft - lastCountLeft) ; 
+        int64_t deltaLeft = (currentCountLeft - lastCountLeft); 
         int64_t deltaRight = (currentCountRight - lastCountRight) ;
 
         // Se acumula el giro sobre el valor que se tenía antes
@@ -106,17 +107,17 @@ namespace EncoderReader {
         float rawWL = deltaLeft * RAD_PER_PULSE / dt;
         float rawWR = deltaRight * RAD_PER_PULSE / dt;
     
-        #if USE_VELOCITY_FILTER
-        // Filtrado exponencial EMA
-        filteredWL = EMA_ALPHA * rawWL + (1.0f - EMA_ALPHA) * filteredWL;
-        filteredWR = EMA_ALPHA * rawWR + (1.0f - EMA_ALPHA) * filteredWR;
-    
-        *wL_measured_ptr = filteredWL;
-        *wR_measured_ptr = filteredWR;
-    #else
-        *wL_measured_ptr = rawWL;
-        *wR_measured_ptr = rawWR;
-    #endif
+        // Se utiliza un filtro EMA (exponential moving average)
+        if constexpr (USE_VELOCITY_FILTER) {
+            filteredWL = EMA_ALPHA * rawWL + (1.0f - EMA_ALPHA) * filteredWL;
+            filteredWR = EMA_ALPHA * rawWR + (1.0f - EMA_ALPHA) * filteredWR;
+            *wL_measured_ptr = filteredWL;
+            *wR_measured_ptr = filteredWR;
+        } else {
+            *wL_measured_ptr = rawWL;
+            *wR_measured_ptr = rawWR;
+        }
+        
         // Guardar datos para la próxima iteración
         lastCountLeft = currentCountLeft;
         lastCountRight = currentCountRight;
@@ -131,8 +132,8 @@ namespace EncoderReader {
         // Recuperamos los inputs pasados a la tarea de RTOS
         GlobalContext* ctx_ptr = static_cast<GlobalContext*>(pvParameters);
         volatile uint8_t* encoder_state_ptr = &ctx_ptr->systems_ptr->encoder;
-        volatile int64_t* steps_left_ptr      = &ctx_ptr->wheels_ptr->steps_left;
-        volatile int64_t* steps_right_ptr      = &ctx_ptr->wheels_ptr->steps_right;
+        volatile int64_t* steps_left_ptr    = &ctx_ptr->wheels_ptr->steps_left;
+        volatile int64_t* steps_right_ptr   = &ctx_ptr->wheels_ptr->steps_right;
         volatile float* wL_measured_ptr     = &ctx_ptr->wheels_ptr->wL_measured;
         volatile float* wR_measured_ptr     = &ctx_ptr->wheels_ptr->wR_measured;
         for (;;) {

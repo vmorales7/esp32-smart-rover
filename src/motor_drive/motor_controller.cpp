@@ -140,37 +140,36 @@ namespace MotorController {
     ) {
         // En IDLE o BREAK no se permite set duty
         if (*motor_state_ptr != MOTOR_ACTIVE && *motor_state_ptr != MOTOR_AUTO) return; 
-
         { // Motor izquierdo
             bool forward = duty_left >= 0.0f;   // dirección según el signo de duty
-            float duty = roundf(abs(duty_left) * 100.0f) * 0.01f; // Aproximar al segundo decimal
+            float duty = abs(duty_left);
             // Clasificación por bandas
             if (duty < ZERO_DUTY_THRESHOLD) {  // Duty tan pequeño que se considera 0 → apagar motor
                 set_motor_idle(WHEEL_LEFT);
-                *dutyL_ptr = 0.0f;
+                duty = 0.0f;
             } else {
                 if (duty < MIN_MOVE_DUTY) duty = MIN_MOVE_DUTY; // duty pequeño pero insuficiente para avanzar
                 if (duty > MAX_DUTY) duty = MAX_DUTY; // limitar al duty máximo (100%)
-                *dutyL_ptr = duty;
                 
                 // Lógica de dirección y escritura de valores
-                if (INVERT_MOTOR_LEFT) forward = !forward; // invertir dirección si pines están mal conectados
+                if constexpr (INVERT_MOTOR_LEFT) forward = !forward; // invertir dirección si pines están mal conectados
                 set_motor_pwm(WHEEL_LEFT, duty, forward);
             }
+            *dutyL_ptr = duty;
         }
         { // Motor derecho
             bool forward = duty_right >= 0.0f;
-            float duty = roundf(abs(duty_right) * 100.0f) * 0.01f;
+            float duty = abs(duty_right);
             if (duty < ZERO_DUTY_THRESHOLD) {
                 set_motor_idle(WHEEL_RIGHT);
-                *dutyR_ptr = 0.0f;
+                duty = 0.0f;
             } else {
                 if (duty < MIN_MOVE_DUTY) duty = MIN_MOVE_DUTY;
                 if (duty > MAX_DUTY) duty = MAX_DUTY;
-                *dutyR_ptr = duty;
-                if (INVERT_MOTOR_RIGHT) forward = !forward;
+                if constexpr (INVERT_MOTOR_RIGHT) forward = !forward;
                 set_motor_pwm(WHEEL_RIGHT, duty, forward);
             }
+            *dutyR_ptr = duty;
         }
     }
 
@@ -189,8 +188,8 @@ namespace MotorController {
 
         // Si no hay freno, se aplica el duty como de costumbre
         if (dutyL != 0.0f || dutyR != 0.0f) {
-            dutyL = protect_motor_duty(dutyL,*wL_measured_ptr);
-            dutyR = protect_motor_duty(dutyR,*wR_measured_ptr);
+            dutyL = protect_motor_duty(dutyL, *wL_measured_ptr);
+            dutyR = protect_motor_duty(dutyR, *wR_measured_ptr);
             set_motors_duty(dutyL, dutyR, dutyL_ptr, dutyR_ptr, motor_state_ptr);
         }
     
@@ -210,14 +209,12 @@ namespace MotorController {
     float protect_motor_duty(float duty, float w_measured) {
         // Prevenir inversión de sentido si la rueda aún gira rápido
         if ((duty * w_measured < 0.0f) && abs(w_measured) > W_INVERT_THRESHOLD) {
-            return 0.0f;
-        }
-    
+            duty = 0.0f;
+        
         // Si la rueda está completamente detenida y se quiere mover, duty debe ser al menos MIN_START_DUTY
-        if (abs(w_measured) < W_STOP_THRESHOLD && abs(duty) > 0.0f && abs(duty) < MIN_START_DUTY) {
+        } else if (abs(w_measured) < W_STOP_THRESHOLD && abs(duty) > 0.0f && abs(duty) < MIN_START_DUTY) {
             duty = (duty > 0.0f ? 1.0f : -1.0f) * MIN_START_DUTY;
         }
-    
         return duty;
     }
 

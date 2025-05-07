@@ -4,12 +4,17 @@
 #include "project_config.h"
 
 /* ---------------- Constantes del sistema ------------------*/
+
+// Motor speed characteristics
+constexpr uint16_t RPM_NOM = 215U;            // rpm nominales bajo carga (son 280 sin carga)       
+constexpr float WM_NOM = RPM_NOM * 2*PI/60.0; // rad/s nominales bajo carga = 22.51 (29.3 sin carga)
+
 // PWM parameters
-constexpr uint32_t PWM_FREQUENCY = 1000;    // Frecuencia en Hz
-constexpr uint8_t PWM_RES_BITS = 8;        // Resolución en bits (8 → rango 0–255)
+constexpr uint32_t PWM_FREQUENCY = 1000;               // Frecuencia en Hz
+constexpr uint8_t PWM_RES_BITS = 8;                    // Resolución en bits (8 → rango 0–255)
 constexpr uint32_t PWM_MAX = (1 << PWM_RES_BITS) - 1;  // Duty máximo según resolución
-#define PWM_CHANNEL_LEFT 0U
-#define PWM_CHANNEL_RIGHT 1U
+constexpr uint8_t PWM_CHANNEL_LEFT = 0U;
+constexpr uint8_t PWM_CHANNEL_RIGHT = 1U;
 
 // Motor duty limits
 constexpr float ZERO_DUTY_THRESHOLD = 0.1f; // por debajo de esto se considera 0
@@ -24,15 +29,17 @@ constexpr float KW_WHEEL = 0.01f;
 
 // Speed control limits
 constexpr float MIN_PID_DT = 0.001f;  // Tiempo mínimo entre ejecuciones [s]
-constexpr float W_INVERT_THRESHOLD = 0.1 * WM_NOM;  // [rad/s]
+constexpr float W_INVERT_THRESHOLD = 0.1 * WM_NOM; // No invertir el signo del duty si va muy rápido [rad/s]
 constexpr float W_BRAKE_THRESHOLD = 0.5 * WM_NOM;  // Threshold de velocidad para freno activo [rad/s]
-constexpr float W_STOP_THRESHOLD = 0.05 * 2*PI;  // Threshold de velocidad para considerar stop [rad/s]
+constexpr float W_STOP_THRESHOLD = 0.01 * WM_NOM;  // Threshold de velocidad para considerar stop [rad/s]
 
 // Corrección de pines
 constexpr bool INVERT_MOTOR_LEFT = true;
 constexpr bool INVERT_MOTOR_RIGHT = true;
 
+
 /* ---------------- Operación ------------------*/
+
 /**
  * @brief Clase para el control de velocidad de rueda usando un controlador PI con anti-windup.
  */
