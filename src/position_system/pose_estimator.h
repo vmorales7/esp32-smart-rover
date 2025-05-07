@@ -4,6 +4,7 @@
 #include "project_config.h"
 
 /* ---------------- Constantes y variables sistema ------------------*/
+
 enum class PoseEstimatorMode : uint8_t {
     ENCODER = 1U,
     FUSION  = 2U
@@ -25,7 +26,7 @@ struct PoseData {
 };
 
 
-/* ---------------- Constantes del sistema ------------------*/
+/* ---------------- Funciones del sistema ------------------*/
 
 namespace PoseEstimator {
 

@@ -3,6 +3,7 @@
 #include "sensors_firmware/encoder_reader.h"
 #include "position_system/pose_estimator.h"
 #include "position_system/position_controller.h"
+
 #warning "Compilando main_pose_basic.cpp"
 
 // ====================== VARIABLES GLOBALES ======================
@@ -10,19 +11,25 @@ volatile SystemStates system_states = {0};
 volatile WheelsData wheels_data = {0};
 volatile KinematicState kinematic_state = {0};
 volatile PoseData pose_data = {0};
-volatile uint8_t control_mode = 0;
+
+GlobalContext ctx = {
+    .systems_ptr   = &system_states,
+    .kinematic_ptr = &kinematic_state,
+    .wheels_ptr    = &wheels_data,
+    .distance_ptr  = nullptr
+};
 
 // ====================== SETUP ======================
 void setup() {
     Serial.begin(115200);
     delay(1000);
-    Serial.println("Pose Debug — Duty fijo 50%");
+    Serial.println("Pose Debug — Duty fijo 50% (RTOS)");
 
     // Inicializar posición
-    PoseEstimator::set_state(ACTIVE,&system_states.pose_estimator);
+    PoseEstimator::set_state(ACTIVE, &system_states.pose_estimator);
     PoseEstimator::reset_pose_and_steps(
         &kinematic_state.x, &kinematic_state.y, &kinematic_state.theta,
-        &wheels_data.steps_left, &wheels_data.steps_left
+        &wheels_data.steps_left, &wheels_data.steps_right
     );
 
     // Inicializar encoder
@@ -31,73 +38,49 @@ void setup() {
         &wheels_data.wL_measured, &wheels_data.wR_measured);
     EncoderReader::resume(&system_states.encoder);
 
-    // 
-    
-
-    
-    // Echar a andar motores
+    // Inicializar motores
     MotorController::init(&system_states.motor_operation,
                           &wheels_data.duty_left, &wheels_data.duty_right);
-    MotorController::set_motors_mode(MOTOR_ACTIVE,
-                                    &system_states.motor_operation,
-                                    &wheels_data.duty_left, &wheels_data.duty_right);
-    float WL = PositionController::compute_wheel_speed_ref(1.0f, 0.0f, WHEEL_LEFT);
+    MotorController::set_motors_mode(MOTOR_AUTO,
+                                     &system_states.motor_operation,
+                                     &wheels_data.duty_left, &wheels_data.duty_right);
 
-    
+    // Generar referencia de velocidad
+    PositionController::init(
+        &system_states.position_controller,
+        &wheels_data.wL_ref, &wheels_data.wR_ref
+    );
+    PositionController::set_control_mode(SPEED_REF_MANUAL, &system_states.position_controller);
     PositionController::set_wheel_speed_ref(
-        WL, WL,
+        10.0f, 10.0f,
         &wheels_data.wL_ref, &wheels_data.wR_ref,
-        &control_mode
+        &system_states.position_controller
     );
 
+    // Crear tareas RTOS
+    xTaskCreatePinnedToCore(MotorController::Task_WheelControl, "WheelControl", 2048, &ctx, 1, nullptr, 1);
+    xTaskCreatePinnedToCore(EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2048, &ctx, 1, nullptr, 1);
+    xTaskCreatePinnedToCore(PoseEstimator::Task_PoseEstimatorEncoder, "PoseEstimator", 2048, &ctx, 1, nullptr, 1);
 }
+
 
 // ====================== LOOP ======================
 void loop() {
-    static unsigned long last_control = 0;
     static unsigned long last_print = 0;
-
     unsigned long now = millis();
 
-    // Actualiza encoder y pose cada 10 ms
-    if (now - last_control >= 10) {
-        last_control = now;
-
-        EncoderReader::update_encoder_data(
-            &system_states.encoder,
-            &wheels_data.steps_left, &wheels_data.steps_right,
-            &wheels_data.wL_measured, &wheels_data.wR_measured
-        );
-
-        PoseData pose = PoseEstimator::estimate_pose_from_encoder(
-            &kinematic_state.x, &kinematic_state.y, &kinematic_state.theta,
-            &kinematic_state.v, &kinematic_state.w,
-            &wheels_data.wL_measured, &wheels_data.wR_measured,
-            &wheels_data.steps_left, &wheels_data.steps_right
-        );
-        PoseEstimator::update_pose(
-            &pose,
-            &kinematic_state.x, &kinematic_state.y, &kinematic_state.theta,
-            &kinematic_state.v, &kinematic_state.w,
-            &system_states.pose_estimator
-        );
-    }
-
-    // Imprime cada 500 ms
     if (now - last_print >= 500) {
         last_print = now;
 
-        // Serial.print("Pose => x: ");
-        // Serial.print(kinematic_state.x, 3);
-        // Serial.print(" | y: ");
-        // Serial.print(kinematic_state.y, 3);
-        // Serial.print(" | θ: ");
-        // Serial.println(kinematic_state.theta, 3);
-
-        Serial.print("Vel  => v: ");
-        Serial.print(kinematic_state.v, 3);
-        Serial.print(" m/s | w: ");
-        Serial.print(kinematic_state.w, 3);
-        Serial.println(" rad/s");
+        Serial.print("Pose => x: ");
+        Serial.print(kinematic_state.x, 2);
+        Serial.print(" | y: ");
+        Serial.print(kinematic_state.y, 2);
+        Serial.print(" | θ: ");
+        Serial.print(kinematic_state.theta, 2);
+        Serial.print(" || Vel => v: ");
+        Serial.print(kinematic_state.v, 1);
+        Serial.print(" | w: ");
+        Serial.println(kinematic_state.w, 1);
     }
 }

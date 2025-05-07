@@ -3,15 +3,12 @@
 namespace PositionController {
 
     void init(
-        volatile float* v_ref_ptr, volatile float* w_ref_ptr,
-        volatile float* wL_ref_ptr, volatile float* wR_ref_ptr,
-        volatile uint8_t* control_mode_ptr
+        volatile uint8_t* control_mode_ptr,
+        volatile float* wL_ref_ptr, volatile float* wR_ref_ptr
     ) {
-        *v_ref_ptr = 0.0f;
-        *w_ref_ptr = 0.0f;
+        *control_mode_ptr = SPEED_REF_INACTIVE;
         *wL_ref_ptr = 0.0f;
         *wR_ref_ptr = 0.0f;
-        *control_mode_ptr = SPEED_REF_INACTIVE;
     }
 
     void set_control_mode(
@@ -25,32 +22,23 @@ namespace PositionController {
         float rotation_term = w_ref * WHEEL_DISTANCE / 2.0f;
         if (wheel_id == WHEEL_LEFT)
             return (v_ref - rotation_term) / WHEEL_RADIUS;
-        else
+        else if (wheel_id == WHEEL_RIGHT)
             return (v_ref + rotation_term) / WHEEL_RADIUS;
+        else
+            return 0.0f; // default / error
     }
 
     void set_wheel_speed_ref(
-        float value_left, float value_right,
+        float wL, float wR,
         volatile float* wL_ref_ptr, volatile float* wR_ref_ptr,
         volatile uint8_t* control_mode_ptr
     ) {
-        if (*control_mode_ptr != SPEED_REF_INACTIVE) {
-            *wL_ref_ptr = value_left;
-            *wR_ref_ptr = value_right;
-        }
-    }
+        if (*control_mode_ptr == SPEED_REF_MANUAL) {
+            *wL_ref_ptr = constrain(wL, -WM_NOM, WM_NOM);
+            *wR_ref_ptr = constrain(wR, -WM_NOM, WM_NOM);
 
-    void set_velocity_ref(
-        float v_ref, float w_ref,
-        volatile float* v_ref_ptr, volatile float* w_ref_ptr,
-        volatile float* wL_ref_ptr, volatile float* wR_ref_ptr,        
-        volatile uint8_t* control_mode_ptr
-    ) {
-        if (*control_mode_ptr != SPEED_REF_INACTIVE) {
-            *v_ref_ptr = v_ref;
-            *w_ref_ptr = w_ref;
-            float wL = compute_wheel_speed_ref(v_ref, w_ref, WHEEL_LEFT);
-            float wR = compute_wheel_speed_ref(v_ref, w_ref, WHEEL_RIGHT);
+        // El controlador internamente debe hacer el ajuste
+        } else if (*control_mode_ptr == SPEED_REF_AUTO_BASIC || *control_mode_ptr == SPEED_REF_AUTO_ADVANCED){ 
             *wL_ref_ptr = wL;
             *wR_ref_ptr = wR;
         }

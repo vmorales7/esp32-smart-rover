@@ -29,11 +29,9 @@ void setup() {
         &wheels_data.wR_measured
     );
     PositionController::init(
-        &kinematic_data.v_ref,
-        &kinematic_data.w_ref,
+        &control_mode,
         &wheels_data.wL_ref,
-        &wheels_data.wR_ref,
-        &control_mode
+        &wheels_data.wR_ref
     );
     EncoderReader::resume(&system_states.encoder);
     MotorController::set_motors_mode(MOTOR_AUTO,

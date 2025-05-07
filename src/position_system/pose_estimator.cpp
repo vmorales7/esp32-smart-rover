@@ -18,10 +18,10 @@ namespace PoseEstimator {
         float ddist = (WHEEL_RADIUS / 2.0f) * (delta_phiR + delta_phiL);
 
         // Integración numérica del giro global
-        float theta = theta_prev + dtheta;
+        float theta = wrap_to_pi(theta_prev + dtheta);
         
-        // Integración numérica de la posición global
-        float avg_theta = (theta_prev + theta) / 2.0f;
+        // Integración numérica (trapezoidal simple) de la posición global
+        float avg_theta = (theta_prev + theta) / 2.0f; // Promediamos los valores de theta para mas exactitud
         avg_theta = wrap_to_pi(avg_theta); // Mantener entre 0 y 2pi
         float dx = ddist * cosf(avg_theta);
         float dy = ddist * sinf(avg_theta);
@@ -31,9 +31,10 @@ namespace PoseEstimator {
         pose.x = x_prev + dx;
         pose.y = y_prev + dy;
         
-        // Se actualiza la velocidad lineal y angular
+        // Se actualiza la velocidad lineal y angular (ojo que se usa la velocidad que viene con un filtro)
         pose.v = (wR_measured + wL_measured) * WHEEL_RADIUS / 2.0f;
         pose.w = (wR_measured - wL_measured) * WHEEL_RADIUS / WHEEL_DISTANCE;
+        // Futuro yo: quizás considerar calcular las velocidades a partir de delta_phiL/R para que no sea filtrado
 
         return pose;
     }
@@ -100,11 +101,11 @@ namespace PoseEstimator {
         *w_ptr   = pose_ptr->w;
     }
 
-    float normalize_angle(float angle) {
-        if (angle > PI)  {angle -= 2.0f * PI;}
-        else if (angle < -PI) {angle += 2.0f * PI;}
-        return angle;
-    }
+    // float normalize_angle(float angle) {
+    //     if (angle > PI)  {angle -= 2.0f * PI;}
+    //     else if (angle < -PI) {angle += 2.0f * PI;}
+    //     return angle;
+    // }
     
     float wrap_to_pi(float angle) {
         angle = fmodf(angle + PI, 2.0f * PI);

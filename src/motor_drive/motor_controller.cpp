@@ -228,8 +228,6 @@ namespace MotorController {
     
         // Punteros a las variables necesarias
         volatile uint8_t* motor_state_ptr = &ctx_ptr->systems_ptr->motor_operation;
-        volatile float* v_ref_ptr         = &ctx_ptr->kinematic_ptr->v_ref;
-        volatile float* w_ref_ptr         = &ctx_ptr->kinematic_ptr->w_ref;
         volatile float* wL_ref_ptr        = &ctx_ptr->wheels_ptr->wL_ref;
         volatile float* wR_ref_ptr        = &ctx_ptr->wheels_ptr->wR_ref;
         volatile float* wL_measured_ptr   = &ctx_ptr->wheels_ptr->wL_measured;
