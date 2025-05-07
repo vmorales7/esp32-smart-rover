@@ -3,12 +3,45 @@
 
 #include "Arduino.h"
 
-/* -------------- Constantes generales --------------*/
-#define ACTIVE   1U
-#define INACTIVE 0U
+/* -------------- Definiciones de los pines de la ESP32 --------------*/
 
-#define WHEEL_LEFT 0U
-#define WHEEL_RIGHT 1U
+// Para control del L298N
+constexpr uint8_t MOTOR_LEFT_PWM_PIN = 26;  // Azul
+constexpr uint8_t MOTOR_LEFT_DIR_PIN1 = 25; // Blanco
+constexpr uint8_t MOTOR_LEFT_DIR_PIN2 = 33; // Verde
+
+constexpr uint8_t MOTOR_RIGHT_PWM_PIN = 18;  // Azul
+constexpr uint8_t MOTOR_RIGHT_DIR_PIN1 = 19; // Blanco
+constexpr uint8_t MOTOR_RIGHT_DIR_PIN2 = 21; // Verde
+
+// Para los encoders
+// Azul = Vcc & Negro = GND 
+constexpr uint8_t ENCODER_LEFT_A_PIN = 14; // Amarillo
+constexpr uint8_t ENCODER_LEFT_B_PIN = 27; // Verde
+constexpr uint8_t ENCODER_RIGHT_A_PIN = 16; // Amarillo
+constexpr uint8_t ENCODER_RIGHT_B_PIN = 17; // Verde
+
+// Sensores ultrasónicos
+constexpr uint8_t US_LEFT_TRIG_PIN  = 13;
+constexpr uint8_t US_LEFT_ECHO_PIN  = 12;
+
+constexpr uint8_t US_RIGHT_TRIG_PIN = 22;
+constexpr uint8_t US_RIGHT_ECHO_PIN = 23;
+
+// Sensor infrarrojo
+constexpr uint8_t IR_LEFT_SENSOR_PIN = 15;
+constexpr uint8_t IR_RIGHT_SENSOR_PIN = 10;
+
+
+/* -------------- Constantes generales --------------*/
+
+// Para los estados de los sistemas
+constexpr uint8_t ACTIVE   = 1U;
+constexpr uint8_t INACTIVE = 0U;
+
+// Para los condicionales con las ruedas
+constexpr uint8_t WHEEL_LEFT  = 0U;
+constexpr uint8_t WHEEL_RIGHT = 1U;
 
 // Parámetros físicos del vegículo
 constexpr float WHEEL_RADIUS = 0.066f / 2.0f;    // en metros
@@ -19,18 +52,6 @@ constexpr float MS_TO_S = 0.001f;
 
 
 /* -------------- Constantes del Motor Controller --------------*/
-// Características
-constexpr uint16_t RPM_NOM = 215U;            // rpm nominales bajo carga (son 280 sin carga)       
-constexpr float WM_NOM = RPM_NOM * 2*PI/60.0; // rad/s nominales bajo carga = 22.51 (29.3 sin carga)
-
-// Assigned pins
-constexpr uint8_t MOTOR_LEFT_PWM_PIN = 26;  // Azul
-constexpr uint8_t MOTOR_LEFT_DIR_PIN1 = 25; // Blanco
-constexpr uint8_t MOTOR_LEFT_DIR_PIN2 = 33; // Verde
-
-constexpr uint8_t MOTOR_RIGHT_PWM_PIN = 18;  // Azul
-constexpr uint8_t MOTOR_RIGHT_DIR_PIN1 = 19; // Blanco
-constexpr uint8_t MOTOR_RIGHT_DIR_PIN2 = 21; // Verde
 
 // Motor modes
 enum MotorMode : uint8_t {
@@ -45,15 +66,6 @@ constexpr uint16_t WHEEL_CONTROL_PERIOD_MS = 10;
 
 
 /* -------------- Constantes del Encoder Reader --------------*/
-// Assigned pins
-// Azul = Vcc & Negro = GND 
-constexpr uint8_t ENCODER_LEFT_A_PIN = 14; // Amarillo
-constexpr uint8_t ENCODER_LEFT_B_PIN = 27; // Verde
-constexpr uint8_t ENCODER_RIGHT_A_PIN = 16; // Amarillo
-constexpr uint8_t ENCODER_RIGHT_B_PIN = 17; // Verde
-
-// RTOS
-constexpr uint16_t ENCODER_READ_PERIOD_MS = 10;
 
 // Según tipo de configuración de encoder
 enum class EncoderMode {
@@ -68,31 +80,23 @@ constexpr float get_encoder_multiplier(EncoderMode mode) {
            (mode == EncoderMode::FULL_QUAD)   ? 4.0f :
            1.0f;
 }
+
+// Variables usadas en cálculos (usado en varios módulos)
 constexpr float RAW_ENCODER_PPR = 11.0f * 21.3f; // Steps del encoder x razón de engranaje de motor
-constexpr float PULSES_PER_REV = RAW_ENCODER_PPR * get_encoder_multiplier(ENCODER_MODE);
-constexpr float RAD_PER_PULSE = (2.0f * PI) / PULSES_PER_REV;
+constexpr float ENCODER_PPR = RAW_ENCODER_PPR * get_encoder_multiplier(ENCODER_MODE);
+constexpr float RAD_PER_PULSE = (2.0f * PI) / ENCODER_PPR;
+
+// RTOS
+constexpr uint16_t ENCODER_READ_PERIOD_MS = 10;
 
 
 /* -------------- Constantes del Pose Estimator --------------*/
-#define POSE_ESTIMATOR_MODE_ENCODER 1U
-#define POSE_ESTIMATOR_MODE_FUSION 2U
-#define POSE_ESTIMATOR_MODE POSE_ESTIMATOR_MODE_ENCODER 
-constexpr uint16_t POSE_ESTIMATOR_PERIOD_MS = 200; // Incluso podría subir a 500ms
+constexpr uint16_t POSE_ESTIMATOR_PERIOD_MS = 200; 
 
 
 /* -------------- Constantes de sensores de distancia --------------*/
-// Sensores ultrasónicos (diagonales)
-constexpr uint8_t US_LEFT_TRIG_PIN  = 13;
-constexpr uint8_t US_LEFT_ECHO_PIN  = 12;
-
-constexpr uint8_t US_RIGHT_TRIG_PIN = 22;
-constexpr uint8_t US_RIGHT_ECHO_PIN = 23;
-
-// Sensor infrarrojo
-constexpr uint8_t IR_SENSOR_PIN = 15;
-
-// RTOS
 constexpr uint16_t IR_SENSOR_READ_PERIOD_MS = 1000;
+constexpr uint16_t US_SENSOR_READ_PERIOD_MS = 1000;
 
 
 /* -------------- Constantes del control de posición --------------*/
@@ -246,8 +250,10 @@ struct WheelsData {
  */
 struct DistanceSensorData {
     bool obstacle_detected;  ///< true si el sensor IR detecta un obstáculo
-    uint8_t left_distance;   ///< Distancia medida por el sensor US izquierdo [cm]
-    uint8_t right_distance;  ///< Distancia medida por el sensor US derecho [cm]
+    uint8_t us_left_distance;   ///< Distancia medida por el sensor US izquierdo [cm]
+    uint8_t us_right_distance;  ///< Distancia medida por el sensor US derecho [cm]
+    bool ir_left_obstacle;
+    bool ir_right_obstacle;
 };
 
 /**

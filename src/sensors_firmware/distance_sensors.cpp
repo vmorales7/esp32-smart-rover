@@ -4,7 +4,7 @@ namespace DistanceSensors {
 
     void init(volatile uint8_t* distance_state_ptr) {
         // IR
-        pinMode(IR_SENSOR_PIN, INPUT);
+        pinMode(IR_LEFT_SENSOR_PIN, INPUT);
 
         // US izquierda
         pinMode(US_LEFT_TRIG_PIN, OUTPUT);
@@ -59,12 +59,12 @@ namespace DistanceSensors {
     ) {
         if (*distance_state_ptr != ACTIVE) return;
 
-        const bool current = digitalRead(IR_SENSOR_PIN);
+        const bool current = digitalRead(IR_LEFT_SENSOR_PIN);
         const unsigned long start_time = micros();
         
         // Se esperará suficiente tiempo para asegurar que la lectura sea limpia (debounce)
         while ((micros() - start_time) < IR_DEBOUNCE_TIME_US) {
-            if (digitalRead(IR_SENSOR_PIN) != current) return;  // rebote detectado
+            if (digitalRead(IR_LEFT_SENSOR_PIN) != current) return;  // rebote detectado
         }
         // Si no se detectó un rebote, podemos marcar la lectura
         if (*obstacle_detected_ptr != current) *obstacle_detected_ptr = current;
@@ -85,8 +85,8 @@ namespace DistanceSensors {
         GlobalContext* ctx_ptr = static_cast<GlobalContext*>(pvParameters);
         volatile uint8_t* distance_state_ptr = &ctx_ptr->systems_ptr->distance;
         volatile bool* obstacle_detected_ptr = &ctx_ptr->distance_ptr->obstacle_detected;
-        volatile uint8_t* left_distance_ptr = &ctx_ptr->distance_ptr->left_distance;
-        volatile uint8_t* right_distance_ptr = &ctx_ptr->distance_ptr->right_distance;
+        volatile uint8_t* left_distance_ptr = &ctx_ptr->distance_ptr->us_left_distance;
+        volatile uint8_t* right_distance_ptr = &ctx_ptr->distance_ptr->us_right_distance;
     
         for (;;) {
             vTaskDelayUntil(&xLastWakeTime, period);

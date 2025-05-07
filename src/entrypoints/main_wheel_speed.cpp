@@ -10,9 +10,12 @@ volatile SystemStates system_states = {0};
 volatile WheelsData wheels_data = {0};
 volatile DistanceSensorData distance_data = {
     .obstacle_detected = false,
-    .left_distance = US_MAX_DISTANCE_CM,
-    .right_distance = US_MAX_DISTANCE_CM
+    .us_left_distance = US_MAX_DISTANCE_CM,
+    .us_right_distance = US_MAX_DISTANCE_CM,
+    .ir_left_obstacle = false,
+    .ir_right_obstacle = false
 };
+
 volatile KinematicState kinematic_data = {0};
 volatile uint8_t control_mode = 0;
 constexpr uint32_t PRINT_INTERVAL_MS = 250;
@@ -44,7 +47,7 @@ void ejecutar_fase_con_obstaculo_speed(const char* msg, float wrefL, float wrefR
         uint8_t distancia = DistanceSensors::us_read_distance(
             US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN, &system_states.distance
         );
-        distance_data.left_distance = distancia;
+        distance_data.us_left_distance = distancia;
 
         // Condición de obstáculo
         bool obstaculo = distancia < OBSTACLE_THRESHOLD_CM;

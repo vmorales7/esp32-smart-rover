@@ -5,23 +5,16 @@
 
 // ====================== VARIABLES GLOBALES ======================
 
-volatile SystemStates system_states = {
-    .motor_operation      = MOTOR_IDLE,
-    .encoder              = INACTIVE,
-    .imu                  = INACTIVE,
-    .distance             = INACTIVE,
-    .pose_estimator       = INACTIVE,
-    .position_controller  = SPEED_REF_INACTIVE,
-    .evade_controller     = INACTIVE
-};
-
+volatile SystemStates system_states = {0};
 volatile WheelsData wheels_data = {0};
-
 volatile DistanceSensorData distance_data = {
     .obstacle_detected = false,
-    .left_distance = US_MAX_DISTANCE_CM,
-    .right_distance = US_MAX_DISTANCE_CM
+    .us_left_distance = US_MAX_DISTANCE_CM,
+    .us_right_distance = US_MAX_DISTANCE_CM,
+    .ir_left_obstacle = false,
+    .ir_right_obstacle = false
 };
+
 
 // ====================== CONFIG ======================
 
@@ -67,7 +60,7 @@ void loop() {
     uint8_t distancia = DistanceSensors::us_read_distance(
         US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN, &system_states.distance
     );
-    distance_data.left_distance = distancia;
+    distance_data.us_left_distance = distancia;
 
     // Verificar obstáculo
     if (distancia < OBSTACLE_THRESHOLD_CM) {
