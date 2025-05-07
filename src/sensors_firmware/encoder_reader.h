@@ -4,14 +4,16 @@
 #include "project_config.h"
 #include <ESP32Encoder.h>
 
+
 /* ---------------- Constantes del sistema ------------------*/
+
 // Para ajustar si los cables se conectaron al revés
 constexpr bool INVERT_ENCODER_LEFT = true;
 constexpr bool INVERT_ENCODER_RIGHT = false;
 
 // Para aplicar el filtro EMA a la velocidad leída
 constexpr bool USE_VELOCITY_FILTER = true;
-constexpr float EMA_ALPHA = 0.3; // 0.5 = promediar 3 valores; y al bajarlo se promedian mas muestras
+constexpr float EMA_ALPHA = 0.5; // 0.5 = promediar ~3 valores; y al bajarlo se promedian mas muestras
 
 
 /* ---------------- Funciones del sistema ------------------*/

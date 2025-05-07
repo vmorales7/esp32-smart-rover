@@ -133,11 +133,9 @@ void setup() {
     DistanceSensors::set_state(ACTIVE, &system_states.distance);
 
     PositionController::init(
-        &kinematic_data.v_ref,
-        &kinematic_data.w_ref,
+        &control_mode,
         &wheels_data.wL_ref,
-        &wheels_data.wR_ref,
-        &control_mode
+        &wheels_data.wR_ref
     );
     PositionController::set_control_mode(SPEED_REF_MANUAL, &control_mode);
 

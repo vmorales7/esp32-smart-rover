@@ -53,6 +53,11 @@ constexpr float MS_TO_S = 0.001f;
 
 /* -------------- Constantes del Motor Controller --------------*/
 
+
+// Motor speed characteristics
+constexpr uint16_t RPM_NOM = 215U;            // rpm nominales bajo carga (son 280 sin carga)       
+constexpr float WM_NOM = RPM_NOM * 2*PI/60.0; // rad/s nominales bajo carga = 22.51 (29.3 sin carga)
+
 // Motor modes
 enum MotorMode : uint8_t {
     MOTOR_IDLE = 0U,    // Se dejan libres los motores, alta impedancia entre los bornes del motor
@@ -103,7 +108,8 @@ constexpr uint16_t US_SENSOR_READ_PERIOD_MS = 1000;
 enum PositionControlMode : uint8_t {
     SPEED_REF_INACTIVE = 0U,
     SPEED_REF_MANUAL = 1U,
-    SPEED_REF_AUTO = 2U,   
+    SPEED_REF_AUTO_BASIC = 2U,   
+    SPEED_REF_AUTO_ADVANCED = 3U
 };
 
 
@@ -145,14 +151,6 @@ struct KinematicState {
     /// Velocidad angular actual del vehículo [rad/s].
     /// Calculada por el estimador de pose.
     float w;
-
-    /// Velocidad lineal de referencia generada por el controlador de posición [m/s].
-    /// Esta es usada como entrada para convertir a referencias de rueda.
-    float v_ref;
-
-    /// Velocidad angular de referencia generada por el controlador de posición [rad/s].
-    /// Esta es usada como entrada para convertir a referencias de rueda.
-    float w_ref;
 };
 
 

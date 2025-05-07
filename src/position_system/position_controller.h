@@ -3,6 +3,12 @@
 
 #include "project_config.h"
 
+/* ---------------- Constantes y variables sistema ------------------*/
+
+
+
+/* ---------------- Funciones del sistema ------------------*/
+
 namespace PositionController {
 
     /**
@@ -18,9 +24,8 @@ namespace PositionController {
      * @param control_mode_ptr Puntero al modo actual del controlador de posición
      */
     void init(
-        volatile float* v_ref_ptr, volatile float* w_ref_ptr,
-        volatile float* wL_ref_ptr, volatile float* wR_ref_ptr,
-        volatile uint8_t* control_mode_ptr
+        volatile uint8_t* control_mode_ptr,
+        volatile float* wL_ref_ptr, volatile float* wR_ref_ptr
     );
 
     /**
@@ -50,39 +55,17 @@ namespace PositionController {
      *
      * Si el modo del controlador está en SPEED_REF_INACTIVE, no se hace nada.
      *
-     * @param value_left  Valor deseado para rueda izquierda [rad/s]
-     * @param value_right Valor deseado para rueda derecha [rad/s]
+     * @param wL Valor deseado para rueda izquierda [rad/s]
+     * @param wR Valor deseado para rueda derecha [rad/s]
      * @param wL_ref_ptr Puntero a referencia izquierda
      * @param wR_ref_ptr Puntero a referencia derecha
      * @param control_mode_ptr Puntero al modo del controlador
      */
     void set_wheel_speed_ref(
-        float value_left, float value_right,
+        float wL, float wR,
         volatile float* wL_ref_ptr, volatile float* wR_ref_ptr,
         volatile uint8_t* control_mode_ptr
     );
-
-    /**
-     * @brief Establece referencias de velocidad global (v_ref, w_ref) y
-     *        automáticamente calcula y asigna las referencias de rueda (wL_ref, wR_ref).
-     *
-     * Solo tiene efecto si el controlador no está en modo INACTIVE.
-     *
-     * @param v_ref Velocidad lineal deseada [m/s]
-     * @param w_ref Velocidad angular deseada [rad/s]
-     * @param v_ref_ptr Puntero a v_ref
-     * @param w_ref_ptr Puntero a w_ref
-     * @param wL_ref_ptr Puntero a wL_ref
-     * @param wR_ref_ptr Puntero a wR_ref
-     * @param control_mode_ptr Puntero al modo del controlador
-     */
-    void set_velocity_ref(
-        float v_ref, float w_ref,
-        volatile float* v_ref_ptr, volatile float* w_ref_ptr,
-        volatile float* wL_ref_ptr, volatile float* wR_ref_ptr,
-        volatile uint8_t* control_mode_ptr
-    );
-
 }
 
 #endif // POSITION_CONTROLLER_H

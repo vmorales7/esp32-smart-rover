@@ -5,10 +5,6 @@
 
 /* ---------------- Constantes del sistema ------------------*/
 
-// Motor speed characteristics
-constexpr uint16_t RPM_NOM = 215U;            // rpm nominales bajo carga (son 280 sin carga)       
-constexpr float WM_NOM = RPM_NOM * 2*PI/60.0; // rad/s nominales bajo carga = 22.51 (29.3 sin carga)
-
 // PWM parameters
 constexpr uint32_t PWM_FREQUENCY = 1000;               // Frecuencia en Hz
 constexpr uint8_t PWM_RES_BITS = 8;                    // Resolución en bits (8 → rango 0–255)
