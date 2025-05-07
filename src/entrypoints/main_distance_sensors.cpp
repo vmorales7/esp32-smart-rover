@@ -1,12 +1,9 @@
 #include "project_config.h"
-#include "motor_drive/motor_controller.h"
-#include "sensors_firmware/encoder_reader.h"
 #include "sensors_firmware/distance_sensors.h"
-#warning "Compilando main_distance_sensors.cpp"
+#warning "Compilando main_distance_sensors_basic.cpp"
 
 // ====================== VARIABLES GLOBALES ======================
 volatile SystemStates system_states = {0};
-volatile WheelsData wheels_data = {0};
 volatile DistanceSensorData distance_data = {
     .obstacle_detected = false,
     .us_left_distance = US_MAX_DISTANCE_CM,
@@ -15,129 +12,63 @@ volatile DistanceSensorData distance_data = {
     .ir_right_obstacle = false
 };
 
+// ====================== TAREA: Monitoreo por Serial ======================
+void Task_SerialMonitor(void* pvParameters) {
+    const TickType_t period = pdMS_TO_TICKS(500); // cada 500ms
+    TickType_t xLastWakeTime = xTaskGetTickCount();
 
-// ====================== FUNCIONES AUXILIARES ======================
+    for (;;) {
+        vTaskDelayUntil(&xLastWakeTime, period);
 
-void print_encoder_state() {
-    Serial.print("Steps L/R: ");
-    Serial.print(wheels_data.steps_left);
-    Serial.print(" / ");
-    Serial.print(wheels_data.steps_right);
-    Serial.print(" | wL: ");
-    Serial.print(wheels_data.wL_measured, 3);
-    Serial.print(" rad/s | wR: ");
-    Serial.println(wheels_data.wR_measured, 3);
-}
+        Serial.println("==== Estado de sensores ====");
+        Serial.print("US Left: ");
+        Serial.print(distance_data.us_left_distance);
+        Serial.print(" cm | US Right: ");
+        Serial.print(distance_data.us_right_distance);
+        Serial.println(" cm");
 
-void ejecutar_fase_con_obstaculo(const char* msg, float dutyL, float dutyR, uint32_t duracion_ms) {
-    Serial.println(msg);
-    
-    uint32_t tiempo_acumulado = 0;
-    uint32_t t_anterior = millis();
-    uint32_t t_print = millis();
+        Serial.print("IR Left Obstacle: ");
+        Serial.print(distance_data.ir_left_obstacle ? "YES" : "NO");
+        Serial.print(" | IR Right Obstacle: ");
+        Serial.println(distance_data.ir_right_obstacle ? "YES" : "NO");
 
-    bool en_movimiento = false;
-
-    while (tiempo_acumulado < duracion_ms) {
-        // Leer distancia
-        uint8_t distancia = DistanceSensors::us_read_distance(US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN);
-        distance_data.us_left_distance = distancia;
-
-        // Condición de obstáculo
-        bool obstaculo = distancia < OBSTACLE_THRESHOLD_CM;
-        distance_data.obstacle_detected = obstaculo;
-
-        if (obstaculo) {
-            if (en_movimiento) {
-                Serial.print("Obstáculo detectado a ");
-                Serial.print(distancia);
-                Serial.println(" cm — deteniendo motores");
-                MotorController::set_motors_mode(MOTOR_IDLE, &system_states.motor_operation,
-                                                &wheels_data.duty_left, &wheels_data.duty_right);
-                en_movimiento = false;
-            }
-        } else {
-            if (!en_movimiento) {
-                Serial.println("Obstáculo despejado — reanudando movimiento");
-                MotorController::set_motors_mode(MOTOR_ACTIVE, &system_states.motor_operation,
-                                                &wheels_data.duty_left, &wheels_data.duty_right);
-                MotorController::set_motors_duty(
-                    dutyL, dutyR,
-                    &wheels_data.duty_left, &wheels_data.duty_right,
-                    &system_states.motor_operation
-                );
-                t_anterior = millis(); // reinicia referencia temporal tras pausa
-                en_movimiento = true;
-            }
-
-            // Avance normal
-            EncoderReader::update_encoder_data(
-                &system_states.encoder,
-                &wheels_data.steps_left, &wheels_data.steps_right,
-                &wheels_data.wL_measured, &wheels_data.wR_measured
-            );
-
-            uint32_t t_actual = millis();
-            tiempo_acumulado += (t_actual - t_anterior);
-            t_anterior = t_actual;
-        }
-
-        if (millis() - t_print >= 500) {
-            print_encoder_state();
-            t_print += 500;
-        }
-
-        delay(10);
+        Serial.print("Obstacle Detected (US): ");
+        Serial.println(distance_data.obstacle_detected ? "YES" : "NO");
+        Serial.println();
     }
-
-    // Detener al final de la fase
-    MotorController::set_motors_mode(MOTOR_IDLE, &system_states.motor_operation,
-                                    &wheels_data.duty_left, &wheels_data.duty_right);
 }
 
-
-// ====================== SETUP Y LOOP ======================
-
+// ====================== SETUP ======================
 void setup() {
     Serial.begin(115200);
     delay(1000);
-    Serial.println("Test: duty + encoder + obstacle");
+    Serial.println("Iniciando main_distance_sensors_basic...");
 
-    // Inicialización de motor y encoder
-    MotorController::init(
-        &system_states.motor_operation,
-        &wheels_data.duty_left,
-        &wheels_data.duty_right
-    );
-    MotorController::set_motors_mode(
-        MOTOR_ACTIVE,
-        &system_states.motor_operation,
-        &wheels_data.duty_left,
-        &wheels_data.duty_right
-    );
-
+    // Inicializar sensores
     DistanceSensors::init(&system_states.distance);
-    DistanceSensors::set_state(ACTIVE,&system_states.distance);    
+    DistanceSensors::set_state(ACTIVE, &system_states.distance);
 
-    EncoderReader::init(
-        &system_states.encoder,
-        &wheels_data.steps_left, &wheels_data.steps_right,
-        &wheels_data.wL_measured, &wheels_data.wR_measured
+    // Crear tareas
+    xTaskCreatePinnedToCore(
+        DistanceSensors::Task_FrontObstacleDetect,
+        "FrontUS",
+        2048, nullptr, 1, nullptr, APP_CPU_NUM
     );
-    EncoderReader::resume(&system_states.encoder);
-    
-    Serial.println();
-    
-    // Secuencia de prueba
-    ejecutar_fase_con_obstaculo("Avanzando recto (50%)", 0.5f, 0.5f, 5000);
-    delay(1000);
-    ejecutar_fase_con_obstaculo("Girando en el lugar (izq, 60%)", 0.0f, 0.6f, 2000);
-    delay(1000);
-    ejecutar_fase_con_obstaculo("Avanzando recto (50%)", 0.5f, 0.5f, 5000);
-    delay(1000);
-    Serial.println("Secuencia completada. Motores en IDLE.");
+
+    xTaskCreatePinnedToCore(
+        DistanceSensors::Task_LateralObstacleDetect,
+        "LateralIR",
+        2048, nullptr, 1, nullptr, APP_CPU_NUM
+    );
+
+    xTaskCreatePinnedToCore(
+        Task_SerialMonitor,
+        "SerialPrint",
+        2048, nullptr, 1, nullptr, APP_CPU_NUM
+    );
 }
 
+// ====================== LOOP VACÍO ======================
 void loop() {
-    // Nada
+    // No se usa, todo ocurre en tareas RTOS
 }
