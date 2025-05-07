@@ -5,6 +5,7 @@ namespace DistanceSensors {
     void init(volatile uint8_t* distance_state_ptr) {
         // IR
         pinMode(IR_LEFT_SENSOR_PIN, INPUT);
+        pinMode(IR_RIGHT_SENSOR_PIN, INPUT);
 
         // US izquierda
         pinMode(US_LEFT_TRIG_PIN, OUTPUT);
@@ -43,16 +44,41 @@ namespace DistanceSensors {
         return (uint8_t) (duration * US_CM_PER_US);
     }
 
-    void update_ultrasonic_distances(
-        volatile uint8_t* distance_state_ptr,
-        volatile uint8_t* left_distance_ptr,
-        volatile uint8_t* right_distance_ptr
+    void us_check_obstacle(
+        volatile bool* obstacle_detected_ptr,
+        volatile uint8_t* us_left_distance_ptr, volatile uint8_t* us_right_distance_ptr,
+        volatile uint8_t* distance_state_ptr
     ) {
         if (*distance_state_ptr != ACTIVE) return;
-        *left_distance_ptr = us_read_distance(US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN, distance_state_ptr);
-        *right_distance_ptr = us_read_distance(US_RIGHT_TRIG_PIN, US_RIGHT_ECHO_PIN, distance_state_ptr);
+    
+        // Leer sensor izquierdo
+        uint8_t left_distance = us_read_distance(US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN, distance_state_ptr);
+        if (left_distance < OBSTACLE_THRESHOLD_CM) {
+            left_distance = us_read_distance(US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN, distance_state_ptr); // segunda lectura para debounce
+            if (left_distance < OBSTACLE_THRESHOLD_CM) {
+                *obstacle_detected_ptr = true;
+                *us_left_distance_ptr = left_distance;
+                *us_right_distance_ptr = US_MAX_DISTANCE_CM;  // No leído
+                return;
+            }
+        }
+        *us_left_distance_ptr = left_distance;
+    
+        // Leer sensor derecho solo si el izquierdo no detectó
+        uint8_t right_distance = us_read_distance(US_RIGHT_TRIG_PIN, US_RIGHT_ECHO_PIN, distance_state_ptr);
+        if (right_distance < OBSTACLE_THRESHOLD_CM) {
+            right_distance = us_read_distance(US_RIGHT_TRIG_PIN, US_RIGHT_ECHO_PIN, distance_state_ptr);
+            if (right_distance < OBSTACLE_THRESHOLD_CM) {
+                *obstacle_detected_ptr = true;
+                *us_right_distance_ptr = right_distance;
+                return;
+            }
+        }
+        // Si llegaste aquí, no se confirmó obstáculo en ningún sensor
+        *us_right_distance_ptr = right_distance;
+        *obstacle_detected_ptr = false; 
     }
-
+    
     void update_ir_state(
         volatile bool* obstacle_detected_ptr,
         volatile uint8_t* distance_state_ptr

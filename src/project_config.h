@@ -247,7 +247,7 @@ struct WheelsData {
  * - Distancia lateral derecha (sensor ultrasónico)
  */
 struct DistanceSensorData {
-    bool obstacle_detected;  ///< true si el sensor IR detecta un obstáculo
+    bool obstacle_detected;     ///< true si el sensor IR detecta un obstáculo
     uint8_t us_left_distance;   ///< Distancia medida por el sensor US izquierdo [cm]
     uint8_t us_right_distance;  ///< Distancia medida por el sensor US derecho [cm]
     bool ir_left_obstacle;

@@ -22,8 +22,7 @@ GlobalContext ctx = {
 // ====================== SETUP ======================
 void setup() {
     Serial.begin(115200);
-    delay(1000);
-    Serial.println("Pose Debug — Duty fijo 50% (RTOS)");
+    Serial.println("Pose Debug — Wheel speed cte 50% Wm nom");
 
     // Inicializar posición
     PoseEstimator::set_state(ACTIVE, &system_states.pose_estimator);
@@ -45,7 +44,7 @@ void setup() {
                                      &system_states.motor_operation,
                                      &wheels_data.duty_left, &wheels_data.duty_right);
 
-    // Generar referencia de velocidad
+    // Iniciar control de velocidad de rueda
     PositionController::init(
         &system_states.position_controller,
         &wheels_data.wL_ref, &wheels_data.wR_ref

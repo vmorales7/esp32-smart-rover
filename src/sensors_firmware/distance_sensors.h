@@ -44,6 +44,7 @@ constexpr uint8_t US_ERROR_VALUE = 0;
  */
 constexpr uint8_t OBSTACLE_THRESHOLD_CM = 30;
 
+
 /* -------------------- Parámetros del sensor infrarrojo (IR digital) -------------------- */
 
 /**
