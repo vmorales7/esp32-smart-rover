@@ -91,4 +91,3 @@ namespace EncoderReader {
 }
 
 #endif // ENCODER_READER_H
-

@@ -100,9 +100,8 @@ constexpr uint16_t POSE_ESTIMATOR_PERIOD_MS = 200;
 
 
 /* -------------- Constantes de sensores de distancia --------------*/
-constexpr uint16_t IR_SENSOR_READ_PERIOD_MS = 1000;
-constexpr uint16_t US_SENSOR_READ_PERIOD_MS = 1000;
-
+constexpr uint16_t US_SENSOR_READ_PERIOD_MS = 500;
+constexpr uint16_t IR_SENSOR_READ_PERIOD_MS = 500;
 
 /* -------------- Constantes del control de posición --------------*/
 enum PositionControlMode : uint8_t {

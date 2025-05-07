@@ -39,6 +39,7 @@ namespace PoseEstimator {
         return pose;
     }
 
+
     PoseData estimate_pose_from_encoder(
         volatile float* x_ptr, volatile float* y_ptr, volatile float* theta_ptr,
         volatile float* v_ptr, volatile float* w_ptr,
@@ -70,9 +71,11 @@ namespace PoseEstimator {
         return pose;
     }
 
+
     void set_state(uint8_t mode, volatile uint8_t* pose_estimator_state_ptr) {
         *pose_estimator_state_ptr = (mode == ACTIVE) ? ACTIVE : INACTIVE;
     }
+
 
     void reset_pose_and_steps(
         volatile float* x_ptr, volatile float* y_ptr, volatile float* theta_ptr,
@@ -86,6 +89,7 @@ namespace PoseEstimator {
         last_steps_left = 0;
         last_steps_right = 0;
     }
+
 
     void update_pose(
         PoseData* pose_ptr,
@@ -107,12 +111,14 @@ namespace PoseEstimator {
     //     return angle;
     // }
     
+
     float wrap_to_pi(float angle) {
         angle = fmodf(angle + PI, 2.0f * PI);
         if (angle < 0.0f) angle += 2.0f * PI;
         return angle - PI;
     }
 
+    
     void Task_PoseEstimatorEncoder(void* pvParameters) {
         // Datos de RTOS
         TickType_t xLastWakeTime = xTaskGetTickCount();

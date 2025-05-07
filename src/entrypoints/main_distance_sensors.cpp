@@ -40,9 +40,7 @@ void ejecutar_fase_con_obstaculo(const char* msg, float dutyL, float dutyR, uint
 
     while (tiempo_acumulado < duracion_ms) {
         // Leer distancia
-        uint8_t distancia = DistanceSensors::us_read_distance(
-            US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN, &system_states.distance
-        );
+        uint8_t distancia = DistanceSensors::us_read_distance(US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN);
         distance_data.us_left_distance = distancia;
 
         // Condición de obstáculo

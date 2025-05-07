@@ -27,10 +27,12 @@ namespace EncoderReader {
             encoderLeft.attachFullQuad(ENCODER_LEFT_A_PIN, ENCODER_LEFT_B_PIN);
             encoderRight.attachFullQuad(ENCODER_RIGHT_A_PIN, ENCODER_RIGHT_B_PIN);
         }
+        lastMillis = millis();
         pause(encoder_state_ptr, steps_left_ptr, steps_right_ptr, wL_measured_ptr, wR_measured_ptr);
         *steps_left_ptr = 0; // Única instancia en que encoder_reader modifica estos contadores
         *steps_right_ptr = 0;
     }
+
 
     void pause(
         volatile uint8_t* encoder_state_ptr,
@@ -66,6 +68,7 @@ namespace EncoderReader {
         *encoder_state_ptr = INACTIVE;
     }
 
+
     void resume(volatile uint8_t* encoder_state_ptr) {
         if (*encoder_state_ptr != ACTIVE) { // Se modifica solo si no estaba activo ya
             lastMillis = millis();
@@ -74,6 +77,7 @@ namespace EncoderReader {
             *encoder_state_ptr = ACTIVE;
         }
     }
+
 
     void update_encoder_data(
         volatile uint8_t* encoder_state_ptr,
@@ -124,6 +128,7 @@ namespace EncoderReader {
         lastMillis = currentMillis;
     }
 
+    
     void Task_EncoderUpdate(void* pvParameters) {
         // Cosas de RTOS
         TickType_t xLastWakeTime = xTaskGetTickCount();

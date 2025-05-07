@@ -55,6 +55,7 @@ constexpr uint8_t OBSTACLE_THRESHOLD_CM = 30;
  */
 constexpr uint16_t IR_DEBOUNCE_TIME_US = 1000U;
 
+
 /* -------------------- Funciones del módulo DistanceSensors -------------------- */
 
 /**
@@ -70,44 +71,6 @@ namespace DistanceSensors {
     void init(volatile uint8_t* distance_state_ptr);
 
     /**
-     * @brief Realiza una medición puntual de distancia utilizando un sensor ultrasónico.
-     * 
-     * @param trig_pin Pin de disparo (TRIG) del sensor ultrasónico.
-     * @param echo_pin Pin de escucha (ECHO) del sensor ultrasónico.
-     * @param distance_state_ptr Puntero al estado global para verificar si el módulo está activo.
-     * @return Distancia medida en centímetros (truncada a uint8_t). Si el módulo está inactivo, retorna US_MAX_DISTANCE_CM.
-     */
-    uint8_t us_read_distance(uint8_t trig_pin, uint8_t echo_pin, volatile uint8_t* distance_state_ptr);
-
-    /**
-     * @brief Actualiza las distancias izquierda y derecha usando sensores ultrasónicos.
-     * 
-     * @param distance_state_ptr Puntero al estado del módulo de sensores (verifica si está activo).
-     * @param left_distance_ptr Puntero al valor de distancia izquierda que será actualizado.
-     * @param right_distance_ptr Puntero al valor de distancia derecha que será actualizado.
-     */
-    void update_ultrasonic_distances(
-        volatile uint8_t* distance_state_ptr,
-        volatile uint8_t* left_distance_ptr,
-        volatile uint8_t* right_distance_ptr
-    );
-
-    /**
-     * @brief Lee el estado del sensor IR y actualiza la detección de obstáculos con lógica de debounce.
-     * 
-     * @param obstacle_detected_ptr Puntero al valor booleano de obstáculo detectado.
-     * @param distance_state_ptr Puntero al estado del módulo de sensores (verifica si está activo).
-     */
-    void update_ir_state(volatile bool* obstacle_detected_ptr, volatile uint8_t* distance_state_ptr);
-
-    /**
-     * @brief Limpia manualmente el estado de detección de obstáculo (para lógica IR).
-     * 
-     * @param data Puntero a la estructura completa de sensores de distancia.
-     */
-    void clear_obstacle_detection(volatile DistanceSensorData* data);
-
-    /**
      * @brief Cambia el estado activo/inactivo del módulo de sensores de distancia.
      * 
      * @param mode Valor deseado del estado (ACTIVE o INACTIVE).
@@ -116,13 +79,66 @@ namespace DistanceSensors {
     void set_state(uint8_t mode, volatile uint8_t* distance_state_ptr);
 
     /**
-     * @brief Tarea RTOS que actualiza periódicamente el estado del sensor IR y sensores ultrasónicos.
+     * @brief Realiza una medición puntual de distancia utilizando un sensor ultrasónico.
      * 
-     * Debe ser registrada en el scheduler de FreeRTOS. Recibe como argumento el `GlobalContext*`.
-     * 
-     * @param pvParameters Puntero al contexto global del sistema (cast a GlobalContext*).
+     * @param trig_pin Pin de disparo (TRIG) del sensor ultrasónico.
+     * @param echo_pin Pin de escucha (ECHO) del sensor ultrasónico.
+     * @return Distancia medida en centímetros (truncada a uint8_t). Si el pulso falla, retorna US_MAX_DISTANCE_CM.
      */
-    void Task_DistanceSensors(void* pvParameters);
+    uint8_t us_read_distance(uint8_t trig_pin, uint8_t echo_pin);
+
+    /**
+     * @brief Verifica si hay obstáculo al frente utilizando ambos sensores ultrasónicos (izq. y der.).
+     * Incluye doble lectura tipo debounce para reducir falsos positivos.
+     * 
+     * @param obstacle_detected_ptr Puntero al flag general de detección de obstáculos.
+     * @param us_left_distance_ptr Puntero a la distancia medida por el sensor izquierdo [cm].
+     * @param us_right_distance_ptr Puntero a la distancia medida por el sensor derecho [cm].
+     * @param distance_state_ptr Puntero al estado global del módulo (verifica si está activo).
+     */
+    void us_check_obstacle(
+        volatile bool* obstacle_detected_ptr,
+        volatile uint8_t* us_left_distance_ptr,
+        volatile uint8_t* us_right_distance_ptr,
+        volatile uint8_t* distance_state_ptr
+    );
+
+    /**
+     * @brief Realiza lectura segura con debounce del estado de un sensor IR digital.
+     * 
+     * @param ir_pin Pin conectado al sensor IR.
+     * @return `true` si hay obstáculo (LOW estable), `false` en caso contrario o si hubo rebote.
+     */
+    bool ir_check_obstacle(uint8_t ir_pin);
+
+    /**
+     * @brief Lee ambos sensores IR y actualiza los valores de detección de obstáculos en cada lado.
+     * 
+     * @param ir_left_obstacle_ptr Puntero al flag de obstáculo a la izquierda.
+     * @param ir_right_obstacle_ptr Puntero al flag de obstáculo a la derecha.
+     * @param distance_state_ptr Puntero al estado global del módulo (verifica si está activo).
+     */
+    void ir_read_sensors(
+        volatile bool* ir_left_obstacle_ptr,
+        volatile bool* ir_right_obstacle_ptr,
+        volatile uint8_t* distance_state_ptr
+    );
+
+    /**
+     * @brief Tarea FreeRTOS que actualiza periódicamente los sensores ultrasónicos frontales.
+     * Llama a `us_check_obstacle()` cada cierto intervalo de tiempo.
+     * 
+     * @param pvParameters Puntero al `GlobalContext` del sistema (cast dentro de la función).
+     */
+    void Task_FrontObstacleDetect(void* pvParameters);
+
+    /**
+     * @brief Tarea FreeRTOS que actualiza periódicamente el estado de los sensores IR laterales.
+     * Llama a `ir_read_sensors()` para mantener actualizadas las banderas de obstáculo lateral.
+     * 
+     * @param pvParameters Puntero al `GlobalContext` del sistema (cast dentro de la función).
+     */
+    void Task_LateralObstacleDetect(void* pvParameters);
 
 }
 
