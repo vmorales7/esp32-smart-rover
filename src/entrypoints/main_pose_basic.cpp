@@ -78,8 +78,8 @@ void loop() {
         Serial.print(" | θ: ");
         Serial.print(kinematic_state.theta, 2);
         Serial.print(" || Vel => v: ");
-        Serial.print(kinematic_state.v, 1);
+        Serial.print(kinematic_state.v, 2);
         Serial.print(" | w: ");
-        Serial.println(kinematic_state.w, 1);
+        Serial.println(kinematic_state.w, 2);
     }
 }
