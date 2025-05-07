@@ -1,6 +1,6 @@
 #include "project_config.h"
 #include "sensors_firmware/distance_sensors.h"
-#warning "Compilando main_distance_sensors_basic.cpp"
+#warning "Compilando main_us_sensor_basic.cpp"
 
 // ====================== VARIABLES GLOBALES ======================
 volatile SystemStates system_states = {0};
