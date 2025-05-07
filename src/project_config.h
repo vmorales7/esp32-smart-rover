@@ -25,12 +25,11 @@ constexpr uint8_t ENCODER_RIGHT_B_PIN = 17; // Verde
 constexpr uint8_t US_LEFT_TRIG_PIN  = 13;
 constexpr uint8_t US_LEFT_ECHO_PIN  = 12;
 
+constexpr uint8_t US_MID_TRIG_PIN = 32;  
+constexpr uint8_t US_MID_ECHO_PIN = 34;  // solo INPUT
+
 constexpr uint8_t US_RIGHT_TRIG_PIN = 22;
 constexpr uint8_t US_RIGHT_ECHO_PIN = 23;
-
-// Sensor infrarrojo
-constexpr uint8_t IR_LEFT_SENSOR_PIN = 15;
-constexpr uint8_t IR_RIGHT_SENSOR_PIN = 10;
 
 
 /* -------------- Constantes generales --------------*/

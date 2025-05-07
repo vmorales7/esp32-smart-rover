@@ -103,26 +103,26 @@ namespace DistanceSensors {
         volatile uint8_t* distance_state_ptr
     );
 
-    /**
-     * @brief Realiza lectura segura con debounce del estado de un sensor IR digital.
-     * 
-     * @param ir_pin Pin conectado al sensor IR.
-     * @return `true` si hay obstáculo (LOW estable), `false` en caso contrario o si hubo rebote.
-     */
-    bool ir_check_obstacle(uint8_t ir_pin);
+    // /**
+    //  * @brief Realiza lectura segura con debounce del estado de un sensor IR digital.
+    //  * 
+    //  * @param ir_pin Pin conectado al sensor IR.
+    //  * @return `true` si hay obstáculo (LOW estable), `false` en caso contrario o si hubo rebote.
+    //  */
+    // bool ir_check_obstacle(uint8_t ir_pin);
 
-    /**
-     * @brief Lee ambos sensores IR y actualiza los valores de detección de obstáculos en cada lado.
-     * 
-     * @param ir_left_obstacle_ptr Puntero al flag de obstáculo a la izquierda.
-     * @param ir_right_obstacle_ptr Puntero al flag de obstáculo a la derecha.
-     * @param distance_state_ptr Puntero al estado global del módulo (verifica si está activo).
-     */
-    void ir_read_sensors(
-        volatile bool* ir_left_obstacle_ptr,
-        volatile bool* ir_right_obstacle_ptr,
-        volatile uint8_t* distance_state_ptr
-    );
+    // /**
+    //  * @brief Lee ambos sensores IR y actualiza los valores de detección de obstáculos en cada lado.
+    //  * 
+    //  * @param ir_left_obstacle_ptr Puntero al flag de obstáculo a la izquierda.
+    //  * @param ir_right_obstacle_ptr Puntero al flag de obstáculo a la derecha.
+    //  * @param distance_state_ptr Puntero al estado global del módulo (verifica si está activo).
+    //  */
+    // void ir_read_sensors(
+    //     volatile bool* ir_left_obstacle_ptr,
+    //     volatile bool* ir_right_obstacle_ptr,
+    //     volatile uint8_t* distance_state_ptr
+    // );
 
     /**
      * @brief Tarea FreeRTOS que actualiza periódicamente los sensores ultrasónicos frontales.

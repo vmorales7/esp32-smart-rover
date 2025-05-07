@@ -4,14 +4,19 @@ namespace DistanceSensors {
 
     void init(volatile uint8_t* distance_state_ptr) {
         // IR
-        pinMode(IR_LEFT_SENSOR_PIN, INPUT);
-        pinMode(IR_RIGHT_SENSOR_PIN, INPUT);
+        // pinMode(IR_LEFT_SENSOR_PIN, INPUT);
+        // pinMode(IR_RIGHT_SENSOR_PIN, INPUT);
 
         // US izquierda
         pinMode(US_LEFT_TRIG_PIN, OUTPUT);
         pinMode(US_LEFT_ECHO_PIN, INPUT);
         digitalWrite(US_LEFT_TRIG_PIN, LOW);
 
+        // US medio
+        pinMode(US_MID_TRIG_PIN, OUTPUT);
+        pinMode(US_MID_ECHO_PIN, INPUT);
+        digitalWrite(US_MID_TRIG_PIN, LOW);
+        
         // US derecha
         pinMode(US_RIGHT_TRIG_PIN, OUTPUT);
         pinMode(US_RIGHT_ECHO_PIN, INPUT);
@@ -84,33 +89,33 @@ namespace DistanceSensors {
     }
     
 
-    bool ir_check_obstacle(uint8_t ir_pin) {
-        bool current = digitalRead(ir_pin);
-        unsigned long start_time = micros();
-        // Debounce: esperar que el valor se mantenga estable
-        while ((micros() - start_time) < IR_DEBOUNCE_TIME_US) {
-            if (digitalRead(ir_pin) != current) {
-                return 0; // rebote → ignorar lectura
-            }
-        }
-        // Si la señal es LOW estable (active low), hay obstáculo
-        return current == LOW ? true : false;
-    }
+    // bool ir_check_obstacle(uint8_t ir_pin) {
+    //     bool current = digitalRead(ir_pin);
+    //     unsigned long start_time = micros();
+    //     // Debounce: esperar que el valor se mantenga estable
+    //     while ((micros() - start_time) < IR_DEBOUNCE_TIME_US) {
+    //         if (digitalRead(ir_pin) != current) {
+    //             return 0; // rebote → ignorar lectura
+    //         }
+    //     }
+    //     // Si la señal es LOW estable (active low), hay obstáculo
+    //     return current == LOW ? true : false;
+    // }
     
 
-    void ir_read_sensors(
-        volatile bool* ir_left_obstacle_ptr,
-        volatile bool* ir_right_obstacle_ptr,
-        volatile uint8_t* distance_state_ptr
-    ) {
-        if (*distance_state_ptr != ACTIVE) return;
+    // void ir_read_sensors(
+    //     volatile bool* ir_left_obstacle_ptr,
+    //     volatile bool* ir_right_obstacle_ptr,
+    //     volatile uint8_t* distance_state_ptr
+    // ) {
+    //     if (*distance_state_ptr != ACTIVE) return;
     
-        bool left_obstacle = ir_check_obstacle(IR_LEFT_SENSOR_PIN);
-        bool right_obstacle = ir_check_obstacle(IR_RIGHT_SENSOR_PIN);
+    //     bool left_obstacle = ir_check_obstacle(IR_LEFT_SENSOR_PIN);
+    //     bool right_obstacle = ir_check_obstacle(IR_RIGHT_SENSOR_PIN);
     
-        *ir_left_obstacle_ptr = left_obstacle;
-        *ir_right_obstacle_ptr = right_obstacle;
-    }
+    //     *ir_left_obstacle_ptr = left_obstacle;
+    //     *ir_right_obstacle_ptr = right_obstacle;
+    // }
 
 
     void Task_FrontObstacleDetect(void* pvParameters) {
@@ -135,23 +140,23 @@ namespace DistanceSensors {
     }
     
 
-    void Task_LateralObstacleDetect(void* pvParameters) {
-        const TickType_t period = pdMS_TO_TICKS(IR_SENSOR_READ_PERIOD_MS);
-        TickType_t xLastWakeTime = xTaskGetTickCount();
+    // void Task_LateralObstacleDetect(void* pvParameters) {
+    //     const TickType_t period = pdMS_TO_TICKS(IR_SENSOR_READ_PERIOD_MS);
+    //     TickType_t xLastWakeTime = xTaskGetTickCount();
     
-        GlobalContext* ctx_ptr = static_cast<GlobalContext*>(pvParameters);
-        volatile uint8_t* distance_state_ptr     = &ctx_ptr->systems_ptr->distance;
-        volatile bool* ir_left_obstacle_ptr      = &ctx_ptr->distance_ptr->ir_left_obstacle;
-        volatile bool* ir_right_obstacle_ptr     = &ctx_ptr->distance_ptr->ir_right_obstacle;
+    //     GlobalContext* ctx_ptr = static_cast<GlobalContext*>(pvParameters);
+    //     volatile uint8_t* distance_state_ptr     = &ctx_ptr->systems_ptr->distance;
+    //     volatile bool* ir_left_obstacle_ptr      = &ctx_ptr->distance_ptr->ir_left_obstacle;
+    //     volatile bool* ir_right_obstacle_ptr     = &ctx_ptr->distance_ptr->ir_right_obstacle;
     
-        for (;;) {
-            vTaskDelayUntil(&xLastWakeTime, period);
-            ir_read_sensors(
-                ir_left_obstacle_ptr,
-                ir_right_obstacle_ptr,
-                distance_state_ptr
-            );
-        }
-    } 
+    //     for (;;) {
+    //         vTaskDelayUntil(&xLastWakeTime, period);
+    //         ir_read_sensors(
+    //             ir_left_obstacle_ptr,
+    //             ir_right_obstacle_ptr,
+    //             distance_state_ptr
+    //         );
+    //     }
+    // } 
     
 }
