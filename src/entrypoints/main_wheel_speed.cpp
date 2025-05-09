@@ -8,13 +8,8 @@
 // ====================== VARIABLES GLOBALES ======================
 volatile SystemStates system_states = {0};
 volatile WheelsData wheels_data = {0};
-volatile DistanceSensorData distance_data = {
-    .obstacle_detected = false,
-    .us_left_distance = US_MAX_DISTANCE_CM,
-    .us_right_distance = US_MAX_DISTANCE_CM,
-    .ir_left_obstacle = false,
-    .ir_right_obstacle = false
-};
+volatile DistanceSensorData distance_data = {0};
+
 
 volatile KinematicState kinematic_data = {0};
 volatile uint8_t control_mode = 0;
@@ -44,7 +39,7 @@ void ejecutar_fase_con_obstaculo_speed(const char* msg, float wrefL, float wrefR
 
     while (tiempo_acumulado < duracion_ms) {
         // Leer distancia
-        uint8_t distancia = DistanceSensors::us_read_distance(US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN);
+        uint8_t distancia = DistanceSensors::read_distance(US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN);
         distance_data.us_left_distance = distancia;
 
         // Condición de obstáculo

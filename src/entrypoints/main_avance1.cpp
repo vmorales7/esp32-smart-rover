@@ -2,18 +2,12 @@
 #include "motor_drive/motor_controller.h"
 #include "sensors_firmware/encoder_reader.h"
 #include "sensors_firmware/distance_sensors.h"
-#warning "Compilando main_us_sensor.cpp"
+#warning "Compilando main_avance1.cpp"
 
 // ====================== VARIABLES GLOBALES ======================
 volatile SystemStates system_states = {0};
 volatile WheelsData wheels_data = {0};
-volatile DistanceSensorData distance_data = {
-    .obstacle_detected = false,
-    .us_left_distance = US_MAX_DISTANCE_CM,
-    .us_right_distance = US_MAX_DISTANCE_CM,
-    .ir_left_obstacle = false,
-    .ir_right_obstacle = false
-};
+volatile DistanceSensorData distance_data = {0};
 
 
 // ====================== FUNCIONES AUXILIARES ======================
@@ -40,7 +34,7 @@ void ejecutar_fase_con_obstaculo(const char* msg, float dutyL, float dutyR, uint
 
     while (tiempo_acumulado < duracion_ms) {
         // Leer distancia
-        uint8_t distancia = DistanceSensors::us_read_distance(US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN);
+        uint8_t distancia = DistanceSensors::read_distance(US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN);
         distance_data.us_left_distance = distancia;
 
         // Condición de obstáculo

@@ -1,12 +1,8 @@
 #include "distance_sensors.h"
-//chao
+
 namespace DistanceSensors {
 
     void init(volatile uint8_t* distance_state_ptr) {
-        // IR
-        // pinMode(IR_LEFT_SENSOR_PIN, INPUT);
-        // pinMode(IR_RIGHT_SENSOR_PIN, INPUT);
-
         // US izquierda
         pinMode(US_LEFT_TRIG_PIN, OUTPUT);
         pinMode(US_LEFT_ECHO_PIN, INPUT);
@@ -32,9 +28,7 @@ namespace DistanceSensors {
     }
 
 
-    uint8_t us_read_distance(
-        uint8_t trig_pin, uint8_t echo_pin
-    ) {
+    uint8_t read_distance(uint8_t trig_pin, uint8_t echo_pin) {
         // Se generá el trig hacia el sensor
         digitalWrite(trig_pin, LOW);
         delayMicroseconds(2);
@@ -53,43 +47,110 @@ namespace DistanceSensors {
     }
 
 
-    void us_check_obstacle(
-        volatile bool* obstacle_detected_ptr,
-        volatile uint8_t* us_left_distance_ptr, volatile uint8_t* us_right_distance_ptr,
+    void check_sensor_obstacle(
+        uint8_t trig_pin, uint8_t echo_pin,
+        volatile uint8_t* distance_ptr,
+        volatile bool* sensor_obstacle_flag_ptr,
+        volatile bool* global_obstacle_flag_ptr,
         volatile uint8_t* distance_state_ptr
     ) {
-        if (*distance_state_ptr != ACTIVE) return;
+        if (*distance_state_ptr != ACTIVE) return;  // Solo leer si el sistema está activo
+        uint8_t d = read_distance(trig_pin, echo_pin);
+        if (d < OBSTACLE_THRESHOLD_CM) {
+            // Repetir la lectura para evitar falsos positivos
+            d = read_distance(trig_pin, echo_pin);
+            *distance_ptr = d;
+            bool obstacle_flag = (d < OBSTACLE_THRESHOLD_CM);
+            *sensor_obstacle_flag_ptr = obstacle_flag;
+            *global_obstacle_flag_ptr = obstacle_flag;
+        } else {
+            *distance_ptr = d;
+            *sensor_obstacle_flag_ptr = false;
+        }
+    }
+
+
+
+    void Task_CheckLeftObstacle(void* pvParameters) {
+        vTaskDelay(pdMS_TO_TICKS(0));  // desfase inicial
+        const TickType_t period = pdMS_TO_TICKS(US_SENSOR_READ_PERIOD_MS);
+        TickType_t xLastWakeTime = xTaskGetTickCount();
+
+        GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
+        for (;;) {
+            vTaskDelayUntil(&xLastWakeTime, period);
+            check_sensor_obstacle(
+                US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN,
+                &ctx->distance_ptr->us_left_distance,
+                &ctx->distance_ptr->us_left_obstacle,
+                &ctx->distance_ptr->obstacle_detected,
+                &ctx->systems_ptr->distance
+            );            
+        }
+    }
+
+    void Task_CheckMidObstacle(void* pvParameters) {
+        vTaskDelay(pdMS_TO_TICKS(50));  // desfase inicial
+        const TickType_t period = pdMS_TO_TICKS(US_SENSOR_READ_PERIOD_MS);
+        TickType_t xLastWakeTime = xTaskGetTickCount();
+
+        GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
+        for (;;) {
+            vTaskDelayUntil(&xLastWakeTime, period);
+            check_sensor_obstacle(
+                US_MID_TRIG_PIN, US_MID_ECHO_PIN,
+                &ctx->distance_ptr->us_mid_distance,
+                &ctx->distance_ptr->us_mid_obstacle,
+                &ctx->distance_ptr->obstacle_detected,
+                &ctx->systems_ptr->distance
+            );
+        }
+    }
+
+    void Task_CheckRightObstacle(void* pvParameters) {
+        vTaskDelay(pdMS_TO_TICKS(100));  // desfase inicial
+        const TickType_t period = pdMS_TO_TICKS(US_SENSOR_READ_PERIOD_MS);
+        TickType_t xLastWakeTime = xTaskGetTickCount();
+
+        GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
+        for (;;) {
+            vTaskDelayUntil(&xLastWakeTime, period);
+            check_sensor_obstacle(
+                US_RIGHT_TRIG_PIN, US_RIGHT_ECHO_PIN,
+                &ctx->distance_ptr->us_right_distance,
+                &ctx->distance_ptr->us_right_obstacle,
+                &ctx->distance_ptr->obstacle_detected,
+                &ctx->systems_ptr->distance
+            );            
+        }
+    }
+
+    void Task_HandleObstacleEvent(void* pvParameters) {
+        const TickType_t period = pdMS_TO_TICKS(100);  // Frecuencia de revisión
+        TickType_t xLastWakeTime = xTaskGetTickCount();
     
-        // Leer sensor izquierdo
-        uint8_t left_distance = us_read_distance(US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN);
-        if (left_distance < OBSTACLE_THRESHOLD_CM) {
-            left_distance = us_read_distance(US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN); // segunda lectura para debounce
-            if (left_distance < OBSTACLE_THRESHOLD_CM) {
-                *obstacle_detected_ptr = true;
-                *us_left_distance_ptr = left_distance;
-                *us_right_distance_ptr = US_MAX_DISTANCE_CM;  // No leído
-                return;
+        GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
+    
+        for (;;) {
+            vTaskDelayUntil(&xLastWakeTime, period);
+    
+            if (ctx->distance_ptr->obstacle_detected) {
+                // Acción de debug o futura transición de estado
+                //Serial.println("⚠️ Obstáculo detectado. Procesando evento...");
+    
+                // (Más adelante: enviar evento a FSM)
+    
+                // Consumir el evento
+                ctx->distance_ptr->obstacle_detected = false;
             }
         }
-        *us_left_distance_ptr = left_distance;
-    
-        // Leer sensor derecho solo si el izquierdo no detectó
-        uint8_t right_distance = us_read_distance(US_RIGHT_TRIG_PIN, US_RIGHT_ECHO_PIN);
-        if (right_distance < OBSTACLE_THRESHOLD_CM) {
-            right_distance = us_read_distance(US_RIGHT_TRIG_PIN, US_RIGHT_ECHO_PIN);
-            if (right_distance < OBSTACLE_THRESHOLD_CM) {
-                *obstacle_detected_ptr = true;
-                *us_right_distance_ptr = right_distance;
-                return;
-            }
-        }
-        // Si llegaste aquí, no se confirmó obstáculo en ningún sensor
-        *us_right_distance_ptr = right_distance;
-        *obstacle_detected_ptr = false; 
     }
     
+    
+}
 
-    // bool ir_check_obstacle(uint8_t ir_pin) {
+
+        // bool ir_check_obstacle(uint8_t ir_pin) {
     //     bool current = digitalRead(ir_pin);
     //     unsigned long start_time = micros();
     //     // Debounce: esperar que el valor se mantenga estable
@@ -118,28 +179,6 @@ namespace DistanceSensors {
     // }
 
 
-    void Task_FrontObstacleDetect(void* pvParameters) {
-        const TickType_t period = pdMS_TO_TICKS(US_SENSOR_READ_PERIOD_MS);
-        TickType_t xLastWakeTime = xTaskGetTickCount();
-    
-        GlobalContext* ctx_ptr = static_cast<GlobalContext*>(pvParameters);
-        volatile uint8_t* distance_state_ptr   = &ctx_ptr->systems_ptr->distance;
-        volatile bool* obstacle_detected_ptr   = &ctx_ptr->distance_ptr->obstacle_detected;
-        volatile uint8_t* left_distance_ptr    = &ctx_ptr->distance_ptr->us_left_distance;
-        volatile uint8_t* right_distance_ptr   = &ctx_ptr->distance_ptr->us_right_distance;
-    
-        for (;;) {
-            vTaskDelayUntil(&xLastWakeTime, period);
-            us_check_obstacle(
-                obstacle_detected_ptr,
-                left_distance_ptr,
-                right_distance_ptr,
-                distance_state_ptr
-            );
-        }
-    }
-    
-
     // void Task_LateralObstacleDetect(void* pvParameters) {
     //     const TickType_t period = pdMS_TO_TICKS(IR_SENSOR_READ_PERIOD_MS);
     //     TickType_t xLastWakeTime = xTaskGetTickCount();
@@ -158,5 +197,3 @@ namespace DistanceSensors {
     //         );
     //     }
     // } 
-    
-}

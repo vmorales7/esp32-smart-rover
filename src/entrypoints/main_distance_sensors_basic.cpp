@@ -4,37 +4,49 @@
 
 // ====================== VARIABLES GLOBALES ======================
 volatile SystemStates system_states = {0};
-volatile DistanceSensorData distance_data = {
-    .obstacle_detected = false,
-    .us_left_distance = US_MAX_DISTANCE_CM,
-    .us_right_distance = US_MAX_DISTANCE_CM,
-    .ir_left_obstacle = false,
-    .ir_right_obstacle = false
+volatile DistanceSensorData distance_data = {0};
+GlobalContext ctx = {
+    .systems_ptr = &system_states,
+    .kinematic_ptr = nullptr,
+    .wheels_ptr = nullptr,
+    .distance_ptr = &distance_data
 };
 
-// ====================== TAREA: Monitoreo por Serial ======================
-void Task_SerialMonitor(void* pvParameters) {
-    const TickType_t period = pdMS_TO_TICKS(500); // cada 500ms
+// ====================== TAREA: Manejo de eventos por obstáculo ======================
+void Task_ObstacleResponse(void* pvParameters) {
+    const TickType_t period = pdMS_TO_TICKS(200);
     TickType_t xLastWakeTime = xTaskGetTickCount();
+
+    GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
 
     for (;;) {
         vTaskDelayUntil(&xLastWakeTime, period);
 
-        Serial.println("==== Estado de sensores ====");
-        Serial.print("US Left: ");
-        Serial.print(distance_data.us_left_distance);
-        Serial.print(" cm | US Right: ");
-        Serial.print(distance_data.us_right_distance);
-        Serial.println(" cm");
+        if (ctx->distance_ptr->obstacle_detected) {
+            Serial.println("⚠️ Obstáculo detectado. Procesando evento...");
 
-        Serial.print("IR Left Obstacle: ");
-        Serial.print(distance_data.ir_left_obstacle ? "YES" : "NO");
-        Serial.print(" | IR Right Obstacle: ");
-        Serial.println(distance_data.ir_right_obstacle ? "YES" : "NO");
+            // Lecturas adicionales en tiempo real
+            uint8_t dL = DistanceSensors::read_distance(US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN);
+            uint8_t dM = DistanceSensors::read_distance(US_MID_TRIG_PIN, US_MID_ECHO_PIN);
+            uint8_t dR = DistanceSensors::read_distance(US_RIGHT_TRIG_PIN, US_RIGHT_ECHO_PIN);
 
-        Serial.print("Obstacle Detected (US): ");
-        Serial.println(distance_data.obstacle_detected ? "YES" : "NO");
-        Serial.println();
+            Serial.print("  Distancia izquierda: ");
+            Serial.print(dL);
+            Serial.println(" cm");
+
+            Serial.print("  Distancia frontal: ");
+            Serial.print(dM);
+            Serial.println(" cm");
+
+            Serial.print("  Distancia derecha: ");
+            Serial.print(dR);
+            Serial.println(" cm");
+
+            Serial.println();
+
+            // Consumir evento
+            ctx->distance_ptr->obstacle_detected = false;
+        }
     }
 }
 
@@ -43,32 +55,37 @@ void setup() {
     Serial.begin(115200);
     delay(1000);
     Serial.println("Iniciando main_distance_sensors_basic...");
+    delay(5000);
 
-    // Inicializar sensores
     DistanceSensors::init(&system_states.distance);
     DistanceSensors::set_state(ACTIVE, &system_states.distance);
 
-    // Crear tareas
+    // Crear tareas para cada sensor ultrasónico
     xTaskCreatePinnedToCore(
-        DistanceSensors::Task_FrontObstacleDetect,
-        "FrontUS",
-        2048, nullptr, 1, nullptr, APP_CPU_NUM
+        DistanceSensors::Task_CheckLeftObstacle,
+        "US_Left",
+        2048, &ctx, 1, nullptr, APP_CPU_NUM
+    );
+    xTaskCreatePinnedToCore(
+        DistanceSensors::Task_CheckMidObstacle,
+        "US_Mid",
+        2048, &ctx, 1, nullptr, APP_CPU_NUM
+    );
+    xTaskCreatePinnedToCore(
+        DistanceSensors::Task_CheckRightObstacle,
+        "US_Right",
+        2048, &ctx, 1, nullptr, APP_CPU_NUM
     );
 
-    // xTaskCreatePinnedToCore(
-    //     DistanceSensors::Task_LateralObstacleDetect,
-    //     "LateralIR",
-    //     2048, nullptr, 1, nullptr, APP_CPU_NUM
-    // );
-
+    // Crear tarea de respuesta a eventos de obstáculo
     xTaskCreatePinnedToCore(
-        Task_SerialMonitor,
-        "SerialPrint",
-        2048, nullptr, 1, nullptr, APP_CPU_NUM
+        Task_ObstacleResponse,
+        "ObstacleResponse",
+        2048, &ctx, 2, nullptr, APP_CPU_NUM // Prioridad mayor
     );
 }
 
 // ====================== LOOP VACÍO ======================
 void loop() {
-    // No se usa, todo ocurre en tareas RTOS
+    // No se usa. Todo está gestionado por tareas RTOS.
 }
