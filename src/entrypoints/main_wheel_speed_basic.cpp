@@ -17,28 +17,13 @@ volatile uint8_t control_mode = 0;
 void setup() {
     Serial.begin(115200);
     MotorController::init(
-        &system_states.motor_operation,
-        &wheels_data.duty_left,
-        &wheels_data.duty_right
-    );
-    EncoderReader::init(
-        &system_states.encoder,
-        &wheels_data.steps_left,
-        &wheels_data.steps_right,
-        &wheels_data.wL_measured,
-        &wheels_data.wR_measured
-    );
+        &system_states.motor_operation, &wheels_data.duty_left, &wheels_data.duty_right);
+    EncoderReader::init(&wheels_data, &system_states.encoder);
     PositionController::init(
-        &control_mode,
-        &wheels_data.wL_ref,
-        &wheels_data.wR_ref
-    );
+        &control_mode, &wheels_data.wL_ref, &wheels_data.wR_ref);
     EncoderReader::resume(&system_states.encoder);
     MotorController::set_motors_mode(MOTOR_AUTO,
-        &system_states.motor_operation,
-        &wheels_data.duty_left,
-        &wheels_data.duty_right
-    );
+        &system_states.motor_operation, &wheels_data.duty_left, &wheels_data.duty_right);
     PositionController::set_control_mode(SPEED_REF_MANUAL, &control_mode);
 }
 
@@ -60,22 +45,8 @@ void loop() {
     }
 
     // Actualizar encoder y control
-    EncoderReader::update_encoder_data(
-        &system_states.encoder,
-        &wheels_data.steps_left,
-        &wheels_data.steps_right,
-        &wheels_data.wL_measured,
-        &wheels_data.wR_measured
-    );
-    MotorController::update_motors_control(
-        &wheels_data.wL_ref,
-        &wheels_data.wR_ref,
-        &wheels_data.wL_measured,
-        &wheels_data.wR_measured,
-        &wheels_data.duty_left,
-        &wheels_data.duty_right,
-        &system_states.motor_operation
-    );
+    EncoderReader::update_encoder_data(&wheels_data, &system_states.encoder);
+    MotorController::update_motors_control(&wheels_data, &system_states.motor_operation);
 
     // Imprimir velocidad y duty cada PRINT_INTERVAL_MS
     if (millis() - lastPrint > PRINT_INTERVAL_MS) {

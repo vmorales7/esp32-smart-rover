@@ -155,28 +155,38 @@ namespace MotorController {
         volatile uint8_t* motor_state_ptr
     );
 
-    float protect_motor_duty(
-        float duty, float w_measured
-    );
+    /**
+     * @brief Protege y ajusta el duty calculado antes de aplicarlo al motor.
+     *
+     * Esta función implementa dos protecciones comunes en el control de velocidad de motores:
+     * 
+     * 1. **Protección contra inversión brusca de sentido:** Si se intenta aplicar un duty con signo
+     *    opuesto a la velocidad actual de la rueda (y esta aún gira más rápido que un umbral),
+     *    el duty se anula para evitar choques mecánicos.
+     * 
+     * 2. **Duty mínimo para arranque:** Si la rueda está detenida (velocidad medida ≈ 0) y se
+     *    desea aplicar un duty demasiado bajo para superar la fricción estática, se fuerza
+     *    a un mínimo necesario (`MIN_START_DUTY`).
+     * 
+     * @param duty Duty calculado por el controlador PI (valor normalizado entre -1 y 1).
+     * @param w_measured Velocidad angular actual de la rueda [rad/s].
+     * @return Duty corregido que puede aplicarse de forma segura al motor.
+     */
+    float protect_motor_duty(float duty, float w_measured);
 
     /**
-     * @brief Ejecuta un paso de control para ambos motores.
-     * 
-     * @param wL_ref_ptr Puntero a la referencia de velocidad angular para la rueda izquierda.
-     * @param wR_ref_ptr Puntero a la referencia de velocidad angular para la rueda derecha.
-     * @param wL_measured_ptr Puntero a la velocidad angular medida de la rueda izquierda.
-     * @param wR_measured_ptr Puntero a la velocidad angular medida de la rueda derecha.
-     * @param dutyL_ptr Puntero a la variable para el duty aplicado a la rueda izquierda.
-     * @param dutyR_ptr Puntero a la variable para el duty aplicado a la rueda derecha.
-     * @param motor_state_ptr Puntero a la variable con el estado de operación del encoder
+     * @brief Ejecuta un paso de control para ambos motores en modo automático.
+     *
+     * Esta función calcula el duty necesario para alcanzar la velocidad angular
+     * de referencia en cada rueda, usando un controlador PI con lógica de protección.
+     * Si el duty calculado es cero y la rueda aún gira, se aplica freno activo.
+     *
+     * @param wheels_data_ptr Puntero a la estructura que contiene la información de referencia,
+     *        velocidad medida y duty aplicado para cada rueda.
+     * @param motor_state_ptr Puntero al estado actual del sistema de motores (debe ser MOTOR_AUTO para operar).
      */
     void update_motors_control(
-        volatile float* wL_ref_ptr,
-        volatile float* wR_ref_ptr,
-        volatile float* wL_measured_ptr,
-        volatile float* wR_measured_ptr,
-        volatile float* dutyL_ptr,
-        volatile float* dutyR_ptr,
+        volatile WheelsData* wheels_data_ptr,
         volatile uint8_t* motor_state_ptr
     );
 

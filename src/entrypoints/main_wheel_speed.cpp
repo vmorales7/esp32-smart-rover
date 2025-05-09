@@ -51,38 +51,26 @@ void ejecutar_fase_con_obstaculo_speed(const char* msg, float wrefL, float wrefR
                 Serial.print("Obstáculo detectado a ");
                 Serial.print(distancia);
                 Serial.println(" cm — deteniendo motores");
-                MotorController::set_motors_mode(MOTOR_IDLE, &system_states.motor_operation,
-                                                 &wheels_data.duty_left, &wheels_data.duty_right);
+                MotorController::set_motors_mode(
+                    MOTOR_IDLE, &system_states.motor_operation, &wheels_data.duty_left, &wheels_data.duty_right);
                 en_movimiento = false;
             }
         } else {
             if (!en_movimiento) {
                 Serial.println("Obstáculo despejado — reanudando movimiento");
-                MotorController::set_motors_mode(MOTOR_AUTO, &system_states.motor_operation,
-                                                 &wheels_data.duty_left, &wheels_data.duty_right);
+                MotorController::set_motors_mode(
+                    MOTOR_AUTO, &system_states.motor_operation, &wheels_data.duty_left, &wheels_data.duty_right);
                 PositionController::set_wheel_speed_ref(
-                    wrefL, wrefR,
-                    &wheels_data.wL_ref, &wheels_data.wR_ref,
-                    &control_mode
-                );
+                    wrefL, wrefR, &wheels_data.wL_ref, &wheels_data.wR_ref, &control_mode);
                 t_anterior = millis(); // reinicia referencia temporal tras pausa
                 en_movimiento = true;
             }
 
             // Avance normal
-            EncoderReader::update_encoder_data(
-                &system_states.encoder,
-                &wheels_data.steps_left, &wheels_data.steps_right,
-                &wheels_data.wL_measured, &wheels_data.wR_measured
-            );
+            EncoderReader::update_encoder_data(&wheels_data,&system_states.encoder);
+            MotorController::update_motors_control(&wheels_data,&system_states.motor_operation);
 
-            MotorController::update_motors_control(
-                &wheels_data.wL_ref, &wheels_data.wR_ref,
-                &wheels_data.wL_measured, &wheels_data.wR_measured,
-                &wheels_data.duty_left, &wheels_data.duty_right,
-                &system_states.motor_operation
-            );
-
+            // Actualizar tiempo
             uint32_t t_actual = millis();
             tiempo_acumulado += (t_actual - t_anterior);
             t_anterior = t_actual;
@@ -115,21 +103,13 @@ void setup() {
         &wheels_data.duty_right
     );
 
-    EncoderReader::init(
-        &system_states.encoder,
-        &wheels_data.steps_left, &wheels_data.steps_right,
-        &wheels_data.wL_measured, &wheels_data.wR_measured
-    );
+    EncoderReader::init(&wheels_data,&system_states.encoder);
     EncoderReader::resume(&system_states.encoder);
 
-    DistanceSensors::init(&system_states.distance);
+    DistanceSensors::init_system(&system_states.distance, &distance_data);
     DistanceSensors::set_state(ACTIVE, &system_states.distance);
 
-    PositionController::init(
-        &control_mode,
-        &wheels_data.wL_ref,
-        &wheels_data.wR_ref
-    );
+    PositionController::init(&control_mode, &wheels_data.wL_ref, &wheels_data.wR_ref);
     PositionController::set_control_mode(SPEED_REF_MANUAL, &control_mode);
 
     // Prueba

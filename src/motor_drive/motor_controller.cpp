@@ -182,13 +182,16 @@ namespace MotorController {
     }
     
 
-    void update_motors_control(
-        volatile float* wL_ref_ptr, volatile float* wR_ref_ptr,
-        volatile float* wL_measured_ptr, volatile float* wR_measured_ptr,
-        volatile float* dutyL_ptr, volatile float* dutyR_ptr,
-        volatile uint8_t* motor_state_ptr
-    ) {
+    void update_motors_control(volatile WheelsData* wheels_data_ptr, volatile uint8_t* motor_state_ptr) {
         if (*motor_state_ptr != MOTOR_AUTO) return; // Se opera solo en modo auto
+
+        // Punteros equivalentes a los parámetros originales
+        volatile float* wL_ref_ptr       = &wheels_data_ptr->wL_ref;
+        volatile float* wR_ref_ptr       = &wheels_data_ptr->wR_ref;
+        volatile float* wL_measured_ptr  = &wheels_data_ptr->wL_measured;
+        volatile float* wR_measured_ptr  = &wheels_data_ptr->wR_measured;
+        volatile float* dutyL_ptr        = &wheels_data_ptr->duty_left;
+        volatile float* dutyR_ptr        = &wheels_data_ptr->duty_right;
 
         // Cálculo del PI
         float dutyL = pidLeft.compute(*wL_ref_ptr, *wL_measured_ptr);
@@ -239,21 +242,10 @@ namespace MotorController {
     
         // Punteros a las variables necesarias
         volatile uint8_t* motor_state_ptr = &ctx_ptr->systems_ptr->motor_operation;
-        volatile float* wL_ref_ptr        = &ctx_ptr->wheels_ptr->wL_ref;
-        volatile float* wR_ref_ptr        = &ctx_ptr->wheels_ptr->wR_ref;
-        volatile float* wL_measured_ptr   = &ctx_ptr->wheels_ptr->wL_measured;
-        volatile float* wR_measured_ptr   = &ctx_ptr->wheels_ptr->wR_measured;
-        volatile float* dutyL_ptr         = &ctx_ptr->wheels_ptr->duty_left;
-        volatile float* dutyR_ptr         = &ctx_ptr->wheels_ptr->duty_right;
-    
+        volatile WheelsData* wheels_data_ptr = ctx_ptr->wheels_ptr;    
         for (;;) {
             vTaskDelayUntil(&xLastWakeTime, period);
-            update_motors_control(
-                wL_ref_ptr, wR_ref_ptr, 
-                wL_measured_ptr, wR_measured_ptr, 
-                dutyL_ptr, dutyR_ptr, 
-                motor_state_ptr
-            );
+            update_motors_control(wheels_data_ptr, motor_state_ptr);
         }
     }  
 
