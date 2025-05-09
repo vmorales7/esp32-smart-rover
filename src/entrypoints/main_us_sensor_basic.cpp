@@ -4,13 +4,8 @@
 
 // ====================== VARIABLES GLOBALES ======================
 volatile SystemStates system_states = {0};
-volatile DistanceSensorData distance_data = {
-    .obstacle_detected = false,
-    .us_left_distance = US_MAX_DISTANCE_CM,
-    .us_right_distance = US_MAX_DISTANCE_CM,
-    .ir_left_obstacle = false,
-    .ir_right_obstacle = false
-};
+volatile DistanceSensorData distance_data = {0};
+
 
 // ====================== SETUP Y LOOP ======================
 
@@ -24,7 +19,7 @@ void setup() {
 
 void loop() {
     // Actualiza solo el sensor izquierdo
-    uint8_t distancia_actual = DistanceSensors::us_read_distance(US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN);
+    uint8_t distancia_actual = DistanceSensors::read_distance(US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN);
     distance_data.us_left_distance = distancia_actual;
 
     // Verifica si hay obstáculo cerca (< 30 cm)

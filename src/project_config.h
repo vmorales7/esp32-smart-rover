@@ -25,12 +25,15 @@ constexpr uint8_t ENCODER_RIGHT_B_PIN = 17; // Verde
 constexpr uint8_t US_LEFT_TRIG_PIN  = 13;
 constexpr uint8_t US_LEFT_ECHO_PIN  = 12;
 
+constexpr uint8_t US_MID_TRIG_PIN = 32;  
+constexpr uint8_t US_MID_ECHO_PIN = 34;  // solo INPUT
+
 constexpr uint8_t US_RIGHT_TRIG_PIN = 22;
 constexpr uint8_t US_RIGHT_ECHO_PIN = 23;
 
-// Sensor infrarrojo
-constexpr uint8_t IR_LEFT_SENSOR_PIN = 15;
-constexpr uint8_t IR_RIGHT_SENSOR_PIN = 10;
+// I2C para IMU
+constexpr uint8_t IMU_SDA_PIN = 4;
+constexpr uint8_t IMU_SCL_PIN = 5;
 
 
 /* -------------- Constantes generales --------------*/
@@ -238,19 +241,23 @@ struct WheelsData {
 };
 
 /**
- * @brief Estructura que almacena el estado consolidado de sensores de distancia.
+ * @brief Estructura que almacena el estado consolidado de sensores ultrasónicos frontales.
  *
  * Contiene:
- * - Bandera del sensor infrarrojo (detección de obstáculo)
- * - Distancia lateral izquierda (sensor ultrasónico)
- * - Distancia lateral derecha (sensor ultrasónico)
+ * - Distancias individuales medidas por sensores US (izq, medio, der)
+ * - Flags de detección de obstáculo por cada sensor
+ * - Bandera general combinada para uso global del sistema
  */
 struct DistanceSensorData {
-    bool obstacle_detected;     ///< true si el sensor IR detecta un obstáculo
-    uint8_t us_left_distance;   ///< Distancia medida por el sensor US izquierdo [cm]
-    uint8_t us_right_distance;  ///< Distancia medida por el sensor US derecho [cm]
-    bool ir_left_obstacle;
-    bool ir_right_obstacle;
+    bool obstacle_detected;        ///< true si cualquier sensor US detecta obstáculo (< threshold)
+
+    uint8_t us_left_distance;      ///< Distancia medida por sensor US izquierdo [cm]
+    uint8_t us_mid_distance;       ///< Distancia medida por sensor US medio/frontal [cm]
+    uint8_t us_right_distance;     ///< Distancia medida por sensor US derecho [cm]
+
+    bool us_left_obstacle;         ///< true si el sensor izquierdo detecta obstáculo (< threshold)
+    bool us_mid_obstacle;          ///< true si el sensor medio detecta obstáculo
+    bool us_right_obstacle;        ///< true si el sensor derecho detecta obstáculo
 };
 
 /**
