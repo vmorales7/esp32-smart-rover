@@ -57,7 +57,8 @@ void setup() {
     Serial.println("Iniciando main_distance_sensors_basic...");
     delay(5000);
 
-    DistanceSensors::init(&system_states.distance);
+    // Inicializar el sistema
+    DistanceSensors::init_system(&system_states.distance, &distance_data);
     DistanceSensors::set_state(ACTIVE, &system_states.distance);
 
     // Crear tareas para cada sensor ultrasónico

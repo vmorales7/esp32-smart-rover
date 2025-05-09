@@ -43,21 +43,15 @@ constexpr uint8_t OBSTACLE_THRESHOLD_CM = 30;
 namespace DistanceSensors {
 
     /**
-     * @brief Inicializa los pines de todos los sensores ultrasónicos del sistema.
+     * @brief Inicializa un sensor ultrasónico individual (TRIG + ECHO).
      * 
-     * Configura TRIG como salida, ECHO como entrada, y deja los sensores inactivos por defecto.
+     * Configura los pines entregados como salida (TRIG) y entrada (ECHO),
+     * y se asegura de dejar el pin TRIG en estado bajo por defecto.
      * 
-     * @param distance_state_ptr Puntero al estado global del módulo de sensores.
+     * @param trig_pin Número de pin conectado al TRIG del sensor.
+     * @param echo_pin Número de pin conectado al ECHO del sensor.
      */
-    void init(volatile uint8_t* distance_state_ptr);
-
-    /**
-     * @brief Cambia el estado activo/inactivo del módulo de sensores de distancia.
-     * 
-     * @param mode Valor deseado del estado (ACTIVE o INACTIVE).
-     * @param distance_state_ptr Puntero al estado global del módulo.
-     */
-    void set_state(uint8_t mode, volatile uint8_t* distance_state_ptr);
+    void init_sensor(uint8_t trig_pin, uint8_t echo_pin);
 
     /**
      * @brief Realiza una lectura puntual de distancia desde un sensor ultrasónico.
@@ -69,6 +63,41 @@ namespace DistanceSensors {
      * @return Distancia estimada en cm. Retorna US_MAX_DISTANCE_CM en caso de timeout.
      */
     uint8_t read_distance(uint8_t trig_pin, uint8_t echo_pin);
+
+    /**
+     * @brief Reinicia completamente la estructura DistanceSensorData.
+     * 
+     * Establece todas las distancias en US_MAX_DISTANCE_CM y todas las banderas
+     * de detección de obstáculos en false. Se utiliza durante la inicialización
+     * o al reiniciar el módulo de sensores.
+     * 
+     * @param data_ptr Puntero a la estructura DistanceSensorData que se desea reiniciar.
+     */
+    void reset_system(volatile DistanceSensorData* data_ptr);
+
+    /**
+     * @brief Inicializa los sensores de distancia y reinicia la estructura de datos asociada.
+     * 
+     * Configura los pines TRIG y ECHO de los sensores ultrasónicos (izquierdo, medio y derecho).
+     * Además, deja en estado INACTIVE el módulo y reinicia la estructura `DistanceSensorData`:
+     * - Todas las distancias se establecen en `US_MAX_DISTANCE_CM`.
+     * - Todas las banderas de obstáculos se ponen en `false`.
+     * 
+     * @param distance_state_ptr Puntero al estado global del módulo de sensores (ACTIVE o INACTIVE).
+     * @param data_ptr Puntero a la estructura `DistanceSensorData` que será reiniciada.
+     */
+    void init_system(
+        volatile uint8_t* distance_state_ptr,
+        volatile DistanceSensorData* data_ptr
+    );
+
+    /**
+     * @brief Cambia el estado activo/inactivo del módulo de sensores de distancia.
+     * 
+     * @param mode Valor deseado del estado (ACTIVE o INACTIVE).
+     * @param distance_state_ptr Puntero al estado global del módulo.
+     */
+    void set_state(uint8_t mode, volatile uint8_t* distance_state_ptr);
 
     /**
      * @brief Evalúa un único sensor ultrasónico y actualiza su distancia y estado de obstáculo.

@@ -91,6 +91,16 @@ namespace PoseEstimator {
     }
 
 
+    void init(
+        volatile float* x_ptr, volatile float* y_ptr, volatile float* theta_ptr,
+        volatile int64_t* steps_left_ptr, volatile int64_t* steps_right_ptr,
+        volatile uint8_t* pose_estimator_state_ptr
+    ) {
+        reset_pose_and_steps(x_ptr, y_ptr, theta_ptr, steps_left_ptr, steps_right_ptr);
+        set_state(INACTIVE, pose_estimator_state_ptr);
+    }
+
+    
     void update_pose(
         PoseData* pose_ptr,
         volatile float* x_ptr, volatile float* y_ptr, volatile float* theta_ptr,

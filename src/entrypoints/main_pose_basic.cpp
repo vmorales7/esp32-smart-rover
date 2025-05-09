@@ -25,11 +25,11 @@ void setup() {
     Serial.println("Pose Debug — Wheel speed cte 50% Wm nom");
 
     // Inicializar posición
-    PoseEstimator::set_state(ACTIVE, &system_states.pose_estimator);
-    PoseEstimator::reset_pose_and_steps(
+    PoseEstimator::init(
         &kinematic_state.x, &kinematic_state.y, &kinematic_state.theta,
-        &wheels_data.steps_left, &wheels_data.steps_right
-    );
+        &wheels_data.steps_left, &wheels_data.steps_right,
+        &system_states.pose_estimator);
+    PoseEstimator::set_state(ACTIVE, &system_states.pose_estimator);
 
     // Inicializar encoder
     EncoderReader::init(&system_states.encoder,
@@ -39,10 +39,10 @@ void setup() {
 
     // Inicializar motores
     MotorController::init(&system_states.motor_operation,
-                          &wheels_data.duty_left, &wheels_data.duty_right);
+        &wheels_data.duty_left, &wheels_data.duty_right);
     MotorController::set_motors_mode(MOTOR_AUTO,
-                                     &system_states.motor_operation,
-                                     &wheels_data.duty_left, &wheels_data.duty_right);
+         &system_states.motor_operation,
+         &wheels_data.duty_left, &wheels_data.duty_right);
 
     // Iniciar control de velocidad de rueda
     PositionController::init(

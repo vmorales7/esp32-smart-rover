@@ -2,29 +2,10 @@
 
 namespace DistanceSensors {
 
-    void init(volatile uint8_t* distance_state_ptr) {
-        // US izquierda
-        pinMode(US_LEFT_TRIG_PIN, OUTPUT);
-        pinMode(US_LEFT_ECHO_PIN, INPUT);
-        digitalWrite(US_LEFT_TRIG_PIN, LOW);
-
-        // US medio
-        pinMode(US_MID_TRIG_PIN, OUTPUT);
-        pinMode(US_MID_ECHO_PIN, INPUT);
-        digitalWrite(US_MID_TRIG_PIN, LOW);
-        
-        // US derecha
-        pinMode(US_RIGHT_TRIG_PIN, OUTPUT);
-        pinMode(US_RIGHT_ECHO_PIN, INPUT);
-        digitalWrite(US_RIGHT_TRIG_PIN, LOW);
-
-        // Dejar sensores inactivos por defecto
-        *distance_state_ptr = INACTIVE;
-    }
-
-
-    void set_state(uint8_t mode, volatile uint8_t* distance_state_ptr) {
-        *distance_state_ptr = (mode == ACTIVE) ? ACTIVE : INACTIVE;
+    void init_sensor(uint8_t trig_pin, uint8_t echo_pin) {
+        pinMode(trig_pin, OUTPUT);
+        pinMode(echo_pin, INPUT);
+        digitalWrite(trig_pin, LOW);
     }
 
 
@@ -44,6 +25,37 @@ namespace DistanceSensors {
 
         // Cálculo de la distancia
         return (uint8_t) (duration * US_CM_PER_US);
+    }
+
+
+    void reset_system(volatile DistanceSensorData* data_ptr) {
+        // Reset de la estructura DistanceSensorData
+        data_ptr->obstacle_detected   = false;
+        data_ptr->us_left_obstacle    = false;
+        data_ptr->us_mid_obstacle     = false;
+        data_ptr->us_right_obstacle   = false;
+        data_ptr->us_left_distance    = US_MAX_DISTANCE_CM;
+        data_ptr->us_mid_distance     = US_MAX_DISTANCE_CM;
+        data_ptr->us_right_distance   = US_MAX_DISTANCE_CM;
+    }
+
+    
+    void init_system(volatile uint8_t* distance_state_ptr, volatile DistanceSensorData* data_ptr) {
+        // Configuración de pines de sensores ultrasónicos
+        init_sensor(US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN);
+        init_sensor(US_MID_TRIG_PIN, US_MID_ECHO_PIN);
+        init_sensor(US_RIGHT_TRIG_PIN, US_RIGHT_ECHO_PIN);
+
+        // Reset de la estructura DistanceSensorData
+        reset_system(data_ptr);
+
+        // Dejar sensores inactivos por defecto
+        *distance_state_ptr = INACTIVE;
+    }
+
+
+    void set_state(uint8_t mode, volatile uint8_t* distance_state_ptr) {
+        *distance_state_ptr = (mode == ACTIVE) ? ACTIVE : INACTIVE;
     }
 
 
@@ -68,7 +80,6 @@ namespace DistanceSensors {
             *sensor_obstacle_flag_ptr = false;
         }
     }
-
 
 
     void Task_CheckLeftObstacle(void* pvParameters) {

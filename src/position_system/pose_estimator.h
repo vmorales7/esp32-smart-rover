@@ -75,27 +75,6 @@ namespace PoseEstimator {
     );
 
     /**
-     * @brief Aplica una estimación de pose a las variables globales del sistema.
-     *
-     * Esta función sobrescribe los valores actuales de posición, orientación y velocidades
-     * con los de una estructura `PoseData` previamente estimada.
-     *
-     * @param pose_ptr Puntero a la estructura con la nueva pose estimada.
-     * @param x_ptr Puntero a posición X.
-     * @param y_ptr Puntero a posición Y.
-     * @param theta_ptr Puntero a orientación θ.
-     * @param v_ptr Puntero a velocidad lineal.
-     * @param w_ptr Puntero a velocidad angular.
-     * @param pose_estimator_state_ptr Puntero a la variable de estado del módulo
-     */
-    void update_pose(
-        PoseData* pose_ptr,
-        volatile float* x_ptr, volatile float* y_ptr, volatile float* theta_ptr,
-        volatile float* v_ptr, volatile float* w_ptr,
-        volatile uint8_t* pose_estimator_state_ptr
-    );
-
-    /**
      * @brief Activa o desactiva el estimador de pose.
      *
      * @param mode Debe ser ACTIVE o INACTIVE.
@@ -119,6 +98,49 @@ namespace PoseEstimator {
         volatile int64_t* steps_left_ptr, volatile int64_t* steps_right_ptr
     );
 
+    /**
+     * @brief Inicializa el estimador de pose y lo deja en estado INACTIVE.
+     * 
+     * @param x_ptr Puntero a X global
+     * @param y_ptr Puntero a Y global
+     * @param theta_ptr Puntero a θ global
+     * @param steps_left_ptr Puntero a pasos de rueda izquierda
+     * @param steps_right_ptr Puntero a pasos de rueda derecha
+     * @param pose_estimator_state_ptr Estado del estimador
+     */
+    void init(
+        volatile float* x_ptr, volatile float* y_ptr, volatile float* theta_ptr,
+        volatile int64_t* steps_left_ptr, volatile int64_t* steps_right_ptr,
+        volatile uint8_t* pose_estimator_state_ptr
+    );
+
+    /**
+     * @brief Aplica una estimación de pose a las variables globales del sistema.
+     *
+     * Esta función sobrescribe los valores actuales de posición, orientación y velocidades
+     * con los de una estructura `PoseData` previamente estimada.
+     *
+     * @param pose_ptr Puntero a la estructura con la nueva pose estimada.
+     * @param x_ptr Puntero a posición X.
+     * @param y_ptr Puntero a posición Y.
+     * @param theta_ptr Puntero a orientación θ.
+     * @param v_ptr Puntero a velocidad lineal.
+     * @param w_ptr Puntero a velocidad angular.
+     * @param pose_estimator_state_ptr Puntero a la variable de estado del módulo
+     */
+    void update_pose(
+        PoseData* pose_ptr,
+        volatile float* x_ptr, volatile float* y_ptr, volatile float* theta_ptr,
+        volatile float* v_ptr, volatile float* w_ptr,
+        volatile uint8_t* pose_estimator_state_ptr
+    );
+
+    /**
+     * @brief Normaliza un ángulo a [-π, π].
+     *
+     * @param angle Ángulo en radianes (cualquier valor).
+     * @return Ángulo envuelto al rango [-π, π].
+     */
     float wrap_to_pi(float angle);
     
     /**

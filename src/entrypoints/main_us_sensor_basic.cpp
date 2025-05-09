@@ -13,7 +13,7 @@ void setup() {
     Serial.begin(115200);
     delay(1000);
     Serial.println("Test: Sensor Ultrasónico Izquierdo");
-    DistanceSensors::init(&system_states.distance);
+    DistanceSensors::init_system(&system_states.distance, &distance_data);
     DistanceSensors::set_state(ACTIVE, &system_states.distance);
 }
 

@@ -110,8 +110,8 @@ void setup() {
         &wheels_data.duty_right
     );
 
-    DistanceSensors::init(&system_states.distance);
-    DistanceSensors::set_state(ACTIVE,&system_states.distance);    
+    DistanceSensors::init_system(&system_states.distance, &distance_data);
+    DistanceSensors::set_state(ACTIVE, &system_states.distance);  
 
     EncoderReader::init(
         &system_states.encoder,
