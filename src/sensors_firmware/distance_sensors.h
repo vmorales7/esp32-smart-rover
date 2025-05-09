@@ -121,4 +121,3 @@ namespace DistanceSensors {
 }
 
 #endif // DISTANCE_SENSORS_H
-
