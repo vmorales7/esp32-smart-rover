@@ -71,7 +71,7 @@ enum MotorMode : uint8_t {
 
 // RTOS
 constexpr uint16_t WHEEL_CONTROL_PERIOD_MS = 10;
-
+constexpr uint16_t IMU_READ_PERIOD_MS= 20;
 
 /* -------------- Constantes del Encoder Reader --------------*/
 
@@ -271,28 +271,22 @@ struct DistanceSensorData {
 
 struct IMUSensorData{
     //aceleracion en el eje x
-    uint8_t x_accel;
+    float x_accel;
 
     //aceleracion en el eje y
-    uint8_t y_accel;
+    float y_accel;
 
     //velocidad en el eje x
-    uint8_t x_speed;
+    float x_speed;
 
     //velocidad en el eje y
-    uint8_t y_speed;
+    float y_speed;
   
     //velocidad angular con respecto al eje z (solo nos interesa este debido a la rotacion)
-    uint8_t w_gyro;
-
-    //angulo rotacion respecto al norte magnetico inicial
-    uint8_t mag_theta_in;
-
-    //angulo rotacion respecto al norte magnetico final
-    uint8_t mag_theta_f;
+    float w_gyro;
  
     //angulo rotacion respecto al norte magnetico de output total (orientacion absooluta)
-    uint8_t mag_theta;
+    float mag_angle;
 };
 
 /**
@@ -304,13 +298,7 @@ struct GlobalContext {
     volatile KinematicState* kinematic_ptr;
     volatile WheelsData* wheels_ptr;
     volatile DistanceSensorData* distance_ptr;
-    volatile IMUSensorData* imu_state_ptr;
-    volatile IMUSensorData* imu_xaccel_ptr;
-    volatile IMUSensorData* imu_yaccel_ptr;
-    volatile IMUSensorData* imu_xspeed_ptr;
-    volatile IMUSensorData* imu_yspeed_ptr;
-    volatile IMUSensorData* imu_wgyro_ptr;
-    volatile IMUSensorData* imu_magangle_ptr;
+    volatile IMUSensorData* imu_ptr;
 };
 
 #endif

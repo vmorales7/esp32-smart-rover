@@ -48,10 +48,10 @@ namespace IMUSensor {
      * @param imu_state_ptr Puntero al estado global del módulo de sensores.
      */
     void imu_read_accel_speed(
-        volatile uint8_t* imu_xaccel_ptr,
-        volatile uint8_t* imu_yaccel_ptr,
-        volatile uint8_t* imu_xspeed_ptr,
-        volatile uint8_t* imu_yspeed_ptr,
+        volatile double* imu_xaccel_ptr,
+        volatile double* imu_yaccel_ptr,
+        volatile double* imu_xspeed_ptr,
+        volatile double* imu_yspeed_ptr,
         volatile uint8_t* imu_state_ptr
     );
 
@@ -60,18 +60,24 @@ namespace IMUSensor {
      * 
      * Si es el sistema esta en ACTIVE se actualizan los valores.
      * 
-     * @param imu_xaccel_ptr Puntero a la variable donde se almacena la aceleracion medida en el eje x.
-     * @param imu_yaccel_ptr Puntero a la variable donde se almacena la aceleracion medida en el eje y.
-     * @param imu_xspeed_ptr Puntero a la variable donde se almacena la aceleracion medida en el eje x.
-     * @param imu_yspeed_ptr Puntero a la variable donde se almacena la aceleracion medida en el eje y.
+     * @param imu_wgyro_ptr Puntero a la variable de velociad angular edida con giroscopio.
+     * @param imu_magangle_ptr Puntero a la variable donde se almacena el angulo absoluto con respecto al magentometro.
      * @param imu_state_ptr Puntero al estado global del módulo de sensores.
      */
     void imu_read_angles(
-        volatile uint8_t* imu_wgyro_ptr,
-        volatile uint8_t* imu_magangle_ptr,
+        volatile float* imu_wgyro_ptr,
+        volatile float* imu_magangle_ptr,
         volatile uint8_t* imu_state_ptr
     );
     
+    /**
+     * @brief Tarea de FreeRTOS que ejecuta periódicamente el poleo de datos del sensor.
+     * Usa punteros extraídos desde una estructura `GlobalContext`.
+     * 
+     * @param pvParameters Puntero a un `GlobalContext*` que contiene referencias al estado del sistema.
+     */
+    void Task_IMUData(void* pvParameters);
+
 }
 
 #endif //IMU_READER_H
