@@ -261,6 +261,41 @@ struct DistanceSensorData {
 };
 
 /**
+ * @brief Estructura que almacena el estado consolidado del IMU.
+ *
+ * Contiene:
+ * - Distancias individuales medidas por integracion en distancia (movimiento en ejes)
+ * - Angulos de movimiento segun giroscopio
+ * - Movimiento de angulos segun magnetometro
+ */
+
+struct IMUSensorData{
+    //aceleracion en el eje x
+    uint8_t x_accel;
+
+    //aceleracion en el eje y
+    uint8_t y_accel;
+
+    //velocidad en el eje x
+    uint8_t x_speed;
+
+    //velocidad en el eje y
+    uint8_t y_speed;
+  
+    //velocidad angular con respecto al eje z (solo nos interesa este debido a la rotacion)
+    uint8_t w_gyro;
+
+    //angulo rotacion respecto al norte magnetico inicial
+    uint8_t mag_theta_in;
+
+    //angulo rotacion respecto al norte magnetico final
+    uint8_t mag_theta_f;
+ 
+    //angulo rotacion respecto al norte magnetico de output total (orientacion absooluta)
+    uint8_t mag_theta;
+};
+
+/**
  * @brief Estructura global de contexto que agrupa punteros a las principales estructuras de estado del sistema.
  * Esta estructura se utiliza para facilitar el paso de datos compartidos entre diferentes tareas RTOS o módulos del sistema.
  */
@@ -269,6 +304,13 @@ struct GlobalContext {
     volatile KinematicState* kinematic_ptr;
     volatile WheelsData* wheels_ptr;
     volatile DistanceSensorData* distance_ptr;
+    volatile IMUSensorData* imu_state_ptr;
+    volatile IMUSensorData* imu_xaccel_ptr;
+    volatile IMUSensorData* imu_yaccel_ptr;
+    volatile IMUSensorData* imu_xspeed_ptr;
+    volatile IMUSensorData* imu_yspeed_ptr;
+    volatile IMUSensorData* imu_wgyro_ptr;
+    volatile IMUSensorData* imu_magangle_ptr;
 };
 
 #endif
