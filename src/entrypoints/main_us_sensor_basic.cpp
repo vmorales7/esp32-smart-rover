@@ -2,46 +2,55 @@
 #include "sensors_firmware/distance_sensors.h"
 #warning "Compilando main_us_sensor_basic.cpp"
 
+
+    bool check_sensor_obstacle(
+        const uint8_t trig_pin, const uint8_t echo_pin,
+        volatile uint8_t& distance,
+        volatile bool& sensor_obstacle_flag,
+        volatile bool& global_obstacle_flag,
+        volatile uint8_t& distance_state
+    ) {
+        if (distance_state != ACTIVE) return false;  // Solo leer si el sistema está activo
+        uint8_t d = DistanceSensors::read_distance(trig_pin, echo_pin);
+        bool obstacle_flag = (d < OBSTACLE_THRESHOLD_CM);
+        sensor_obstacle_flag = obstacle_flag;
+        if (obstacle_flag) global_obstacle_flag = true;
+        distance = d;
+        return obstacle_flag;
+    }
+
+
 // ====================== VARIABLES GLOBALES ======================
-volatile SystemStates system_states = {0};
+volatile uint8_t distance_state = INACTIVE;
 volatile DistanceSensorData distance_data = {0};
 
-
 // ====================== SETUP Y LOOP ======================
-
 void setup() {
     Serial.begin(115200);
     delay(1000);
     Serial.println("Test: Sensor Ultrasónico Izquierdo");
-    DistanceSensors::init(&system_states.distance);
-    DistanceSensors::set_state(ACTIVE, &system_states.distance);
+    DistanceSensors::init_system(distance_state, distance_data);
+    DistanceSensors::set_state(ACTIVE, distance_state);
 }
 
 void loop() {
-    // Actualiza solo el sensor izquierdo
-    uint8_t distancia_actual = DistanceSensors::read_distance(US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN);
-    distance_data.us_left_distance = distancia_actual;
+    // Ejecutar lectura de sensor izquierdo
+    bool obstacle_now = DistanceSensors::check_sensor_obstacle(
+        US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN,
+        distance_data.us_left_distance,
+        distance_data.us_left_obstacle,
+        distance_data.obstacle_detected,
+        distance_state
+    );
 
-    // Verifica si hay obstáculo cerca (< 30 cm)
-    Serial.println(distancia_actual);
-    if (distancia_actual < OBSTACLE_THRESHOLD_CM) {
-        if (!distance_data.obstacle_detected) {
-            distance_data.obstacle_detected = true;
-            Serial.print("Obstáculo detectado a ");
-            Serial.print(distancia_actual);
-            Serial.println(" cm");
-        } else {
-            // Si sigue habiendo obstáculo, actualizar distancia y volver a mostrar
-            Serial.print("Distancia obstáculo: ");
-            Serial.print(distancia_actual);
-            Serial.println(" cm");
-        }
+    // Mostrar resultados
+    if (obstacle_now) {
+        Serial.print("Obstáculo detectado a ");
+        Serial.print(distance_data.us_left_distance);
+        Serial.println(" cm");
     } else {
-        // Si antes había obstáculo y ahora no, lo notificamos
-        if (distance_data.obstacle_detected) {
-            distance_data.obstacle_detected = false;
-            Serial.println("Obstáculo despejado.");
-        }
+        Serial.println("Área despejada.");
     }
+
     delay(500);  // Tiempo entre lecturas
 }

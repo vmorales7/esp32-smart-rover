@@ -4,90 +4,75 @@
 #include "project_config.h"
 #include <ESP32Encoder.h>
 
-
 /* ---------------- Constantes del sistema ------------------*/
 
-// Para ajustar si los cables se conectaron al revés
+// Para ajustar si los cables del encoder se conectaron al revés
 constexpr bool INVERT_ENCODER_LEFT = true;
 constexpr bool INVERT_ENCODER_RIGHT = false;
 
-// Para aplicar el filtro EMA a la velocidad leída
+// Para aplicar un filtro EMA (exponential moving average) a la velocidad
 constexpr bool USE_VELOCITY_FILTER = true;
-constexpr float EMA_ALPHA = 0.5; // 0.5 = promediar ~3 valores; y al bajarlo se promedian mas muestras
-
+constexpr float EMA_ALPHA = 0.35f; // 0.5 ≈ promedio de 3 lecturas; menor α promedia más.
 
 /* ---------------- Funciones del sistema ------------------*/
 
 /**
  * @brief Módulo encargado de la lectura de los encoders incrementales.
- * Utiliza el periférico PCNT de la ESP32 para contar los pulsos generados por encoders cuadratura.
- * Calcula los pasos acumulados y la velocidad angular para cada rueda.
+ * Utiliza el periférico PCNT de la ESP32 para contar pulsos cuadratura.
+ * Calcula pasos acumulados y velocidad angular para cada rueda.
  */
 namespace EncoderReader {
 
     /**
      * @brief Inicializa el módulo de encoders. Configura los pines, pausa los contadores
-     * y deja los valores iniciales en cero.
+     * y deja los valores iniciales de pasos y velocidades en cero.
      * 
-     * @param encoder_state_ptr Puntero al estado del encoder (activo/inactivo).
-     * @param steps_left_ptr Puntero al acumulador de pasos de la rueda izquierda.
-     * @param steps_right_ptr Puntero al acumulador de pasos de la rueda derecha.
-     * @param wL_measured_ptr Puntero a la velocidad angular izquierda medida [rad/s].
-     * @param wR_measured_ptr Puntero a la velocidad angular derecha medida [rad/s].
+     * @param wheels_data Variable global con la estructura con pasos y velocidades de rueda.
+     * @param encoder_state Variable global con estado del módulo de encoder (ACTIVE / INACTIVE).
      */
     void init(
-        volatile uint8_t* encoder_state_ptr,
-        volatile int64_t* steps_left_ptr, volatile int64_t* steps_right_ptr,
-        volatile float* wL_measured_ptr, volatile float* wR_measured_ptr
+        volatile WheelsData& wheels_data,
+        volatile uint8_t& encoder_state
     );
 
     /**
-     * @brief Pausa el conteo de los encoders, actualiza velocidades, y deja las velocidades en cero.
-     * El acumulador de pasos se conserva (solo pose_estimator lo puede limpiar). Actualiza el estado como INACTIVE.
+     * @brief Actualiza los pasos acumulados y la velocidad angular de cada rueda.
+     * Si el módulo está inactivo, no realiza ninguna operación.
      * 
-     * @param encoder_state_ptr Puntero al estado del encoder (activo/inactivo).
-     * @param steps_left_ptr Puntero al acumulador de pasos de la rueda izquierda.
-     * @param steps_right_ptr Puntero al acumulador de pasos de la rueda derecha.
-     * @param wL_measured_ptr Puntero a la velocidad angular izquierda medida [rad/s].
-     * @param wR_measured_ptr Puntero a la velocidad angular derecha medida [rad/s].
-     */
-    void pause(
-        volatile uint8_t* encoder_state_ptr,
-        volatile int64_t* steps_left_ptr, volatile int64_t* steps_right_ptr,
-        volatile float* wL_measured_ptr, volatile float* wR_measured_ptr
-    );
-
-    /**
-     * @brief Reanuda el conteo de los encoders y actualiza el estado como ACTIVE.
-     * 
-     * @param encoder_state_ptr Puntero al estado del encoder.
-     */
-    void resume(volatile uint8_t* encoder_state_ptr);
-
-    /**
-     * @brief Actualiza el número de pasos acumulados y la velocidad angular desde la última lectura.
-     * Si el encoder está inactivo, no realiza ninguna operación.
-     * 
-     * @param encoder_state_ptr Puntero al estado del encoder (activo/inactivo).
-     * @param steps_left_ptr Puntero al acumulador de pasos de la rueda izquierda.
-     * @param steps_right_ptr Puntero al acumulador de pasos de la rueda derecha.
-     * @param wL_measured_ptr Puntero a la velocidad angular izquierda medida [rad/s].
-     * @param wR_measured_ptr Puntero a la velocidad angular derecha medida [rad/s].
+     * @param wheels_data Variable global con la estructura con pasos y velocidades de rueda.
+     * @param encoder_state Variable global con estado del módulo de encoder.
      */
     void update_encoder_data(
-        volatile uint8_t* encoder_state_ptr,
-        volatile int64_t* steps_left_ptr, volatile int64_t* steps_right_ptr,
-        volatile float* wL_measured_ptr, volatile float* wR_measured_ptr
+        volatile WheelsData& wheels_data,
+        volatile uint8_t& encoder_state
     );
 
     /**
-     * @brief Tarea FreeRTOS que se ejecuta periódicamente para actualizar la información
-     * de los encoders. Accede a los datos globales mediante GlobalContext.
+     * @brief Pausa el conteo de los encoders, actualiza velocidades, y las deja en cero.
+     * Los acumuladores de pasos se conservan (solo `pose_estimator` los reinicia).
      * 
-     * @param pvParameters Puntero a un GlobalContext con los punteros a los datos relevantes.
+     * @param wheels_data Variable global con la estructura con pasos y velocidades de rueda.
+     * @param encoder_state Variable global con estado del módulo de encoder.
+     */
+    void pause(
+        volatile WheelsData& wheels_data,
+        volatile uint8_t& encoder_state
+    );
+
+    /**
+     * @brief Reanuda el conteo de los encoders y cambia el estado a ACTIVE si no lo estaba ya.
+     * 
+     * @param encoder_state Variable global con estado del módulo de encoder.
+     */
+    void resume(volatile uint8_t& encoder_state);
+
+    /**
+     * @brief Tarea FreeRTOS que ejecuta periódicamente la actualización del encoder.
+     * Accede a `WheelsData` y estado a través del `GlobalContext`.
+     * 
+     * @param pvParameters Puntero a una estructura `GlobalContext` con punteros relevantes.
      */
     void Task_EncoderUpdate(void* pvParameters);
-
 }
 
 #endif // ENCODER_READER_H

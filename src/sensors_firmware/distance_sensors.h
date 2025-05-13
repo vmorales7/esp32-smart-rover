@@ -35,7 +35,7 @@ constexpr uint32_t US_PULSE_TIMEOUT_US = US_MAX_DISTANCE_CM / US_CM_PER_US;
  * 
  * Si la distancia medida es menor a este valor, se considera que hay un obstáculo.
  */
-constexpr uint8_t OBSTACLE_THRESHOLD_CM = 30;
+constexpr uint8_t OBSTACLE_THRESHOLD_CM = 40;
 
 
 /* -------------------- Módulo DistanceSensors -------------------- */
@@ -43,21 +43,15 @@ constexpr uint8_t OBSTACLE_THRESHOLD_CM = 30;
 namespace DistanceSensors {
 
     /**
-     * @brief Inicializa los pines de todos los sensores ultrasónicos del sistema.
+     * @brief Inicializa un sensor ultrasónico individual (TRIG + ECHO).
      * 
-     * Configura TRIG como salida, ECHO como entrada, y deja los sensores inactivos por defecto.
+     * Configura los pines entregados como salida (TRIG) y entrada (ECHO),
+     * y se asegura de dejar el pin TRIG en estado bajo por defecto.
      * 
-     * @param distance_state_ptr Puntero al estado global del módulo de sensores.
+     * @param trig_pin Número de pin conectado al TRIG del sensor.
+     * @param echo_pin Número de pin conectado al ECHO del sensor.
      */
-    void init(volatile uint8_t* distance_state_ptr);
-
-    /**
-     * @brief Cambia el estado activo/inactivo del módulo de sensores de distancia.
-     * 
-     * @param mode Valor deseado del estado (ACTIVE o INACTIVE).
-     * @param distance_state_ptr Puntero al estado global del módulo.
-     */
-    void set_state(uint8_t mode, volatile uint8_t* distance_state_ptr);
+    void init_sensor(const uint8_t trig_pin, const uint8_t echo_pin);
 
     /**
      * @brief Realiza una lectura puntual de distancia desde un sensor ultrasónico.
@@ -68,7 +62,43 @@ namespace DistanceSensors {
      * @param echo_pin Pin ECHO del sensor.
      * @return Distancia estimada en cm. Retorna US_MAX_DISTANCE_CM en caso de timeout.
      */
-    uint8_t read_distance(uint8_t trig_pin, uint8_t echo_pin);
+    uint8_t read_distance(const uint8_t trig_pin, const uint8_t echo_pin);
+
+    /**
+     * @brief Reinicia completamente la estructura DistanceSensorData.
+     * 
+     * Establece todas las distancias en US_MAX_DISTANCE_CM y todas las banderas
+     * de detección de obstáculos en false. Se utiliza durante la inicialización
+     * o al reiniciar el módulo de sensores.
+     * 
+     * @param distance_data Variable global con la estructura DistanceSensorData que se desea reiniciar.
+     * @param distance_state Variable global con el estado de operación del sistema
+     */
+    void reset_system(volatile DistanceSensorData& distance_data, volatile uint8_t& distance_state);
+
+    /**
+     * @brief Inicializa los sensores de distancia y reinicia la estructura de datos asociada.
+     * 
+     * Configura los pines TRIG y ECHO de los sensores ultrasónicos (izquierdo, medio y derecho).
+     * Además, deja en estado INACTIVE el módulo y reinicia la estructura `DistanceSensorData`:
+     * - Todas las distancias se establecen en `US_MAX_DISTANCE_CM`.
+     * - Todas las banderas de obstáculos se ponen en `false`.
+     * 
+     * @param distance_state Variable global con estado global del módulo de sensores (ACTIVE o INACTIVE).
+     * @param distance_data Variable global con la estructura `DistanceSensorData` que será reiniciada.
+     */
+    void init_system(
+        volatile uint8_t& distance_state,
+        volatile DistanceSensorData& distance_data
+    );
+
+    /**
+     * @brief Cambia el estado activo/inactivo del módulo de sensores de distancia.
+     * 
+     * @param new_mode Valor deseado del estado (ACTIVE o INACTIVE).
+     * @param distance_state Variable global con estado global del módulo.
+     */
+    void set_state(const uint8_t new_mode, volatile uint8_t& distance_state);
 
     /**
      * @brief Evalúa un único sensor ultrasónico y actualiza su distancia y estado de obstáculo.
@@ -78,18 +108,31 @@ namespace DistanceSensors {
      * 
      * @param trig_pin Pin TRIG del sensor.
      * @param echo_pin Pin ECHO del sensor.
-     * @param distance_ptr Puntero a la variable donde se almacena la distancia medida.
-     * @param sensor_obstacle_flag_ptr Puntero al flag booleano de obstáculo detectado en el sensor.
-     * @param global_obstacle_flag_ptr Puntero al flag booleano de obstáculo detectado.
-     * @param distance_state_ptr Puntero al estado global del módulo de sensores.
+     * @param distance Variable global con la variable donde se almacena la distancia medida.
+     * @param sensor_obstacle_flag Variable global con flag booleano de obstáculo detectado en el sensor.
+     * @param global_obstacle_flag Variable global con flag booleano de obstáculo detectado.
+     * @param distance_state Variable global con estado global del módulo de sensores.
+     * @return Booleano que es true si hay un obstáculo
      */
-    void check_sensor_obstacle(
-        uint8_t trig_pin, uint8_t echo_pin,
-        volatile uint8_t* distance_ptr,
-        volatile bool* sensor_obstacle_flag_ptr,
-        volatile bool* global_obstacle_flag_ptr,
-        volatile uint8_t* distance_state_ptr
+    bool check_sensor_obstacle(
+        const uint8_t trig_pin, const uint8_t echo_pin,
+        volatile uint8_t& distance,
+        volatile bool& sensor_obstacle_flag,
+        volatile bool& global_obstacle_flag,
+        volatile uint8_t& distance_state
     );
+
+    /**
+     * @brief Actualiza el flag global de detección de obstáculos basado en los sensores individuales.
+     *
+     * Esta función verifica si alguno de los sensores (izquierdo, central o derecho)
+     * ha detectado un obstáculo, y actualiza el flag `obstacle_detected` en la estructura
+     * `DistanceSensorData`. Retorna el nuevo valor del flag global.
+     *
+     * @param data Referencia a la estructura `DistanceSensorData` que contiene los flags individuales.
+     * @return true si al menos un sensor detecta obstáculo, false en caso contrario.
+     */
+    bool update_global_obstacle_flag(volatile DistanceSensorData& data);
 
     /**
      * @brief Tarea RTOS que verifica periódicamente el sensor ultrasónico izquierdo.
@@ -121,4 +164,3 @@ namespace DistanceSensors {
 }
 
 #endif // DISTANCE_SENSORS_H
-
