@@ -1,10 +1,12 @@
-#include "Arduino.h"
+#include "project_config.h"
 #warning "Compilando main_debug.cpp"
 
-void setup () {
+// ====================== SETUP ======================
+void setup() {
 
 }
 
-void loop () {
-
+// ====================== LOOP ======================
+void loop() {
+    // Nada
 }

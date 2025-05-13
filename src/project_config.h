@@ -6,27 +6,27 @@
 /* -------------- Definiciones de los pines de la ESP32 --------------*/
 
 // Para control del L298N
-constexpr uint8_t MOTOR_LEFT_PWM_PIN = 26;  // Azul
+constexpr uint8_t MOTOR_LEFT_PWM_PIN  = 26;  // Azul
 constexpr uint8_t MOTOR_LEFT_DIR_PIN1 = 25; // Blanco
 constexpr uint8_t MOTOR_LEFT_DIR_PIN2 = 33; // Verde
 
-constexpr uint8_t MOTOR_RIGHT_PWM_PIN = 18;  // Azul
+constexpr uint8_t MOTOR_RIGHT_PWM_PIN  = 18;  // Azul
 constexpr uint8_t MOTOR_RIGHT_DIR_PIN1 = 19; // Blanco
 constexpr uint8_t MOTOR_RIGHT_DIR_PIN2 = 21; // Verde
 
 // Para los encoders
 // Azul = Vcc & Negro = GND 
-constexpr uint8_t ENCODER_LEFT_A_PIN = 14; // Amarillo
-constexpr uint8_t ENCODER_LEFT_B_PIN = 27; // Verde
+constexpr uint8_t ENCODER_LEFT_A_PIN  = 14; // Amarillo
+constexpr uint8_t ENCODER_LEFT_B_PIN  = 27; // Verde
 constexpr uint8_t ENCODER_RIGHT_A_PIN = 16; // Amarillo
 constexpr uint8_t ENCODER_RIGHT_B_PIN = 17; // Verde
 
 // Sensores ultrasónicos
-constexpr uint8_t US_LEFT_TRIG_PIN  = 13;
-constexpr uint8_t US_LEFT_ECHO_PIN  = 12;
+constexpr uint8_t US_LEFT_TRIG_PIN = 32;
+constexpr uint8_t US_LEFT_ECHO_PIN = 34;
 
-constexpr uint8_t US_MID_TRIG_PIN = 32;  
-constexpr uint8_t US_MID_ECHO_PIN = 34;  // solo INPUT
+constexpr uint8_t US_MID_TRIG_PIN = 13;  
+constexpr uint8_t US_MID_ECHO_PIN = 12;
 
 constexpr uint8_t US_RIGHT_TRIG_PIN = 22;
 constexpr uint8_t US_RIGHT_ECHO_PIN = 23;

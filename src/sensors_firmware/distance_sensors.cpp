@@ -2,14 +2,14 @@
 
 namespace DistanceSensors {
 
-    void init_sensor(uint8_t trig_pin, uint8_t echo_pin) {
+    void init_sensor(const uint8_t trig_pin, const uint8_t echo_pin) {
         pinMode(trig_pin, OUTPUT);
         pinMode(echo_pin, INPUT);
         digitalWrite(trig_pin, LOW);
     }
 
 
-    uint8_t read_distance(uint8_t trig_pin, uint8_t echo_pin) {
+    uint8_t read_distance(const uint8_t trig_pin, const uint8_t echo_pin) {
         // Se generá el trig hacia el sensor
         digitalWrite(trig_pin, LOW);
         delayMicroseconds(2);
@@ -28,59 +28,84 @@ namespace DistanceSensors {
     }
 
 
-    void reset_system(volatile DistanceSensorData* data_ptr) {
+    void reset_system(volatile DistanceSensorData& distance_data, volatile uint8_t& distance_state) {
         // Reset de la estructura DistanceSensorData
-        data_ptr->obstacle_detected   = false;
-        data_ptr->us_left_obstacle    = false;
-        data_ptr->us_mid_obstacle     = false;
-        data_ptr->us_right_obstacle   = false;
-        data_ptr->us_left_distance    = US_MAX_DISTANCE_CM;
-        data_ptr->us_mid_distance     = US_MAX_DISTANCE_CM;
-        data_ptr->us_right_distance   = US_MAX_DISTANCE_CM;
+        distance_data.obstacle_detected   = false;
+        distance_data.us_left_obstacle    = false;
+        distance_data.us_mid_obstacle     = false;
+        distance_data.us_right_obstacle   = false;
+        distance_data.us_left_distance    = US_MAX_DISTANCE_CM;
+        distance_data.us_mid_distance     = US_MAX_DISTANCE_CM;
+        distance_data.us_right_distance   = US_MAX_DISTANCE_CM;
+        set_state(INACTIVE, distance_state);
     }
 
     
-    void init_system(volatile uint8_t* distance_state_ptr, volatile DistanceSensorData* data_ptr) {
+    void init_system(volatile uint8_t& distance_state, volatile DistanceSensorData& distance_data) {
         // Configuración de pines de sensores ultrasónicos
         init_sensor(US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN);
         init_sensor(US_MID_TRIG_PIN, US_MID_ECHO_PIN);
         init_sensor(US_RIGHT_TRIG_PIN, US_RIGHT_ECHO_PIN);
 
         // Reset de la estructura DistanceSensorData
-        reset_system(data_ptr);
-
-        // Dejar sensores inactivos por defecto
-        *distance_state_ptr = INACTIVE;
+        reset_system(distance_data, distance_state);
     }
 
 
-    void set_state(uint8_t mode, volatile uint8_t* distance_state_ptr) {
-        *distance_state_ptr = (mode == ACTIVE) ? ACTIVE : INACTIVE;
+    void set_state(const uint8_t new_mode, volatile uint8_t& distance_state) {
+        distance_state = (new_mode == ACTIVE) ? ACTIVE : INACTIVE;
     }
 
 
-    void check_sensor_obstacle(
-        uint8_t trig_pin, uint8_t echo_pin,
-        volatile uint8_t* distance_ptr,
-        volatile bool* sensor_obstacle_flag_ptr,
-        volatile bool* global_obstacle_flag_ptr,
-        volatile uint8_t* distance_state_ptr
+    bool check_sensor_obstacle(
+        const uint8_t trig_pin, const uint8_t echo_pin,
+        volatile uint8_t& distance,
+        volatile bool& sensor_obstacle_flag,
+        volatile bool& global_obstacle_flag,
+        volatile uint8_t& distance_state
     ) {
-        if (*distance_state_ptr != ACTIVE) return;  // Solo leer si el sistema está activo
+        if (distance_state != ACTIVE) return false;  // Solo leer si el sistema está activo
         uint8_t d = read_distance(trig_pin, echo_pin);
+        bool obstacle_flag = false;
+
+        // Si parece haber obstáculo, confirmar con una segunda lectura
         if (d < OBSTACLE_THRESHOLD_CM) {
             // Repetir la lectura para evitar falsos positivos
+            delay(10); // Necesitamos un delay mínimo para que funcione bien la segunda lectura
             d = read_distance(trig_pin, echo_pin);
-            *distance_ptr = d;
-            bool obstacle_flag = (d < OBSTACLE_THRESHOLD_CM);
-            *sensor_obstacle_flag_ptr = obstacle_flag;
-            *global_obstacle_flag_ptr = obstacle_flag;
+            distance = d;
+            obstacle_flag = (d < OBSTACLE_THRESHOLD_CM);
+            sensor_obstacle_flag = obstacle_flag;
+            if (obstacle_flag) global_obstacle_flag = true;
         } else {
-            *distance_ptr = d;
-            *sensor_obstacle_flag_ptr = false;
+            distance = d;
         }
+        return obstacle_flag;
     }
 
+    // bool check_sensor_obstacle(
+    //     const uint8_t trig_pin, const uint8_t echo_pin,
+    //     volatile uint8_t& distance,
+    //     volatile bool& sensor_obstacle_flag,
+    //     volatile bool& global_obstacle_flag,
+    //     volatile uint8_t& distance_state
+    // ) {
+    //     if (distance_state != ACTIVE) return false;  // Solo leer si el sistema está activo
+    //     uint8_t d = DistanceSensors::read_distance(trig_pin, echo_pin);
+    //     bool obstacle_flag = (d < OBSTACLE_THRESHOLD_CM);
+    //     sensor_obstacle_flag = obstacle_flag;
+    //     if (obstacle_flag) global_obstacle_flag = true;
+    //     distance = d;
+    //     return obstacle_flag;
+    // }
+
+    bool update_global_obstacle_flag(volatile DistanceSensorData& data) {
+        data.obstacle_detected =
+            data.us_left_obstacle ||
+            data.us_mid_obstacle ||
+            data.us_right_obstacle;
+        return data.obstacle_detected;
+    }
 
     void Task_CheckLeftObstacle(void* pvParameters) {
         vTaskDelay(pdMS_TO_TICKS(0));  // desfase inicial
@@ -92,10 +117,10 @@ namespace DistanceSensors {
             vTaskDelayUntil(&xLastWakeTime, period);
             check_sensor_obstacle(
                 US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN,
-                &ctx->distance_ptr->us_left_distance,
-                &ctx->distance_ptr->us_left_obstacle,
-                &ctx->distance_ptr->obstacle_detected,
-                &ctx->systems_ptr->distance
+                ctx->distance_ptr->us_left_distance,
+                ctx->distance_ptr->us_left_obstacle,
+                ctx->distance_ptr->obstacle_detected,
+                ctx->systems_ptr->distance
             );            
         }
     }
@@ -110,10 +135,10 @@ namespace DistanceSensors {
             vTaskDelayUntil(&xLastWakeTime, period);
             check_sensor_obstacle(
                 US_MID_TRIG_PIN, US_MID_ECHO_PIN,
-                &ctx->distance_ptr->us_mid_distance,
-                &ctx->distance_ptr->us_mid_obstacle,
-                &ctx->distance_ptr->obstacle_detected,
-                &ctx->systems_ptr->distance
+                ctx->distance_ptr->us_mid_distance,
+                ctx->distance_ptr->us_mid_obstacle,
+                ctx->distance_ptr->obstacle_detected,
+                ctx->systems_ptr->distance
             );
         }
     }
@@ -128,14 +153,13 @@ namespace DistanceSensors {
             vTaskDelayUntil(&xLastWakeTime, period);
             check_sensor_obstacle(
                 US_RIGHT_TRIG_PIN, US_RIGHT_ECHO_PIN,
-                &ctx->distance_ptr->us_right_distance,
-                &ctx->distance_ptr->us_right_obstacle,
-                &ctx->distance_ptr->obstacle_detected,
-                &ctx->systems_ptr->distance
+                ctx->distance_ptr->us_right_distance,
+                ctx->distance_ptr->us_right_obstacle,
+                ctx->distance_ptr->obstacle_detected,
+                ctx->systems_ptr->distance
             );            
         }
     }
-    
     
 }
 

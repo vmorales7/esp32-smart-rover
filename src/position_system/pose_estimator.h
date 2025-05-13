@@ -56,62 +56,62 @@ namespace PoseEstimator {
      * Captura los pasos actuales, calcula los deltas desde la última lectura, y retorna
      * una estructura `PoseData` sin modificar el estado global.
      *
-     * @param x_ptr Puntero a la posición actual en X.
-     * @param y_ptr Puntero a la posición actual en Y.
-     * @param theta_ptr Puntero a la orientación actual θ.
-     * @param v_ptr Puntero a la velocidad lineal actual.
-     * @param w_ptr Puntero a la velocidad angular actual.
-     * @param wL_ptr Puntero a la velocidad angular izquierda medida.
-     * @param wR_ptr Puntero a la velocidad angular derecha medida.
-     * @param steps_left_ptr Puntero a los pasos acumulados del encoder izquierdo.
-     * @param steps_right_ptr Puntero a los pasos acumulados del encoder derecho.
+     * @param x_var Variable con la posición actual en X.
+     * @param y_var Variable con la posición actual en Y.
+     * @param theta_var Variable con la orientación actual θ.
+     * @param v_var Variable con la velocidad lineal actual.
+     * @param w_var Variable con la velocidad angular actual.
+     * @param wL_var Variable con la velocidad angular izquierda medida.
+     * @param wR_var Variable con la velocidad angular derecha medida.
+     * @param steps_left_var Variable con los pasos acumulados del encoder izquierdo.
+     * @param steps_right_var Variable con los pasos acumulados del encoder derecho.
      * @return PoseData Estimación de la pose actual.
      */
     PoseData estimate_pose_from_encoder(
-        volatile float* x_ptr, volatile float* y_ptr, volatile float* theta_ptr,
-        volatile float* v_ptr, volatile float* w_ptr,
-        volatile float* wL_ptr, volatile float* wR_ptr,
-        volatile int64_t* steps_left_ptr, volatile int64_t* steps_right_ptr
+        volatile float& x_var, volatile float& y_var, volatile float& theta_var,
+        volatile float& v_var, volatile float& w_var,
+        volatile float& wL_var, volatile float& wR_var,
+        volatile int64_t& steps_left_var, volatile int64_t& steps_right_var
     );
 
     /**
      * @brief Activa o desactiva el estimador de pose.
      *
-     * @param mode Debe ser ACTIVE o INACTIVE.
-     * @param pose_estimator_state_ptr Puntero al estado del estimador.
+     * @param new_state Debe ser ACTIVE o INACTIVE.
+     * @param pose_estimator_state Variable con el estado del estimador.
      */
-    void set_state(uint8_t mode, volatile uint8_t* pose_estimator_state_ptr);
+    void set_state(const uint8_t new_state, volatile uint8_t& pose_estimator_state);
 
     /**
      * @brief Reinicia la pose estimada del vehículo y los pasos acumulados de los encoders.
      *
      * Este reinicio también afecta a los acumuladores internos del estimador.
      *
-     * @param x_ptr Puntero a posición X.
-     * @param y_ptr Puntero a posición Y.
-     * @param theta_ptr Puntero a orientación θ.
-     * @param steps_left_ptr Puntero a acumulador de pasos de la rueda izquierda.
-     * @param steps_right_ptr Puntero a acumulador de pasos de la rueda derecha.
+     * @param x_var Variable con la posición X.
+     * @param y_var Variable con la posición Y.
+     * @param theta_var Variable con la orientación θ.
+     * @param steps_left_var Variable con los pasos acumulados de la rueda izquierda.
+     * @param steps_right_var Variable con los pasos acumulados de la rueda derecha.
      */
     void reset_pose_and_steps(
-        volatile float* x_ptr, volatile float* y_ptr, volatile float* theta_ptr,
-        volatile int64_t* steps_left_ptr, volatile int64_t* steps_right_ptr
+        volatile float& x_var, volatile float& y_var, volatile float& theta_var,
+        volatile int64_t& steps_left_var, volatile int64_t& steps_right_var
     );
 
     /**
      * @brief Inicializa el estimador de pose y lo deja en estado INACTIVE.
      * 
-     * @param x_ptr Puntero a X global
-     * @param y_ptr Puntero a Y global
-     * @param theta_ptr Puntero a θ global
-     * @param steps_left_ptr Puntero a pasos de rueda izquierda
-     * @param steps_right_ptr Puntero a pasos de rueda derecha
-     * @param pose_estimator_state_ptr Estado del estimador
+     * @param x_var Variable con la posición X.
+     * @param y_var Variable con la posición Y.
+     * @param theta_var Variable con la orientación θ.
+     * @param steps_left_var Variable con los pasos acumulados de la rueda izquierda.
+     * @param steps_right_var Variable con los pasos acumulados de la rueda derecha.
+     * @param pose_estimator_state Variable con el estado del estimador.
      */
     void init(
-        volatile float* x_ptr, volatile float* y_ptr, volatile float* theta_ptr,
-        volatile int64_t* steps_left_ptr, volatile int64_t* steps_right_ptr,
-        volatile uint8_t* pose_estimator_state_ptr
+        volatile float& x_var, volatile float& y_var, volatile float& theta_var,
+        volatile int64_t& steps_left_var, volatile int64_t& steps_right_var,
+        volatile uint8_t& pose_estimator_state
     );
 
     /**
@@ -120,29 +120,21 @@ namespace PoseEstimator {
      * Esta función sobrescribe los valores actuales de posición, orientación y velocidades
      * con los de una estructura `PoseData` previamente estimada.
      *
-     * @param pose_ptr Puntero a la estructura con la nueva pose estimada.
-     * @param x_ptr Puntero a posición X.
-     * @param y_ptr Puntero a posición Y.
-     * @param theta_ptr Puntero a orientación θ.
-     * @param v_ptr Puntero a velocidad lineal.
-     * @param w_ptr Puntero a velocidad angular.
-     * @param pose_estimator_state_ptr Puntero a la variable de estado del módulo
+     * @param pose Estructura con la nueva pose estimada.
+     * @param x_var Variable con la posición X.
+     * @param y_var Variable con la posición Y.
+     * @param theta_var Variable con la orientación θ.
+     * @param v_var Variable con la velocidad lineal.
+     * @param w_var Variable con la velocidad angular.
+     * @param pose_estimator_state Variable con el estado del estimador.
      */
     void update_pose(
-        PoseData* pose_ptr,
-        volatile float* x_ptr, volatile float* y_ptr, volatile float* theta_ptr,
-        volatile float* v_ptr, volatile float* w_ptr,
-        volatile uint8_t* pose_estimator_state_ptr
+        PoseData& pose,
+        volatile float& x_var, volatile float& y_var, volatile float& theta_var,
+        volatile float& v_var, volatile float& w_var,
+        volatile uint8_t& pose_estimator_state
     );
 
-    /**
-     * @brief Normaliza un ángulo a [-π, π].
-     *
-     * @param angle Ángulo en radianes (cualquier valor).
-     * @return Ángulo envuelto al rango [-π, π].
-     */
-    float wrap_to_pi(float angle);
-    
     /**
      * @brief Tarea FreeRTOS que ejecuta periódicamente la estimación de pose por encoder.
      *
