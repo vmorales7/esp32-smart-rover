@@ -20,8 +20,8 @@ GlobalContext ctx = {
 };
 
 // ====================== CONFIGURACIÓN OBJETIVO ======================
-constexpr float X_OBJETIVO = 1.0f;  // metros
-constexpr float Y_OBJETIVO = 1.0f;  // metros
+constexpr float X_OBJETIVO = 1.5f;  // metros
+constexpr float Y_OBJETIVO = 0.8f;  // metros
 
 // ====================== PROTOTIPOS ======================
 void Task_PrintPose(void* pvParameters);
@@ -40,7 +40,7 @@ void setup() {
     PositionController::init(states.position_controller, wheels.wL_ref, wheels.wR_ref);
 
     // Establecer modos
-    PositionController::set_control_mode(SPEED_REF_AUTO_BASIC, states.position_controller);
+    PositionController::set_control_mode(SPEED_REF_AUTO_ADVANCED, states.position_controller);
     EncoderReader::resume(states.encoder);
     MotorController::set_motors_mode(MOTOR_AUTO, states.motor_operation, wheels.duty_left, wheels.duty_right);
     PoseEstimator::set_state(ACTIVE, states.pose_estimator);
@@ -72,7 +72,7 @@ void Task_PrintPose(void* pvParameters) {
     for (;;) {
         vTaskDelayUntil(&xLastWakeTime, period);
         Serial.printf("x: %.2f  y: %.2f  θ: %.2f  |  v: %.2f  w: %.2f\n", 
-            kinem.x, kinem.y, kinem.theta, kinem.v, kinem.w);
+            kinem.x, kinem.y, (kinem.theta * 3.14), kinem.v, kinem.w);
     }
 }
 
