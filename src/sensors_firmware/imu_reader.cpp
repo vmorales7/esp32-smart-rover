@@ -23,7 +23,7 @@ namespace IMUSensor{
 
     void init(volatile uint8_t* imu_state_ptr){
         // Comenzamos omunicacion I2C
-        Wire.begin(IMU_SDA_PIN, IMU_SCL_PIN, 400000);
+        Wire.begin(IMU_SDA_PIN, IMU_SCL_PIN);
         
         if(!IMU.init()){
           Serial.println("MPU9250 does not respond");
