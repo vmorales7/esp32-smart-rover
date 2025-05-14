@@ -15,6 +15,7 @@
 // #define USE_MAIN_DISTANCE_SENSORS       // RTOS con todos los sensores de distancia
 // #define USE_MAIN_AVANCE2
 #define USE_MAIN_POSITION_BASIC         // Control de posición hacia punto único
+// #define USE_MAIN_POSITION_POINTS         // Control de posición hacia punto único
 // #define USE_MAIN_DEBUG
 
 
@@ -43,6 +44,8 @@
   #include "entrypoints/main_avance2.cpp"
 #elif defined(USE_MAIN_POSITION_BASIC)
   #include "entrypoints/main_position_basic.cpp"
+#elif defined(USE_MAIN_POSITION_POINTS)
+  #include "entrypoints/main_position_points.cpp"
 #elif defined(USE_MAIN_DEBUG)
   #include "entrypoints/main_debug.cpp"
 #else
