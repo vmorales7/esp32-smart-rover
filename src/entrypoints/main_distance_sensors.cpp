@@ -48,7 +48,7 @@ void Task_ObstacleResponse(void* pvParameters) {
 void setup() {
     Serial.begin(115200);
     delay(1000);
-    Serial.println("Iniciando main_distance_sensors_basic...");
+    Serial.println("Iniciando main_distance_sensors...");
     delay(1000);
 
     // Inicializar el sistema
@@ -56,11 +56,12 @@ void setup() {
     DistanceSensors::set_state(ACTIVE, states.distance);
 
     // Crear tareas para cada sensor ultrasónico
-    xTaskCreatePinnedToCore(DistanceSensors::Task_CheckLeftObstacle, "US_Left", 2048, &ctx, 1, nullptr, 0);
-    xTaskCreatePinnedToCore(DistanceSensors::Task_CheckMidObstacle, "US_Mid", 2048, &ctx, 1, nullptr, 0);
-    xTaskCreatePinnedToCore(DistanceSensors::Task_CheckRightObstacle, "US_Right", 2048, &ctx, 1, nullptr, 0);
+    xTaskCreatePinnedToCore(DistanceSensors::Task_CheckLeftObstacle, "US_Left", 2048, &ctx, 2, nullptr, 0);
+    xTaskCreatePinnedToCore(DistanceSensors::Task_CheckMidObstacle, "US_Mid", 2048, &ctx, 2, nullptr, 0);
+    xTaskCreatePinnedToCore(DistanceSensors::Task_CheckRightObstacle, "US_Right", 2048, &ctx, 2, nullptr, 0);
 
     // Crear tarea de respuesta a eventos de obstáculo -> Prioridad mayor
+    xTaskCreatePinnedToCore(DistanceSensors::Task_UpdateObstacleFlag,"ObstacleCheck",2048, &ctx, 1, nullptr, 0);
     xTaskCreatePinnedToCore(Task_ObstacleResponse,"ObstacleResponse",2048, &ctx, 2, nullptr, 0);
 }
 

@@ -35,7 +35,7 @@ constexpr uint32_t US_PULSE_TIMEOUT_US = US_MAX_DISTANCE_CM / US_CM_PER_US;
  * 
  * Si la distancia medida es menor a este valor, se considera que hay un obstáculo.
  */
-constexpr uint8_t OBSTACLE_THRESHOLD_CM = 40;
+constexpr uint8_t OBSTACLE_THRESHOLD_CM = 30;
 
 
 /* -------------------- Módulo DistanceSensors -------------------- */

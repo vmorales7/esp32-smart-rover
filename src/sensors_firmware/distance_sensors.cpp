@@ -66,6 +66,7 @@ namespace DistanceSensors {
     ) {
         if (distance_state != ACTIVE) return false;  // Solo leer si el sistema está activo
         uint8_t d = read_distance(trig_pin, echo_pin);
+        // Serial.println(d);
         bool obstacle_flag = false;
 
         // Si parece haber obstáculo, confirmar con una segunda lectura
@@ -73,13 +74,11 @@ namespace DistanceSensors {
             // Repetir la lectura para evitar falsos positivos
             delay(10); // Necesitamos un delay mínimo para que funcione bien la segunda lectura
             d = read_distance(trig_pin, echo_pin);
-            distance = d;
             obstacle_flag = (d < OBSTACLE_THRESHOLD_CM);
-            sensor_obstacle_flag = obstacle_flag;
             if (obstacle_flag) global_obstacle_flag = true;
-        } else {
-            distance = d;
         }
+        sensor_obstacle_flag = obstacle_flag;
+        distance = d;
         return obstacle_flag;
     }
 
