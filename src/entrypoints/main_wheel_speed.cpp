@@ -67,8 +67,8 @@ void setup() {
     xTaskCreatePinnedToCore(MotorController::Task_WheelControl, "WheelControl", 2048, &global_ctx, 2, nullptr, 1);
     xTaskCreatePinnedToCore(Task_ToggleReference, "ToggleRef", 2048, &global_ctx, 1, nullptr, 1);
     // xTaskCreatePinnedToCore(Task_Printer, "Printer", 2048, &global_ctx, 1, nullptr, 0);
-    // xTaskCreatePinnedToCore(Task_PrintPerformance, "PrintPerformance", 2048, &global_ctx, 1, nullptr, 0);
-    xTaskCreatePinnedToCore(Task_SerialPlot, "SerialPlot", 2048, &global_ctx, 1, nullptr, 0);
+    xTaskCreatePinnedToCore(Task_PrintPerformance, "PrintPerformance", 2048, &global_ctx, 1, nullptr, 0);
+    // xTaskCreatePinnedToCore(Task_SerialPlot, "SerialPlot", 2048, &global_ctx, 1, nullptr, 0);
 
 }
 

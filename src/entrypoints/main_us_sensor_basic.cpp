@@ -36,17 +36,18 @@ void setup() {
 void loop() {
     // Ejecutar lectura de sensor izquierdo
     bool obstacle_now = DistanceSensors::check_sensor_obstacle(
-        US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN,
-        distance_data.us_left_distance,
-        distance_data.us_left_obstacle,
+        US_MID_TRIG_PIN, US_MID_ECHO_PIN,
+        distance_data.us_mid_distance,
+        distance_data.us_mid_obstacle,
         distance_data.obstacle_detected,
         distance_state
     );
+    // uint8_t d = read_distance(trig_pin, echo_pin);
 
     // Mostrar resultados
     if (obstacle_now) {
         Serial.print("Obstáculo detectado a ");
-        Serial.print(distance_data.us_left_distance);
+        Serial.print(distance_data.us_mid_distance);
         Serial.println(" cm");
     } else {
         Serial.println("Área despejada.");

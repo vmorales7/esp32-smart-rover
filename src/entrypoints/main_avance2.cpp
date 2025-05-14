@@ -49,11 +49,11 @@ struct Fase {
 
 constexpr uint8_t NUM_FASES = 5;
 Fase fases[NUM_FASES] = {
-    {"Avanzando recto (0.5 wn)", 0.5f * WM_NOM, 0.5f * WM_NOM, 10000},
-    {"Deteniendo", 0.0f, 0.0f, 3000},
-    {"Giro derecha (0.4 wn)", -0.4f * WM_NOM, 0.4f * WM_NOM, 5000},
-    {"Deteniendo", 0.0f, 0.0f, 3000},
-    {"Avanzando recto (0.5 wn)", 0.5f * WM_NOM, 0.5f * WM_NOM, 10000},
+    {"Avanzando recto (0.5 wn)", 0.5f * WM_NOM, 0.5f * WM_NOM, 5000},
+    {"Deteniendo", 0.0f, 0.0f, 1500},
+    {"Giro derecha (0.4 wn)", -0.4f * WM_NOM, 0.4f * WM_NOM, 1000},
+    {"Deteniendo", 0.0f, 0.0f, 1500},
+    {"Avanzando recto (0.5 wn)", 0.5f * WM_NOM, 0.5f * WM_NOM, 5000},
 };
 
 // ====================== TAREAS ======================
@@ -119,6 +119,8 @@ void Task_FaseManager(void* pvParameters) {
             case FaseEstado::FINALIZADO: {
                 fase_wL_ref = 0.0f;
                 fase_wR_ref = 0.0f;
+                PositionController::set_wheel_speed_ref(
+                    fase_wL_ref, fase_wR_ref, wheels.wL_ref, wheels.wR_ref, states.position_controller);
                 MotorController::set_motors_mode(
                     MOTOR_IDLE, states.motor_operation, wheels.duty_left, wheels.duty_right);
                 Serial.println("Finalizado.");
