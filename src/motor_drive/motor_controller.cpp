@@ -40,7 +40,7 @@ DutyProfile init_duty_profile(const float rawDuty) {
     DutyProfile duty_profile = {0};
     duty_profile.duty_val = rawDuty;
     duty_profile.abs_duty = fabsf(rawDuty);
-    bool fw = rawDuty >= 0.0f;
+    bool fw = (rawDuty >= 0.0f);
     duty_profile.forward = fw;
     duty_profile.duty_dir = fw ? 1 : -1;
     return duty_profile;

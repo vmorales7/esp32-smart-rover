@@ -83,22 +83,6 @@ namespace DistanceSensors {
         return obstacle_flag;
     }
 
-    // bool check_sensor_obstacle(
-    //     const uint8_t trig_pin, const uint8_t echo_pin,
-    //     volatile uint8_t& distance,
-    //     volatile bool& sensor_obstacle_flag,
-    //     volatile bool& global_obstacle_flag,
-    //     volatile uint8_t& distance_state
-    // ) {
-    //     if (distance_state != ACTIVE) return false;  // Solo leer si el sistema está activo
-    //     uint8_t d = DistanceSensors::read_distance(trig_pin, echo_pin);
-    //     bool obstacle_flag = (d < OBSTACLE_THRESHOLD_CM);
-    //     sensor_obstacle_flag = obstacle_flag;
-    //     if (obstacle_flag) global_obstacle_flag = true;
-    //     distance = d;
-    //     return obstacle_flag;
-    // }
-
     bool update_global_obstacle_flag(volatile DistanceSensorData& data) {
         data.obstacle_detected =
             data.us_left_obstacle ||

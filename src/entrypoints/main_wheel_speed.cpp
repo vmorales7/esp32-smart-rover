@@ -6,7 +6,7 @@
 
 // Constantes
 constexpr float W1 = 0.5f * WM_NOM;
-constexpr float W2 = 0.8f * WM_NOM;
+constexpr float W2 = 0.7f * WM_NOM;
 constexpr uint32_t TOGGLE_INTERVAL_MS = 10000;
 constexpr uint32_t PRINT_INTERVAL_MS = 250;
 
