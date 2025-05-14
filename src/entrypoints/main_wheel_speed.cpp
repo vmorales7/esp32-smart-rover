@@ -24,19 +24,6 @@ GlobalContext global_ctx = {
 
 
 // ------------------------ Tareas RTOS adicionales -------------------------
-void Task_Printer(void* pvParameters) {
-    TickType_t xLastWakeTime = xTaskGetTickCount();
-    const TickType_t period = pdMS_TO_TICKS(PRINT_INTERVAL_MS);
-    GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
-    volatile WheelsData* wheels = ctx->wheels_ptr;
-
-    for (;;) {
-        vTaskDelayUntil(&xLastWakeTime, period);
-        Serial.printf("wL %.2f dutyL %.2f | wR %.2f dutyR %.2f\n",
-                      wheels->wL_measured, wheels->duty_left,
-                      wheels->wR_measured, wheels->duty_right);
-    }
-}
 
 void Task_ToggleReference(void* pvParameters) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
@@ -57,6 +44,10 @@ void Task_ToggleReference(void* pvParameters) {
     }
 }
 
+void Task_Printer(void* pvParameters);
+void Task_PrintPerformance(void* pvParameters);
+void Task_SerialPlot(void* pvParameters);
+
 // --------------------------- Setup y loop -----------------------------
 
 void setup() {
@@ -74,10 +65,70 @@ void setup() {
     // Lanzar todas las tareas RTOS
     xTaskCreatePinnedToCore(EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2048, &global_ctx, 3, nullptr, 1);
     xTaskCreatePinnedToCore(MotorController::Task_WheelControl, "WheelControl", 2048, &global_ctx, 2, nullptr, 1);
-    xTaskCreatePinnedToCore(Task_Printer, "Printer", 2048, &global_ctx, 1, nullptr, 0);
     xTaskCreatePinnedToCore(Task_ToggleReference, "ToggleRef", 2048, &global_ctx, 1, nullptr, 1);
+    // xTaskCreatePinnedToCore(Task_Printer, "Printer", 2048, &global_ctx, 1, nullptr, 0);
+    // xTaskCreatePinnedToCore(Task_PrintPerformance, "PrintPerformance", 2048, &global_ctx, 1, nullptr, 0);
+    xTaskCreatePinnedToCore(Task_SerialPlot, "SerialPlot", 2048, &global_ctx, 1, nullptr, 0);
+
 }
 
 void loop() {
     // No se usa, todo se maneja con RTOS
+}
+
+
+
+
+// ------------------------ Tareas RTOS adicionales -------------------------
+void Task_Printer(void* pvParameters) {
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    const TickType_t period = pdMS_TO_TICKS(PRINT_INTERVAL_MS);
+    GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
+    volatile WheelsData* wheels = ctx->wheels_ptr;
+
+    for (;;) {
+        vTaskDelayUntil(&xLastWakeTime, period);
+        Serial.printf("wL %.2f dutyL %.2f | wR %.2f dutyR %.2f\n",
+                      wheels->wL_measured, wheels->duty_left,
+                      wheels->wR_measured, wheels->duty_right);
+    }
+}
+
+void Task_PrintPerformance(void* pvParameters) {
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    const TickType_t period = pdMS_TO_TICKS(PRINT_INTERVAL_MS);
+    GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
+    volatile WheelsData* wheels = ctx->wheels_ptr;
+
+    for (;;) {
+        vTaskDelayUntil(&xLastWakeTime, period);
+
+        // Imprimir solo datos de la rueda izquierda, separados por tabulaciones
+        Serial.printf("%.1f\t%.1f\t%.2f\n",
+                      wheels->wL_ref,      // referencia angular
+                      wheels->wL_measured, // velocidad medida
+                      wheels->duty_left);  // duty aplicado
+    }
+}
+
+void Task_SerialPlot(void* pvParameters) {
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    const TickType_t period = pdMS_TO_TICKS(PRINT_INTERVAL_MS);
+    GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
+    volatile WheelsData* wheels = ctx->wheels_ptr;
+
+    for (;;) {
+        vTaskDelayUntil(&xLastWakeTime, period);
+
+        Serial.print("wL_ref:");
+        Serial.print(wheels->wL_ref, 2);
+        Serial.print("\t");
+
+        Serial.print("wL_meas:");
+        Serial.print(wheels->wL_measured, 2);
+        Serial.print("\t");
+
+        Serial.print("dutyL:");
+        Serial.println(wheels->duty_left, 2);
+    }
 }
