@@ -1,0 +1,194 @@
+#include "project_config.h"
+#include "motor_drive/motor_controller.h"
+#include "sensors_firmware/encoder_reader.h"
+#include "sensors_firmware/distance_sensors.h"
+#include "position_system/position_controller.h"
+
+#warning "Compilando main_avance2.cpp"
+
+// ====================== VARIABLES GLOBALES ======================
+volatile SystemStates states = {0};
+volatile WheelsData wheels = {0};
+volatile DistanceSensorData distance_data = {0};
+volatile KinematicState kinematic = {0};
+
+GlobalContext ctx = {
+    .systems_ptr = &states,
+    .kinematic_ptr = &kinematic,
+    .wheels_ptr = &wheels,
+    .distance_ptr = &distance_data
+};
+
+// constexpr float W_STOP_THRESHOLD = 0.05 * WM_NOM;  // Threshold de velocidad para considerar stop [rad/s]
+const uint16_t TASK_CONTROL_PERIOD = 100;
+
+
+// ====================== MAQUINA DE ESTADOS ======================
+enum class FaseEstado : uint8_t {
+    EJECUTANDO,
+    OBSTACULO,
+    DETENIDO_POR_OBSTACULO,
+    FINALIZADO
+};
+volatile FaseEstado fase_estado = FaseEstado::EJECUTANDO;
+
+// Variables de fase
+volatile float fase_wL_ref = 0.0f;
+volatile float fase_wR_ref = 0.0f;
+volatile uint32_t fase_tiempo_acumulado = 0;
+volatile uint8_t fase_indice_actual = 0;
+
+constexpr uint32_t PRINT_INTERVAL_MS = 250;
+
+struct Fase {
+    const char* nombre;
+    float wL_ref;
+    float wR_ref;
+    uint32_t duracion_ms;
+};
+
+constexpr uint8_t NUM_FASES = 5;
+Fase fases[NUM_FASES] = {
+    {"Avanzando recto (0.5 wn)", 0.5f * WM_NOM, 0.5f * WM_NOM, 10000},
+    {"Deteniendo", 0.0f, 0.0f, 3000},
+    {"Giro derecha (0.4 wn)", -0.4f * WM_NOM, 0.4f * WM_NOM, 5000},
+    {"Deteniendo", 0.0f, 0.0f, 3000},
+    {"Avanzando recto (0.5 wn)", 0.5f * WM_NOM, 0.5f * WM_NOM, 10000},
+};
+
+// ====================== TAREAS ======================
+void Task_FaseManager(void* pvParameters) {
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    const TickType_t period = pdMS_TO_TICKS(TASK_CONTROL_PERIOD);
+    static uint32_t t_anterior = millis();
+
+    for (;;) {
+        vTaskDelayUntil(&xLastWakeTime, period);
+
+        switch (fase_estado) {
+            case FaseEstado::EJECUTANDO: {
+                if (fase_indice_actual >= NUM_FASES) {
+                    fase_estado = FaseEstado::FINALIZADO;
+                    break;
+                }
+
+                if (distance_data.obstacle_detected) {
+                    fase_estado = FaseEstado::OBSTACULO;
+                    fase_wL_ref = 0.0f;
+                    fase_wR_ref = 0.0f;
+                    break;
+                }
+
+                fase_wL_ref = fases[fase_indice_actual].wL_ref;
+                fase_wR_ref = fases[fase_indice_actual].wR_ref;
+
+                uint32_t t_actual = millis();
+                fase_tiempo_acumulado += (t_actual - t_anterior);
+                t_anterior = t_actual;
+
+                if (fase_tiempo_acumulado >= fases[fase_indice_actual].duracion_ms) {
+                    fase_indice_actual++;
+                    fase_tiempo_acumulado = 0;
+                    Serial.printf("Fase completada. Avanzando a fase %d\n", fase_indice_actual);
+                }
+                break;
+            }
+            case FaseEstado::OBSTACULO: {
+                fase_wL_ref = 0.0f;
+                fase_wR_ref = 0.0f;
+                if (fabsf(wheels.wL_measured) < W_STOP_THRESHOLD &&
+                    fabsf(wheels.wR_measured) < W_STOP_THRESHOLD) {
+                    MotorController::set_motors_mode(
+                        MOTOR_IDLE, states.motor_operation, wheels.duty_left, wheels.duty_right);
+                    fase_estado = FaseEstado::DETENIDO_POR_OBSTACULO;
+                    Serial.println("Vehiculo detenido completamente por obstaculo.");
+                }
+                break;
+            }
+            case FaseEstado::DETENIDO_POR_OBSTACULO: {
+                if (!distance_data.obstacle_detected) {
+                    fase_estado = FaseEstado::EJECUTANDO;
+                    MotorController::set_motors_mode(
+                        MOTOR_AUTO, states.motor_operation, wheels.duty_left, wheels.duty_right);
+                    fase_wL_ref = fases[fase_indice_actual].wL_ref;
+                    fase_wR_ref = fases[fase_indice_actual].wR_ref;
+                    Serial.println("Obstaculo retirado. Reanudando fase actual.");
+                }
+                break;
+            }
+            case FaseEstado::FINALIZADO: {
+                fase_wL_ref = 0.0f;
+                fase_wR_ref = 0.0f;
+                MotorController::set_motors_mode(
+                    MOTOR_IDLE, states.motor_operation, wheels.duty_left, wheels.duty_right);
+                Serial.println("Finalizado.");
+                vTaskSuspend(nullptr);
+                break;
+            }
+        }
+
+        PositionController::set_wheel_speed_ref(
+            fase_wL_ref, fase_wR_ref, wheels.wL_ref, wheels.wR_ref, states.position_controller);
+    }
+}
+
+void Task_Printer(void* pvParameters) {
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    const TickType_t period = pdMS_TO_TICKS(PRINT_INTERVAL_MS);
+
+    for (;;) {
+        vTaskDelayUntil(&xLastWakeTime, period);
+        Serial.printf("wL_ref %.1f | wR_ref %.1f\n",
+                      wheels.wL_ref, wheels.wR_ref);        
+        Serial.printf("wL %.1f dutyL %.2f | wR %.1f dutyR %.2f\n",
+                      wheels.wL_measured, wheels.duty_left, wheels.wR_measured, wheels.duty_right);
+        Serial.println();
+    }
+}
+
+void Task_UpdateObstacleFlag(void* pvParameters) {
+    const TickType_t period = pdMS_TO_TICKS(25);
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+
+    GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
+    for (;;) {
+        vTaskDelayUntil(&xLastWakeTime, period);
+        DistanceSensors::update_global_obstacle_flag(*ctx->distance_ptr);
+    }
+}
+
+// ====================== SETUP ======================
+void setup() {
+    Serial.begin(115200);
+    delay(1000);
+    Serial.println("Inicio: Avance 2");
+    delay(1000);
+
+    MotorController::init(states.motor_operation, wheels.duty_left, wheels.duty_right);
+    MotorController::set_motors_mode(MOTOR_AUTO, states.motor_operation, wheels.duty_left, wheels.duty_right);
+
+    PositionController::init(states.position_controller, wheels.wL_ref, wheels.wR_ref);
+    PositionController::set_control_mode(SPEED_REF_MANUAL, states.position_controller);
+
+    DistanceSensors::init_system(states.distance, distance_data);
+    DistanceSensors::set_state(ACTIVE, states.distance);
+
+    EncoderReader::init(wheels, states.encoder);
+    EncoderReader::resume(states.encoder);
+
+    // Tareas principales (núcleo 1)
+    xTaskCreatePinnedToCore(EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2048, &ctx, 1, nullptr, 1);
+    xTaskCreatePinnedToCore(MotorController::Task_WheelControl, "WheelControl", 2048, &ctx, 1, nullptr, 1);
+    xTaskCreatePinnedToCore(Task_FaseManager, "FaseManager", 2048, nullptr, 2, nullptr, 1);
+
+    // Tareas secundaria (núcleo 0)
+    xTaskCreatePinnedToCore(DistanceSensors::Task_CheckLeftObstacle, "US_Left", 2048, &ctx, 1, nullptr, 0);
+    xTaskCreatePinnedToCore(DistanceSensors::Task_CheckMidObstacle, "US_Mid", 2048, &ctx, 1, nullptr, 0);
+    xTaskCreatePinnedToCore(DistanceSensors::Task_CheckRightObstacle, "US_Right", 2048, &ctx, 1, nullptr, 0);
+    xTaskCreatePinnedToCore(Task_UpdateObstacleFlag, "UpdateObstacleFlag", 2048, &ctx, 1, nullptr, 0);
+    xTaskCreatePinnedToCore(Task_Printer, "Printer", 2048, nullptr, 1, nullptr, 0);
+}
+
+void loop() {
+    // Vacío: todo funciona por tareas RTOS
+}

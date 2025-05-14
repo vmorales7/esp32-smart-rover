@@ -6,6 +6,12 @@ namespace PoseEstimator {
     static int64_t last_steps_left = 0;
     static int64_t last_steps_right = 0;
 
+    static float wrap_to_pi(float angle) {
+        angle = fmodf(angle + PI, 2.0f * PI);
+        if (angle < 0.0f) angle += 2.0f * PI;
+        return angle - PI;
+    }
+
     PoseData compute_encoder_pose(
         float delta_phiL, float delta_phiR,
         float wL_measured, float wR_measured,
@@ -39,21 +45,20 @@ namespace PoseEstimator {
         return pose;
     }
 
-
     PoseData estimate_pose_from_encoder(
-        volatile float* x_ptr, volatile float* y_ptr, volatile float* theta_ptr,
-        volatile float* v_ptr, volatile float* w_ptr,
-        volatile float* wL_ptr, volatile float* wR_ptr,
-        volatile int64_t* steps_left_ptr, volatile int64_t* steps_right_ptr
+        volatile float& x_var, volatile float& y_var, volatile float& theta_var,
+        volatile float& v_var, volatile float& w_var,
+        volatile float& wL_var, volatile float& wR_var,
+        volatile int64_t& steps_left_var, volatile int64_t& steps_right_var
     ) {
         // Partimos guardando una foto de cada variable
-        float x_prev = *x_ptr;
-        float y_prev = *y_ptr;
-        float theta_prev = *theta_ptr;
-        float wL_measured = *wL_ptr;
-        float wR_measured = *wR_ptr;
-        int64_t steps_left = *steps_left_ptr;
-        int64_t steps_right = *steps_right_ptr;
+        float x_prev = x_var;
+        float y_prev = y_var;
+        float theta_prev = theta_var;
+        float wL_measured = wL_var;
+        float wR_measured = wR_var;
+        int64_t steps_left = steps_left_var;
+        int64_t steps_right = steps_right_var;
                 
         // Calcular cambio en el giro de cada rueda usando la variable guardada
         float delta_phiL = (steps_left - last_steps_left) * RAD_PER_PULSE;
@@ -71,83 +76,74 @@ namespace PoseEstimator {
         return pose;
     }
 
-
-    void set_state(uint8_t mode, volatile uint8_t* pose_estimator_state_ptr) {
-        *pose_estimator_state_ptr = (mode == ACTIVE) ? ACTIVE : INACTIVE;
+    void set_state(const uint8_t new_state, volatile uint8_t& pose_estimator_state) {
+        pose_estimator_state = (new_state == ACTIVE) ? ACTIVE : INACTIVE;
     }
 
-
     void reset_pose_and_steps(
-        volatile float* x_ptr, volatile float* y_ptr, volatile float* theta_ptr,
-        volatile int64_t* steps_left_ptr, volatile int64_t* steps_right_ptr
+        volatile float& x_var, volatile float& y_var, volatile float& theta_var,
+        volatile int64_t& steps_left_var, volatile int64_t& steps_right_var
     ) {
-        *x_ptr = 0.0f;
-        *y_ptr = 0.0f;
-        *theta_ptr = 0.0f;
-        *steps_left_ptr = 0;
-        *steps_right_ptr = 0;
+        x_var = 0.0f;
+        y_var = 0.0f;
+        theta_var = 0.0f;
+        steps_left_var = 0;
+        steps_right_var = 0;
         last_steps_left = 0;
         last_steps_right = 0;
     }
 
+    void init(
+        volatile float& x_var, volatile float& y_var, volatile float& theta_var,
+        volatile int64_t& steps_left_var, volatile int64_t& steps_right_var,
+        volatile uint8_t& pose_estimator_state
+    ) {
+        reset_pose_and_steps(x_var, y_var, theta_var, steps_left_var, steps_right_var);
+        set_state(INACTIVE, pose_estimator_state);
+    }
 
     void update_pose(
-        PoseData* pose_ptr,
-        volatile float* x_ptr, volatile float* y_ptr, volatile float* theta_ptr,
-        volatile float* v_ptr, volatile float* w_ptr,
-        volatile uint8_t* pose_estimator_state_ptr
+        PoseData& pose,
+        volatile float& x_var, volatile float& y_var, volatile float& theta_var,
+        volatile float& v_var, volatile float& w_var,
+        volatile uint8_t& pose_estimator_state
     ) {
-        if (*pose_estimator_state_ptr != ACTIVE) return;
-        *x_ptr   = pose_ptr->x;
-        *y_ptr   = pose_ptr->y;
-        *theta_ptr = pose_ptr->theta;
-        *v_ptr   = pose_ptr->v;
-        *w_ptr   = pose_ptr->w;
+        if (pose_estimator_state != ACTIVE) return;
+        x_var     = pose.x;
+        y_var     = pose.y;
+        theta_var = pose.theta;
+        v_var     = pose.v;
+        w_var     = pose.w;
     }
+    
+    void Task_PoseEstimatorEncoder(void* pvParameters) {
+        // Datos de RTOS
+        TickType_t xLastWakeTime = xTaskGetTickCount();
+        const TickType_t period = pdMS_TO_TICKS(POSE_ESTIMATOR_PERIOD_MS);
+
+        // Obtener referencias directas a las estructuras globales
+        GlobalContext* ctx_ptr = static_cast<GlobalContext*>(pvParameters);
+        auto& k = *ctx_ptr->kinematic_ptr;     // kinematic_state
+        auto& w = *ctx_ptr->wheels_ptr;        // wheels_data
+        auto& s = *ctx_ptr->systems_ptr;       // system_states
+
+        for (;;) {
+            vTaskDelayUntil(&xLastWakeTime, period);
+            if (s.pose_estimator == ACTIVE) {
+                PoseData pose = estimate_pose_from_encoder(
+                    k.x, k.y, k.theta, k.v, k.w,
+                    w.wL_measured, w.wR_measured, w.steps_left, w.steps_right
+                );
+                update_pose(pose, k.x, k.y, k.theta, k.v, k.w, s.pose_estimator);
+            }
+        }
+    }
+    
+}
+
 
     // float normalize_angle(float angle) {
     //     if (angle > PI)  {angle -= 2.0f * PI;}
     //     else if (angle < -PI) {angle += 2.0f * PI;}
     //     return angle;
     // }
-    
-
-    float wrap_to_pi(float angle) {
-        angle = fmodf(angle + PI, 2.0f * PI);
-        if (angle < 0.0f) angle += 2.0f * PI;
-        return angle - PI;
-    }
-
-    
-    void Task_PoseEstimatorEncoder(void* pvParameters) {
-        // Datos de RTOS
-        TickType_t xLastWakeTime = xTaskGetTickCount();
-        const TickType_t period = pdMS_TO_TICKS(POSE_ESTIMATOR_PERIOD_MS);
-    
-        // Recuperar la data pasada como input al Task (estructura de punteros)
-        GlobalContext* ctx_ptr = static_cast<GlobalContext*>(pvParameters);
-    
-        // Punteros individuales
-        volatile uint8_t* pose_state_ptr  = &ctx_ptr->systems_ptr->pose_estimator;
-        volatile float* x_ptr             = &ctx_ptr->kinematic_ptr->x;
-        volatile float* y_ptr             = &ctx_ptr->kinematic_ptr->y;
-        volatile float* theta_ptr         = &ctx_ptr->kinematic_ptr->theta;
-        volatile float* v_ptr             = &ctx_ptr->kinematic_ptr->v;
-        volatile float* w_ptr             = &ctx_ptr->kinematic_ptr->w;
-        volatile float* wL_ptr            = &ctx_ptr->wheels_ptr->wL_measured;
-        volatile float* wR_ptr            = &ctx_ptr->wheels_ptr->wR_measured;
-        volatile int64_t* steps_left_ptr  = &ctx_ptr->wheels_ptr->steps_left;
-        volatile int64_t* steps_right_ptr = &ctx_ptr->wheels_ptr->steps_right;
-    
-        for (;;) {
-            vTaskDelayUntil(&xLastWakeTime, period);
-            if (*pose_state_ptr == ACTIVE) {
-                PoseData pose = estimate_pose_from_encoder(
-                    x_ptr, y_ptr, theta_ptr, v_ptr, w_ptr, wL_ptr, wR_ptr, steps_left_ptr, steps_right_ptr
-                );
-                update_pose(&pose, x_ptr, y_ptr, theta_ptr, v_ptr, w_ptr, pose_state_ptr);
-            }
-        }
-    }
-    
-}

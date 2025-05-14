@@ -6,27 +6,27 @@
 /* -------------- Definiciones de los pines de la ESP32 --------------*/
 
 // Para control del L298N
-constexpr uint8_t MOTOR_LEFT_PWM_PIN = 26;  // Azul
+constexpr uint8_t MOTOR_LEFT_PWM_PIN  = 26;  // Azul
 constexpr uint8_t MOTOR_LEFT_DIR_PIN1 = 25; // Blanco
 constexpr uint8_t MOTOR_LEFT_DIR_PIN2 = 33; // Verde
 
-constexpr uint8_t MOTOR_RIGHT_PWM_PIN = 18;  // Azul
+constexpr uint8_t MOTOR_RIGHT_PWM_PIN  = 18;  // Azul
 constexpr uint8_t MOTOR_RIGHT_DIR_PIN1 = 19; // Blanco
 constexpr uint8_t MOTOR_RIGHT_DIR_PIN2 = 21; // Verde
 
 // Para los encoders
 // Azul = Vcc & Negro = GND 
-constexpr uint8_t ENCODER_LEFT_A_PIN = 14; // Amarillo
-constexpr uint8_t ENCODER_LEFT_B_PIN = 27; // Verde
+constexpr uint8_t ENCODER_LEFT_A_PIN  = 14; // Amarillo
+constexpr uint8_t ENCODER_LEFT_B_PIN  = 27; // Verde
 constexpr uint8_t ENCODER_RIGHT_A_PIN = 16; // Amarillo
 constexpr uint8_t ENCODER_RIGHT_B_PIN = 17; // Verde
 
 // Sensores ultrasónicos
-constexpr uint8_t US_LEFT_TRIG_PIN  = 13;
-constexpr uint8_t US_LEFT_ECHO_PIN  = 12;
+constexpr uint8_t US_LEFT_TRIG_PIN = 32;
+constexpr uint8_t US_LEFT_ECHO_PIN = 34;
 
-constexpr uint8_t US_MID_TRIG_PIN = 32;  
-constexpr uint8_t US_MID_ECHO_PIN = 34;  // solo INPUT
+constexpr uint8_t US_MID_TRIG_PIN = 13;  
+constexpr uint8_t US_MID_ECHO_PIN = 12;
 
 constexpr uint8_t US_RIGHT_TRIG_PIN = 22;
 constexpr uint8_t US_RIGHT_ECHO_PIN = 23;
@@ -56,8 +56,8 @@ constexpr float MS_TO_S = 0.001f;
 
 /* -------------- Constantes del Motor Controller --------------*/
 
-
 // Motor speed characteristics
+
 constexpr uint16_t RPM_NOM = 215U;            // rpm nominales bajo carga (son 280 sin carga)       
 constexpr float WM_NOM = RPM_NOM * 2*PI/60.0; // rad/s nominales bajo carga = 22.51 (29.3 sin carga)
 
@@ -70,12 +70,14 @@ enum MotorMode : uint8_t {
 };
 
 // RTOS
+
 constexpr uint16_t WHEEL_CONTROL_PERIOD_MS = 10;
 constexpr uint16_t IMU_READ_PERIOD_MS= 20;
 
 /* -------------- Constantes del Encoder Reader --------------*/
 
 // Según tipo de configuración de encoder
+
 enum class EncoderMode {
     SINGLE_EDGE = 1,  // 1x
     HALF_QUAD   = 2,  // 2x
@@ -90,29 +92,40 @@ constexpr float get_encoder_multiplier(EncoderMode mode) {
 }
 
 // Variables usadas en cálculos (usado en varios módulos)
+
 constexpr float RAW_ENCODER_PPR = 11.0f * 21.3f; // Steps del encoder x razón de engranaje de motor
 constexpr float ENCODER_PPR = RAW_ENCODER_PPR * get_encoder_multiplier(ENCODER_MODE);
 constexpr float RAD_PER_PULSE = (2.0f * PI) / ENCODER_PPR;
 
 // RTOS
+
 constexpr uint16_t ENCODER_READ_PERIOD_MS = 10;
 
 
 /* -------------- Constantes del Pose Estimator --------------*/
+
 constexpr uint16_t POSE_ESTIMATOR_PERIOD_MS = 200; 
 
 
 /* -------------- Constantes de sensores de distancia --------------*/
-constexpr uint16_t US_SENSOR_READ_PERIOD_MS = 500;
-constexpr uint16_t IR_SENSOR_READ_PERIOD_MS = 500;
+
+constexpr uint16_t US_SENSOR_READ_PERIOD_MS = 250;
+constexpr uint16_t OBSTACLE_CHECK_PERIOD = 100;
 
 /* -------------- Constantes del control de posición --------------*/
+
 enum PositionControlMode : uint8_t {
     SPEED_REF_INACTIVE = 0U,
     SPEED_REF_MANUAL = 1U,
     SPEED_REF_AUTO_BASIC = 2U,   
     SPEED_REF_AUTO_ADVANCED = 3U
 };
+
+constexpr uint16_t POSITION_CONTROL_PERIOD_MS = 200;
+
+/* -------------- Constantes del control de posición --------------*/
+
+constexpr uint16_t CHECK_OBSTACLE_FLAG_PERIOD = US_SENSOR_READ_PERIOD_MS * 0.5f;
 
 
 /* -------------------- Estructuras con la data del sistema --------------------*/
