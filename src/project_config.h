@@ -121,6 +121,8 @@ enum PositionControlMode : uint8_t {
     SPEED_REF_AUTO_ADVANCED = 3U
 };
 
+constexpr uint16_t POSITION_CONTROL_PERIOD_MS = 200;
+
 /* -------------- Constantes del control de posición --------------*/
 
 constexpr uint16_t CHECK_OBSTACLE_FLAG_PERIOD = US_SENSOR_READ_PERIOD_MS * 0.5f;
