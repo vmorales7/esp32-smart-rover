@@ -161,6 +161,8 @@ namespace DistanceSensors {
      */
     void Task_CheckRightObstacle(void* pvParameters);
 
+    void Task_UpdateObstacleFlag(void* pvParameters);
+
 }
 
 #endif // DISTANCE_SENSORS_H

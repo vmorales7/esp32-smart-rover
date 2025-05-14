@@ -109,8 +109,8 @@ constexpr uint16_t POSE_ESTIMATOR_PERIOD_MS = 200;
 
 /* -------------- Constantes de sensores de distancia --------------*/
 
-constexpr uint16_t US_SENSOR_READ_PERIOD_MS = 500;
-constexpr uint16_t IR_SENSOR_READ_PERIOD_MS = 500;
+constexpr uint16_t US_SENSOR_READ_PERIOD_MS = 250;
+constexpr uint16_t OBSTACLE_CHECK_PERIOD = 100;
 
 /* -------------- Constantes del control de posición --------------*/
 
