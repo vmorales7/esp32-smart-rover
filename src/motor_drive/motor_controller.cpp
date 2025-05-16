@@ -27,12 +27,13 @@ void check_duty_speed(DutyProfile& duty, const float w_measured, const float w_r
 
     // Caso en que se desea invertir o frenar activamente
     if ((duty.duty_dir != w_measured_sign) && (w_measured_abs < w_ref_abs || w_measured_sign != w_ref_sign)) {
-        if (w_measured_abs < W_INVERT_THRESHOLD) return; // Se puede aplicar la inversión!
-    else { // Caso en que la velocidad es demasiado alta para invertir el duty                                                          
-            duty.duty_val = 0.0f;
-            duty.abs_duty = 0.0f;
-            if (w_measured_abs < W_BRAKE_THRESHOLD) duty.break_flag = true; // Frenado activo
-        }
+        if (w_measured_abs < W_INVERT_THRESHOLD) {
+            return; // Se puede aplicar la inversión!
+        } else { // Caso en que la velocidad es demasiado alta para invertir el duty                                                          
+                duty.duty_val = 0.0f;
+                duty.abs_duty = 0.0f;
+                if (w_measured_abs < W_BRAKE_THRESHOLD) duty.break_flag = true; // Frenado activo
+            }
     }
 }
 
@@ -45,14 +46,6 @@ DutyProfile init_duty_profile(const float rawDuty) {
     duty_profile.duty_dir = fw ? 1 : -1;
     return duty_profile;
 }
-
-// void update_duty_profile(const float rawDuty, DutyProfile& duty_profile) {
-//     duty_profile.duty_val = rawDuty;
-//     duty_profile.abs_duty = fabsf(rawDuty);
-//     bool fw = rawDuty >= 0.0f;
-//     duty_profile.forward = fw;
-//     duty_profile.duty_dir = fw ? 1 : -1;
-// }
 
 
 /* ------------------ Funciones de control PI --------------------*/

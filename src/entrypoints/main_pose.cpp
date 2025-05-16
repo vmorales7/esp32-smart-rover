@@ -43,14 +43,14 @@ void setup() {
 
     // Inicializar motores
     MotorController::init(states.motor_operation, wheels.duty_left, wheels.duty_right);
-    MotorController::set_motors_mode(MOTOR_AUTO, states.motor_operation, wheels.duty_left, wheels.duty_right);
+    // MotorController::set_motors_mode(MOTOR_AUTO, states.motor_operation, wheels.duty_left, wheels.duty_right);
 
     // Inicializar controlador de posición
     PositionController::init(states.position_controller, wheels.wL_ref, wheels.wR_ref);
     PositionController::set_control_mode(SPEED_REF_MANUAL, states.position_controller);
 
     // Instrucciones de inicio
-    PositionController::set_wheel_speed_ref(Wref, Wref, wheels.wL_ref, wheels.wR_ref, states.position_controller);
+    // PositionController::set_wheel_speed_ref(Wref, Wref, wheels.wL_ref, wheels.wR_ref, states.position_controller);
     PoseEstimator::set_state(ACTIVE, states.pose_estimator);
     EncoderReader::resume(states.encoder);
 
@@ -61,6 +61,7 @@ void setup() {
 
     // Debug
     //xTaskCreatePinnedToCore(Task_PrintPose, "PrintPose", 2048, &ctx, 1, nullptr, 0);
+    MotorController::set_motors_mode(MOTOR_IDLE, states.motor_operation, wheels.duty_left, wheels.duty_right);
     xTaskCreatePinnedToCore(Task_PrintXY, "PrintXY", 2048, &ctx, 1, nullptr, 0);
 }
 
