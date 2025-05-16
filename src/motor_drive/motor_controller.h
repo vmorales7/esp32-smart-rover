@@ -13,9 +13,9 @@ constexpr uint8_t PWM_CHANNEL_LEFT = 0U;
 constexpr uint8_t PWM_CHANNEL_RIGHT = 1U;
 
 // Motor duty limits
-constexpr float ZERO_DUTY_THRESHOLD = 0.1f; // por debajo de esto se considera 0
-constexpr float MIN_MOVE_DUTY = 0.3f;   // duty mínimo con efecto real (0.17 sin carga para 1000Hz)
-constexpr float MIN_START_DUTY = 0.3f;   // duty mínimo con efecto real (0.22 sin carga para 1000Hz)
+constexpr float ZERO_DUTY_THRESHOLD = 0.15f; // por debajo de esto se considera 0
+constexpr float MIN_MOVE_DUTY = 0.33f;   // duty mínimo con efecto real (0.17 sin carga para 1000Hz)
+constexpr float MIN_START_DUTY = 0.33f;   // duty mínimo con efecto real (0.22 sin carga para 1000Hz)
 constexpr float MAX_DUTY = 1.0f;
 
 // Speed controller PI parameters

@@ -64,7 +64,7 @@ namespace EncoderReader {
 
         // Cambio en el giro desde la ultima lectura
         int64_t deltaLeft = (currentCountLeft - lastCountLeft); 
-        int64_t deltaRight = (currentCountRight - lastCountRight) ;
+        int64_t deltaRight = (currentCountRight - lastCountRight);
 
         // Se acumula el giro sobre el valor que se tenía antes
         wheels_data.steps_left += deltaLeft;
