@@ -34,16 +34,16 @@ void setup() {
     Serial.println("Debug: Position Control — Basic");
 
     // Inicialización de módulos
-    EncoderReader::init(wheels, states.encoder);
-    PoseEstimator::init(kinem.x, kinem.y, kinem.theta, wheels.steps_left, wheels.steps_right, states.pose_estimator);
-    MotorController::init(states.motor_operation, wheels.duty_left, wheels.duty_right);
-    PositionController::init(states.position_controller, wheels.wL_ref, wheels.wR_ref);
+    EncoderReader::init(wheels, states.encoders);
+    PoseEstimator::init(kinem.x, kinem.y, kinem.theta, wheels.steps_left, wheels.steps_right, states.pose);
+    MotorController::init(states.motors, wheels.duty_left, wheels.duty_right);
+    PositionController::init(states.position, wheels.wL_ref, wheels.wR_ref);
 
     // Establecer modos
-    PositionController::set_control_mode(SPEED_REF_AUTO_ADVANCED, states.position_controller);
-    EncoderReader::resume(states.encoder);
-    MotorController::set_motors_mode(MOTOR_AUTO, states.motor_operation, wheels.duty_left, wheels.duty_right);
-    PoseEstimator::set_state(ACTIVE, states.pose_estimator);
+    PositionController::set_control_mode(SPEED_REF_AUTO_ADVANCED, states.position, wheels.wL_ref, wheels.wR_ref);
+    EncoderReader::resume(states.encoders);
+    MotorController::set_motors_mode(MOTOR_AUTO, states.motors, wheels.duty_left, wheels.duty_right);
+    PoseEstimator::set_state(ACTIVE, states.pose);
 
     // Asignar punto objetivo
     kinem.x_d = X_OBJETIVO;

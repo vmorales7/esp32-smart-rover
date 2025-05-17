@@ -31,7 +31,7 @@ void Task_ToggleReference(void* pvParameters) {
     GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
     volatile float* wL_ref = &ctx->wheels_ptr->wL_ref;
     volatile float* wR_ref = &ctx->wheels_ptr->wR_ref;
-    volatile uint8_t* control_mode_ptr = &ctx->systems_ptr->position_controller;
+    volatile uint8_t* control_mode_ptr = &ctx->systems_ptr->position;
 
     float currentWref = W1;
 
@@ -54,13 +54,13 @@ void setup() {
     Serial.begin(115200);
 
     // Inicialización
-    MotorController::init(states.motor_operation, wheels_data.duty_left, wheels_data.duty_right);
-    MotorController::set_motors_mode(MOTOR_AUTO, states.motor_operation, wheels_data.duty_left, wheels_data.duty_right);
-    EncoderReader::init(wheels_data, states.encoder);
-    PositionController::init(states.position_controller, wheels_data.wL_ref, wheels_data.wR_ref);
-    PositionController::set_control_mode(SPEED_REF_MANUAL, states.position_controller);
-    EncoderReader::resume(states.encoder);
-    PositionController::set_wheel_speed_ref(W1, W1, wheels_data.wL_ref, wheels_data.wR_ref, states.position_controller);
+    MotorController::init(states.motors, wheels_data.duty_left, wheels_data.duty_right);
+    MotorController::set_motors_mode(MOTOR_AUTO, states.motors, wheels_data.duty_left, wheels_data.duty_right);
+    EncoderReader::init(wheels_data, states.encoders);
+    PositionController::init(states.position, wheels_data.wL_ref, wheels_data.wR_ref);
+    PositionController::set_control_mode(SPEED_REF_MANUAL, states.position, wheels_data.wL_ref, wheels_data.wR_ref);
+    EncoderReader::resume(states.encoders);
+    PositionController::set_wheel_speed_ref(W1, W1, wheels_data.wL_ref, wheels_data.wR_ref, states.position);
 
     // Lanzar todas las tareas RTOS
     xTaskCreatePinnedToCore(EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2048, &global_ctx, 3, nullptr, 1);

@@ -82,12 +82,16 @@ namespace DistanceSensors {
         return obstacle_flag;
     }
 
-    bool update_global_obstacle_flag(volatile DistanceSensorData& data) {
-        data.obstacle_detected =
+    bool compute_global_obstacle_flag(volatile DistanceSensorData& data) {
+        bool obstacle_detected =
             data.us_left_obstacle ||
             data.us_mid_obstacle ||
             data.us_right_obstacle;
-        return data.obstacle_detected;
+        return obstacle_detected;
+    }
+
+    void update_global_obstacle_flag(volatile DistanceSensorData& data) {
+        data.obstacle_detected = compute_global_obstacle_flag(data);
     }
 
     void Task_CheckLeftObstacle(void* pvParameters) {
@@ -141,18 +145,6 @@ namespace DistanceSensors {
                 ctx->distance_ptr->obstacle_detected,
                 ctx->systems_ptr->distance
             );            
-        }
-    }
-
-    void Task_UpdateObstacleFlag(void* pvParameters) {
-        TickType_t xLastWakeTime = xTaskGetTickCount();
-        const TickType_t period = pdMS_TO_TICKS(25);
-
-        GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
-
-        for (;;) {
-            vTaskDelayUntil(&xLastWakeTime, period);
-            DistanceSensors::update_global_obstacle_flag(*ctx->distance_ptr);
         }
     }
     

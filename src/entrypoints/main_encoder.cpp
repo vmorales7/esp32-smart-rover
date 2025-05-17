@@ -60,13 +60,13 @@ void setup() {
 
     // Inicializar motor
     MotorController::init(
-        system_states.motor_operation, wheels_data.duty_left, wheels_data.duty_right);
+        system_states.motors, wheels_data.duty_left, wheels_data.duty_right);
     MotorController::set_motors_mode(
-        MOTOR_ACTIVE, system_states.motor_operation, wheels_data.duty_left, wheels_data.duty_right);
+        MOTOR_ACTIVE, system_states.motors, wheels_data.duty_left, wheels_data.duty_right);
 
     // Inicializar encoder
-    EncoderReader::init(wheels_data, system_states.encoder);
-    EncoderReader::resume(system_states.encoder);
+    EncoderReader::init(wheels_data, system_states.encoders);
+    EncoderReader::resume(system_states.encoders);
 
     // Crear tareas
     xTaskCreatePinnedToCore(EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2048, &ctx, 2, nullptr, APP_CPU_NUM);
@@ -74,7 +74,7 @@ void setup() {
 
     // Empezamos la operación
     MotorController::set_motors_duty(
-        0.5f, 0.5f, wheels_data.duty_left, wheels_data.duty_right, system_states.motor_operation);
+        0.5f, 0.5f, wheels_data.duty_left, wheels_data.duty_right, system_states.motors);
 
     // Pruebas de desempeño
     // MotorController::set_motors_mode(

@@ -134,7 +134,7 @@ namespace EncoderReader {
 
         // Recuperamos los inputs pasados a la tarea de RTOS
         GlobalContext* ctx_ptr = static_cast<GlobalContext*>(pvParameters);
-        volatile uint8_t* encoder_state_ptr = &ctx_ptr->systems_ptr->encoder;
+        volatile uint8_t* encoder_state_ptr = &ctx_ptr->systems_ptr->encoders;
         volatile WheelsData* wheels_data_ptr = ctx_ptr->wheels_ptr;
         for (;;) {
             vTaskDelayUntil(&xLastWakeTime, period);

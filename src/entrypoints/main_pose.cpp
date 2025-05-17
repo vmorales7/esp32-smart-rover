@@ -36,23 +36,23 @@ void setup() {
     delay(1000);
 
     // Inicializar encoder
-    EncoderReader::init(wheels, states.encoder);
+    EncoderReader::init(wheels, states.encoders);
 
     // Inicializar estimador de pose
-    PoseEstimator::init(kinem.x, kinem.y, kinem.theta, wheels.steps_left, wheels.steps_right, states.pose_estimator);
+    PoseEstimator::init(kinem.x, kinem.y, kinem.theta, wheels.steps_left, wheels.steps_right, states.pose);
 
     // Inicializar motores
-    MotorController::init(states.motor_operation, wheels.duty_left, wheels.duty_right);
+    MotorController::init(states.motors, wheels.duty_left, wheels.duty_right);
     // MotorController::set_motors_mode(MOTOR_AUTO, states.motor_operation, wheels.duty_left, wheels.duty_right);
 
     // Inicializar controlador de posición
-    PositionController::init(states.position_controller, wheels.wL_ref, wheels.wR_ref);
-    PositionController::set_control_mode(SPEED_REF_MANUAL, states.position_controller);
+    PositionController::init(states.position, wheels.wL_ref, wheels.wR_ref);
+    PositionController::set_control_mode(SPEED_REF_MANUAL, states.position, wheels.wL_ref, wheels.wR_ref);
 
     // Instrucciones de inicio
     // PositionController::set_wheel_speed_ref(Wref, Wref, wheels.wL_ref, wheels.wR_ref, states.position_controller);
-    PoseEstimator::set_state(ACTIVE, states.pose_estimator);
-    EncoderReader::resume(states.encoder);
+    PoseEstimator::set_state(ACTIVE, states.pose);
+    EncoderReader::resume(states.encoders);
 
     // Crear tareas RTOS
     xTaskCreatePinnedToCore(EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2048, &ctx, 1, nullptr, 1);
@@ -61,7 +61,7 @@ void setup() {
 
     // Debug
     //xTaskCreatePinnedToCore(Task_PrintPose, "PrintPose", 2048, &ctx, 1, nullptr, 0);
-    MotorController::set_motors_mode(MOTOR_IDLE, states.motor_operation, wheels.duty_left, wheels.duty_right);
+    MotorController::set_motors_mode(MOTOR_IDLE, states.motors, wheels.duty_left, wheels.duty_right);
     xTaskCreatePinnedToCore(Task_PrintXY, "PrintXY", 2048, &ctx, 1, nullptr, 0);
 }
 
