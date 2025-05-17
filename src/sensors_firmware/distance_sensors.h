@@ -16,12 +16,19 @@
 constexpr float US_CM_PER_US = 0.01715f;
 
 /**
+ * @brief Umbral de detección de obstáculo [cm].
+ * 
+ * Si la distancia medida es menor a este valor, se considera que hay un obstáculo.
+ */
+constexpr uint8_t OBSTACLE_THRESHOLD_CM = 30;
+
+/**
  * @brief Distancia máxima considerada válida para el sensor [cm].
  * 
  * Si la lectura supera este valor, se considera inválida o sin respuesta
  * y se devuelve US_MAX_DISTANCE_CM.
  */
-constexpr uint8_t US_MAX_DISTANCE_CM = 100;
+constexpr uint8_t US_MAX_DISTANCE_CM = OBSTACLE_THRESHOLD_CM + 10U;
 
 /**
  * @brief Tiempo máximo de espera para el pulso de eco [µs].
@@ -29,13 +36,6 @@ constexpr uint8_t US_MAX_DISTANCE_CM = 100;
  * Limita el tiempo de espera para evitar bloqueos prolongados si no hay reflexión.
  */
 constexpr uint32_t US_PULSE_TIMEOUT_US = US_MAX_DISTANCE_CM / US_CM_PER_US;
-
-/**
- * @brief Umbral de detección de obstáculo [cm].
- * 
- * Si la distancia medida es menor a este valor, se considera que hay un obstáculo.
- */
-constexpr uint8_t OBSTACLE_THRESHOLD_CM = 30;
 
 
 /* -------------------- Módulo DistanceSensors -------------------- */
@@ -127,12 +127,22 @@ namespace DistanceSensors {
      *
      * Esta función verifica si alguno de los sensores (izquierdo, central o derecho)
      * ha detectado un obstáculo, y actualiza el flag `obstacle_detected` en la estructura
-     * `DistanceSensorData`. Retorna el nuevo valor del flag global.
+     * `DistanceSensorData`.
      *
      * @param data Referencia a la estructura `DistanceSensorData` que contiene los flags individuales.
-     * @return true si al menos un sensor detecta obstáculo, false en caso contrario.
+     * @return Un bool que indica si la flag es true o false
      */
-    bool update_global_obstacle_flag(volatile DistanceSensorData& data);
+    bool compute_global_obstacle_flag(volatile DistanceSensorData& data);
+
+    /**
+     * @brief Actualiza el flag global de detección de obstáculos basado en los sensores individuales.
+     *
+     * Esta función verifica si alguno de los sensores (izquierdo, central o derecho) ha detectado un obstáculo.
+     * Actualiza el flag global
+     *
+     * @param data Referencia a la estructura `DistanceSensorData` que contiene los flags individuales.
+     */
+    void update_global_obstacle_flag(volatile DistanceSensorData& data);
 
     /**
      * @brief Tarea RTOS que verifica periódicamente el sensor ultrasónico izquierdo.
@@ -160,8 +170,6 @@ namespace DistanceSensors {
      * @param pvParameters Puntero al contexto global (cast a `GlobalContext*`).
      */
     void Task_CheckRightObstacle(void* pvParameters);
-
-    void Task_UpdateObstacleFlag(void* pvParameters);
 
 }
 

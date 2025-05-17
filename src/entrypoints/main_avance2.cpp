@@ -82,7 +82,7 @@ void Task_FaseManager(void* pvParameters) {
                 fase_wL_ref = fases[fase_indice_actual].wL_ref;
                 fase_wR_ref = fases[fase_indice_actual].wR_ref;
 
-                uint32_t t_actual = millis();
+                const uint32_t t_actual = millis();
                 fase_tiempo_acumulado += (t_actual - t_anterior);
                 t_anterior = t_actual;
 
@@ -99,20 +99,22 @@ void Task_FaseManager(void* pvParameters) {
                 if (fabsf(wheels.wL_measured) < W_STOP_THRESHOLD &&
                     fabsf(wheels.wR_measured) < W_STOP_THRESHOLD) {
                     MotorController::set_motors_mode(
-                        MOTOR_IDLE, states.motor_operation, wheels.duty_left, wheels.duty_right);
+                        MOTOR_IDLE, states.motors, wheels.duty_left, wheels.duty_right);
                     fase_estado = FaseEstado::DETENIDO_POR_OBSTACULO;
                     Serial.println("Vehiculo detenido completamente por obstaculo.");
                 }
                 break;
             }
             case FaseEstado::DETENIDO_POR_OBSTACULO: {
-                if (!distance_data.obstacle_detected) {
+                const bool obstacle_flag = DistanceSensors::compute_global_obstacle_flag(distance_data);
+                if (!obstacle_flag) {
                     fase_estado = FaseEstado::EJECUTANDO;
                     MotorController::set_motors_mode(
-                        MOTOR_AUTO, states.motor_operation, wheels.duty_left, wheels.duty_right);
+                        MOTOR_AUTO, states.motors, wheels.duty_left, wheels.duty_right);
                     fase_wL_ref = fases[fase_indice_actual].wL_ref;
                     fase_wR_ref = fases[fase_indice_actual].wR_ref;
                     Serial.println("Obstaculo retirado. Reanudando fase actual.");
+                    DistanceSensors::update_global_obstacle_flag(distance_data);
                 }
                 break;
             }
@@ -120,9 +122,9 @@ void Task_FaseManager(void* pvParameters) {
                 fase_wL_ref = 0.0f;
                 fase_wR_ref = 0.0f;
                 PositionController::set_wheel_speed_ref(
-                    fase_wL_ref, fase_wR_ref, wheels.wL_ref, wheels.wR_ref, states.position_controller);
+                    fase_wL_ref, fase_wR_ref, wheels.wL_ref, wheels.wR_ref, states.position);
                 MotorController::set_motors_mode(
-                    MOTOR_IDLE, states.motor_operation, wheels.duty_left, wheels.duty_right);
+                    MOTOR_IDLE, states.motors, wheels.duty_left, wheels.duty_right);
                 Serial.println("Finalizado.");
                 vTaskSuspend(nullptr);
                 break;
@@ -130,7 +132,7 @@ void Task_FaseManager(void* pvParameters) {
         }
 
         PositionController::set_wheel_speed_ref(
-            fase_wL_ref, fase_wR_ref, wheels.wL_ref, wheels.wR_ref, states.position_controller);
+            fase_wL_ref, fase_wR_ref, wheels.wL_ref, wheels.wR_ref, states.position);
     }
 }
 
@@ -148,16 +150,6 @@ void Task_Printer(void* pvParameters) {
     }
 }
 
-void Task_UpdateObstacleFlag(void* pvParameters) {
-    const TickType_t period = pdMS_TO_TICKS(25);
-    TickType_t xLastWakeTime = xTaskGetTickCount();
-
-    GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
-    for (;;) {
-        vTaskDelayUntil(&xLastWakeTime, period);
-        DistanceSensors::update_global_obstacle_flag(*ctx->distance_ptr);
-    }
-}
 
 // ====================== SETUP ======================
 void setup() {
@@ -166,17 +158,17 @@ void setup() {
     Serial.println("Inicio: Avance 2");
     delay(1000);
 
-    MotorController::init(states.motor_operation, wheels.duty_left, wheels.duty_right);
-    MotorController::set_motors_mode(MOTOR_AUTO, states.motor_operation, wheels.duty_left, wheels.duty_right);
+    MotorController::init(states.motors, wheels.duty_left, wheels.duty_right);
+    MotorController::set_motors_mode(MOTOR_AUTO, states.motors, wheels.duty_left, wheels.duty_right);
 
-    PositionController::init(states.position_controller, wheels.wL_ref, wheels.wR_ref);
-    PositionController::set_control_mode(SPEED_REF_MANUAL, states.position_controller);
+    PositionController::init(states.position, wheels.wL_ref, wheels.wR_ref);
+    PositionController::set_control_mode(SPEED_REF_MANUAL, states.position, wheels.wL_ref, wheels.wR_ref);
 
     DistanceSensors::init_system(states.distance, distance_data);
     DistanceSensors::set_state(ACTIVE, states.distance);
 
-    EncoderReader::init(wheels, states.encoder);
-    EncoderReader::resume(states.encoder);
+    EncoderReader::init(wheels, states.encoders);
+    EncoderReader::resume(states.encoders);
 
     // Tareas principales (núcleo 1)
     xTaskCreatePinnedToCore(EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2048, &ctx, 1, nullptr, 1);
@@ -187,7 +179,6 @@ void setup() {
     xTaskCreatePinnedToCore(DistanceSensors::Task_CheckLeftObstacle, "US_Left", 2048, &ctx, 1, nullptr, 0);
     xTaskCreatePinnedToCore(DistanceSensors::Task_CheckMidObstacle, "US_Mid", 2048, &ctx, 1, nullptr, 0);
     xTaskCreatePinnedToCore(DistanceSensors::Task_CheckRightObstacle, "US_Right", 2048, &ctx, 1, nullptr, 0);
-    xTaskCreatePinnedToCore(Task_UpdateObstacleFlag, "UpdateObstacleFlag", 2048, &ctx, 1, nullptr, 0);
     xTaskCreatePinnedToCore(Task_Printer, "Printer", 2048, nullptr, 1, nullptr, 0);
 }
 
