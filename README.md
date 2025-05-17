@@ -1,6 +1,6 @@
 # Proyecto Vehículo Autónomo - ESP32
 
-Este repositorio contiene el código fuente para un vehículo autónomo controlado por una ESP32, desarrollado como parte del curso **IEE2913 - Diseño Eléctrico (Capstone)**. El sistema implementa navegación autónoma con control de posición (X, Y), estimación de pose mediante encoders, evasión de obstáculos y estructura multitarea utilizando RTOS (FreeRTOS sobre ESP32).
+Este repositorio contiene el código fuente para un vehículo autónomo controlado por una ESP32, desarrollado como parte del curso **IEE2913 - Diseño Eléctrico**. El sistema implementa navegación autónoma con control de posición (X, Y), estimación de pose mediante encoders e IMU, evasión de obstáculos y estructura multitarea utilizando RTOS (FreeRTOS sobre ESP32).
 
 ---
 
