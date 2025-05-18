@@ -129,12 +129,12 @@ namespace PoseEstimator {
 
         for (;;) {
             vTaskDelayUntil(&xLastWakeTime, period);
-            if (s.pose_estimator == ACTIVE) {
+            if (s.pose == ACTIVE) {
                 PoseData pose = estimate_pose_from_encoder(
                     k.x, k.y, k.theta, k.v, k.w,
                     w.wL_measured, w.wR_measured, w.steps_left, w.steps_right
                 );
-                update_pose(pose, k.x, k.y, k.theta, k.v, k.w, s.pose_estimator);
+                update_pose(pose, k.x, k.y, k.theta, k.v, k.w, s.pose);
             }
         }
     }

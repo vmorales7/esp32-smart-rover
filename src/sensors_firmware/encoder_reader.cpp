@@ -64,7 +64,7 @@ namespace EncoderReader {
 
         // Cambio en el giro desde la ultima lectura
         int64_t deltaLeft = (currentCountLeft - lastCountLeft); 
-        int64_t deltaRight = (currentCountRight - lastCountRight) ;
+        int64_t deltaRight = (currentCountRight - lastCountRight);
 
         // Se acumula el giro sobre el valor que se tenía antes
         wheels_data.steps_left += deltaLeft;
@@ -134,7 +134,7 @@ namespace EncoderReader {
 
         // Recuperamos los inputs pasados a la tarea de RTOS
         GlobalContext* ctx_ptr = static_cast<GlobalContext*>(pvParameters);
-        volatile uint8_t* encoder_state_ptr = &ctx_ptr->systems_ptr->encoder;
+        volatile uint8_t* encoder_state_ptr = &ctx_ptr->systems_ptr->encoders;
         volatile WheelsData* wheels_data_ptr = ctx_ptr->wheels_ptr;
         for (;;) {
             vTaskDelayUntil(&xLastWakeTime, period);

@@ -18,21 +18,27 @@ void check_duty_limits(DutyProfile& duty) {
 }
 
 void check_duty_speed(DutyProfile& duty, const float w_measured, const float w_ref) {
-    // Revisar si se quiere realizar frenado o inversión
-    int8_t w_measured_sign = (w_measured>=0) ? 1 : -1;
-    int8_t w_ref_sign = (w_ref>=0) ? 1 : -1;
-    float w_measured_abs = fabsf(w_measured);
-    float w_ref_abs = fabsf(w_ref);
-    duty.break_flag = false; // predeterminadamente se devuelve a false
+    // Caracterizar la velocidad
+    const float abs_wm = fabsf(w_measured);
+    const int8_t sign_wm = (w_measured >= 0) ? 1 : -1;
 
-    // Caso en que se desea invertir o frenar activamente
-    if ((duty.duty_dir != w_measured_sign) && (w_measured_abs < w_ref_abs || w_measured_sign != w_ref_sign)) {
-        if (w_measured_abs < W_INVERT_THRESHOLD) return; // Se puede aplicar la inversión!
-    else { // Caso en que la velocidad es demasiado alta para invertir el duty                                                          
+    // ¿Intenta invertir respecto al giro actual?
+    bool break_flag = false;
+    if (duty.duty_dir != sign_wm) {
+        if (abs_wm > W_INVERT_THRESHOLD) { // Demasiado rápido para invertir?
+            // Detener y evaluar frenado
             duty.duty_val = 0.0f;
             duty.abs_duty = 0.0f;
-            if (w_measured_abs < W_BRAKE_THRESHOLD) duty.break_flag = true; // Frenado activo
+            break_flag = (abs_wm < W_BRAKE_THRESHOLD); // Suficientemente lento para aplicar freno?
         }
+    }
+    duty.break_flag = break_flag;
+
+    // ¿Está partiendo el vehículo desde una posición de detención? -> El duty debe ser mayor al mínimo
+    if (duty.abs_duty > ZERO_DUTY_THRESHOLD && abs_wm < W_STOP_THRESHOLD) {
+        const float new_abs =  fmaxf(duty.abs_duty, MIN_START_DUTY);
+        duty.abs_duty = new_abs;
+        duty.duty_val = new_abs * duty.duty_dir;
     }
 }
 
@@ -45,14 +51,6 @@ DutyProfile init_duty_profile(const float rawDuty) {
     duty_profile.duty_dir = fw ? 1 : -1;
     return duty_profile;
 }
-
-// void update_duty_profile(const float rawDuty, DutyProfile& duty_profile) {
-//     duty_profile.duty_val = rawDuty;
-//     duty_profile.abs_duty = fabsf(rawDuty);
-//     bool fw = rawDuty >= 0.0f;
-//     duty_profile.forward = fw;
-//     duty_profile.duty_dir = fw ? 1 : -1;
-// }
 
 
 /* ------------------ Funciones de control PI --------------------*/
@@ -179,20 +177,20 @@ namespace MotorController {
 
         // Modificación del modo de operación
         motor_state_global = mode_new; 
+        dutyL_global = 0.0;
+        dutyR_global = 0.0;
+
+        // Clasificación según cambio
         if (mode_new == MOTOR_AUTO) { // Resetear los integradores de PID al pasar a AUTO
             pidLeft.reset();
             pidRight.reset();
         } else if (mode_new == MOTOR_BREAK) {
             set_motor_break(WHEEL_LEFT);
             set_motor_break(WHEEL_RIGHT);
-            dutyL_global = 0.0;
-            dutyR_global = 0.0;
 
         } else { // Cualquier otro modo se considera IDLE (safe)
             set_motor_idle(WHEEL_LEFT);
             set_motor_idle(WHEEL_RIGHT);
-            dutyL_global = 0.0;
-            dutyR_global = 0.0;
         }
     }
 
@@ -216,7 +214,6 @@ namespace MotorController {
         set_motor_pwm(wheel_id, duty_data.abs_duty, duty_data.forward);
         global_duty = duty_data.duty_val;
     }
-
 
     void set_motors_duty(
         volatile float duty_left, volatile float duty_right, 
@@ -258,7 +255,7 @@ namespace MotorController {
         GlobalContext* ctx_ptr = static_cast<GlobalContext*>(pvParameters);
     
         // Punteros a las variables necesarias
-        volatile uint8_t* motor_state_ptr = &ctx_ptr->systems_ptr->motor_operation;
+        volatile uint8_t* motor_state_ptr = &ctx_ptr->systems_ptr->motors;
         volatile WheelsData* wheels_data_ptr = ctx_ptr->wheels_ptr;
 
         // Llamar periódicamente a la función

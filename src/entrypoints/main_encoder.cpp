@@ -31,6 +31,27 @@ void Task_SerialPrint(void* pvParameters) {
     }
 }
 
+void Task_SerialPrintPlot(void* pvParameters) { 
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    const TickType_t period = pdMS_TO_TICKS(PRINT_PERIOD_MS);
+
+    static uint32_t t0_ms = millis();
+
+    for (;;) {
+        vTaskDelayUntil(&xLastWakeTime, period);
+
+        // Tiempo actual en segundos
+        float t = (millis() - t0_ms) * MS_TO_S;
+
+        // Imprimir: tiempo | steps | velocidad
+        Serial.print(t, 2);
+        Serial.print(" ");
+        Serial.print(wheels_data.steps_left);
+        Serial.print(" ");
+        Serial.println(wheels_data.wL_measured, 2);
+    }
+}
+
 // ====================== SETUP ======================
 void setup() {
     Serial.begin(115200);
@@ -39,29 +60,26 @@ void setup() {
 
     // Inicializar motor
     MotorController::init(
-        system_states.motor_operation, wheels_data.duty_left, wheels_data.duty_right);
+        system_states.motors, wheels_data.duty_left, wheels_data.duty_right);
     MotorController::set_motors_mode(
-        MOTOR_ACTIVE, system_states.motor_operation, wheels_data.duty_left, wheels_data.duty_right);
+        MOTOR_ACTIVE, system_states.motors, wheels_data.duty_left, wheels_data.duty_right);
 
     // Inicializar encoder
-    EncoderReader::init(wheels_data, system_states.encoder);
-    EncoderReader::resume(system_states.encoder);
+    EncoderReader::init(wheels_data, system_states.encoders);
+    EncoderReader::resume(system_states.encoders);
 
     // Crear tareas
-    xTaskCreatePinnedToCore(
-        EncoderReader::Task_EncoderUpdate,
-        "EncoderUpdate",
-        2048, &ctx, 2, nullptr, APP_CPU_NUM
-    );
-    xTaskCreatePinnedToCore(
-        Task_SerialPrint,
-        "SerialMonitor",
-        2048, nullptr, 1, nullptr, APP_CPU_NUM
-    );
+    xTaskCreatePinnedToCore(EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2048, &ctx, 2, nullptr, APP_CPU_NUM);
+    // xTaskCreatePinnedToCore(Task_SerialPrint, "SerialMonitor", 2048, nullptr, 1, nullptr, APP_CPU_NUM);
 
     // Empezamos la operación
     MotorController::set_motors_duty(
-        0.5f, 0.5f, wheels_data.duty_left, wheels_data.duty_right, system_states.motor_operation);
+        0.5f, 0.5f, wheels_data.duty_left, wheels_data.duty_right, system_states.motors);
+
+    // Pruebas de desempeño
+    // MotorController::set_motors_mode(
+    //     MOTOR_IDLE, system_states.motor_operation, wheels_data.duty_left, wheels_data.duty_right);
+    // xTaskCreatePinnedToCore(Task_SerialPrintPlot, "PrintPlot", 2048, nullptr, 1, nullptr, APP_CPU_NUM);
 }
 
 // ====================== LOOP ======================

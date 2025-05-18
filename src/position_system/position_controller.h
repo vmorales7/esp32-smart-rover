@@ -45,10 +45,13 @@ namespace PositionController {
      *
      * @param new_mode Nuevo modo deseado (SPEED_REF_INACTIVE, SPEED_REF_MANUAL, SPEED_REF_AUTO)
      * @param control_mode Variable con estado del controlador de posición
+     * @param wL_ref Variable con referencia de rueda izquierda [rad/s]
+     * @param wR_ref Variable con referencia de rueda derecha [rad/s]
      */
     void set_control_mode(
         const uint8_t new_mode,
-        volatile uint8_t& control_mode
+        volatile uint8_t& control_mode,
+        volatile float& wL_ref, volatile float& wR_ref
     );
 
     /**

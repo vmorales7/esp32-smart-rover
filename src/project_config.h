@@ -38,6 +38,14 @@ constexpr uint8_t IMU_SCL_PIN = 5;
 
 /* -------------- Constantes generales --------------*/
 
+// Parámetros físicos del vehículo
+constexpr float WHEEL_RADIUS = 0.067f / 2.0f;    // en metros
+constexpr float WHEEL_DISTANCE = 0.194f / 2.0f;   // distancia entre ruedas (L)
+
+// Motor speed characteristics
+constexpr uint16_t RPM_NOM = 215U;            // rpm nominales bajo carga (son 280 sin carga)       
+constexpr float WM_NOM = RPM_NOM * 2*PI/60.0; // rad/s nominales bajo carga = 22.51 (29.3 sin carga)
+
 // Para los estados de los sistemas
 constexpr uint8_t ACTIVE   = 1U;
 constexpr uint8_t INACTIVE = 0U;
@@ -46,20 +54,11 @@ constexpr uint8_t INACTIVE = 0U;
 constexpr uint8_t WHEEL_LEFT  = 0U;
 constexpr uint8_t WHEEL_RIGHT = 1U;
 
-// Parámetros físicos del vegículo
-constexpr float WHEEL_RADIUS = 0.066f / 2.0f;    // en metros
-constexpr float WHEEL_DISTANCE = 0.194f / 2.0f;   // distancia entre ruedas (L)
-
 // Auxiliares
 constexpr float MS_TO_S = 0.001f;
 
 
 /* -------------- Constantes del Motor Controller --------------*/
-
-// Motor speed characteristics
-
-constexpr uint16_t RPM_NOM = 215U;            // rpm nominales bajo carga (son 280 sin carga)       
-constexpr float WM_NOM = RPM_NOM * 2*PI/60.0; // rad/s nominales bajo carga = 22.51 (29.3 sin carga)
 
 // Motor modes
 enum MotorMode : uint8_t {
@@ -180,11 +179,11 @@ struct KinematicState {
 struct SystemStates {
     /// Estado del subsistema de motores (MOTOR_IDLE, MOTOR_ACTIVE, etc.).
     /// Define el comportamiento general del controlador de motores y PWM.
-    uint8_t motor_operation;
+    uint8_t motors;
 
     /// Estado del lector de encoders (ACTIVE o INACTIVE).
     /// Si está inactivo, los encoders se pausan y la velocidad se congela en 0.
-    uint8_t encoder;
+    uint8_t encoders;
 
     /// Estado del lector de IMU (ACTIVE o INACTIVE).
     /// Aún no implementado, pero reservado para integración futura.
@@ -196,15 +195,15 @@ struct SystemStates {
 
     /// Estado del estimador de pose (ACTIVE o INACTIVE).
     /// Determina si se actualiza la pose del vehículo en cada ciclo.
-    uint8_t pose_estimator;
+    uint8_t pose;
 
     /// Estado del controlador de posición (ACTIVE o INACTIVE).
     /// Define si se está generando v_ref/w_ref activamente.
-    uint8_t position_controller;
+    uint8_t position;
 
     /// Estado del controlador de evasión de obstáculos (ACTIVE o INACTIVE).
     /// Si está activo, el vehículo ignora la referencia normal y ejecuta maniobras evasivas.
-    uint8_t evade_controller;
+    uint8_t evation;
 };
 
 

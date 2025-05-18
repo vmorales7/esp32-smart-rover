@@ -47,14 +47,14 @@ void ejecutar_fase_con_obstaculo(const char* msg, float dutyL, float dutyR, uint
                 Serial.print(distancia);
                 Serial.println(" cm — deteniendo motores");
                 MotorController::set_motors_duty(
-                    0.0f, 0.0f, wheels_data.duty_left, wheels_data.duty_right, system_states.motor_operation);
+                    0.0f, 0.0f, wheels_data.duty_left, wheels_data.duty_right, system_states.motors);
                 en_movimiento = false;
             }
         } else {
             if (!en_movimiento) {
                 Serial.println("Obstáculo despejado — reanudando movimiento");
                 MotorController::set_motors_duty(
-                    dutyL, dutyR, wheels_data.duty_left, wheels_data.duty_right, system_states.motor_operation);
+                    dutyL, dutyR, wheels_data.duty_left, wheels_data.duty_right, system_states.motors);
                 t_anterior = millis(); // reinicia referencia temporal tras pausa
                 en_movimiento = true;
             }
@@ -64,7 +64,7 @@ void ejecutar_fase_con_obstaculo(const char* msg, float dutyL, float dutyR, uint
             tiempo_acumulado += (t_actual - t_anterior);
             t_anterior = t_actual;
         }
-        EncoderReader::update_encoder_data(wheels_data, system_states.encoder);
+        EncoderReader::update_encoder_data(wheels_data, system_states.encoders);
         if (millis() - t_print >= PRINT_PERIOD_MS) {
             print_encoder_state();
             t_print += PRINT_PERIOD_MS;
@@ -73,7 +73,7 @@ void ejecutar_fase_con_obstaculo(const char* msg, float dutyL, float dutyR, uint
     }
     // Detener al final de la fase
     MotorController::set_motors_duty(
-        0.0f, 0.0f, wheels_data.duty_left, wheels_data.duty_right, system_states.motor_operation);
+        0.0f, 0.0f, wheels_data.duty_left, wheels_data.duty_right, system_states.motors);
 }
 
 
@@ -86,13 +86,13 @@ void setup() {
 
     // Inicialización de motor y encoder
     MotorController::init(
-        system_states.motor_operation, wheels_data.duty_left, wheels_data.duty_right);
+        system_states.motors, wheels_data.duty_left, wheels_data.duty_right);
     MotorController::set_motors_mode(
-        MOTOR_ACTIVE, system_states.motor_operation, wheels_data.duty_left, wheels_data.duty_right);
+        MOTOR_ACTIVE, system_states.motors, wheels_data.duty_left, wheels_data.duty_right);
     DistanceSensors::init_system(system_states.distance, distance_data);
     DistanceSensors::set_state(ACTIVE, system_states.distance);  
-    EncoderReader::init(wheels_data, system_states.encoder);
-    EncoderReader::resume(system_states.encoder);
+    EncoderReader::init(wheels_data, system_states.encoders);
+    EncoderReader::resume(system_states.encoders);
     
     Serial.println();
     
@@ -104,7 +104,7 @@ void setup() {
     ejecutar_fase_con_obstaculo("Avanzando recto (50%)", 0.5f, 0.5f, 5000);
     delay(1000);
     Serial.println("Secuencia completada. Motores en IDLE.");
-    MotorController::set_motors_mode(MOTOR_IDLE, system_states.motor_operation, wheels_data.duty_left, wheels_data.duty_right);
+    MotorController::set_motors_mode(MOTOR_IDLE, system_states.motors, wheels_data.duty_left, wheels_data.duty_right);
 
 }
 

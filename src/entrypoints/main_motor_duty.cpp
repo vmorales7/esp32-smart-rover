@@ -55,8 +55,10 @@ void setup() {
     // Detener motores
     MotorController::set_motors_mode(MOTOR_IDLE, motors_op, dutyL, dutyR);
     Serial.println("Secuencia completada. Detenido.");
+
+    // MotorController::set_motors_duty(0.5f, 0.5f, dutyL, dutyR, motors_op);
 }
 
 void loop() {
-    // Nada, prueba no se repite
+    // Nada, prueba no se repite 
 }

@@ -32,9 +32,18 @@ namespace PositionController {
 
     void set_control_mode(
         const uint8_t new_mode,
-        volatile uint8_t& control_mode
+        volatile uint8_t& control_mode,
+        volatile float& wL_ref, volatile float& wR_ref
     ) {
+        // Si se entrega el mismo modo, no se hace nada
+        if (new_mode == control_mode) return;
+
+        // Siempre se reincian las referencias
         control_mode = new_mode;
+        wL_ref = 0.0f;
+        wR_ref = 0.0f;
+
+        // Acá irían los condicionales según caso
     }
 
     float compute_wheel_speed_ref(const float v_ref, const float w_ref, const uint8_t wheel_id) {
@@ -184,13 +193,13 @@ namespace PositionController {
 
         for (;;) {
             vTaskDelayUntil(&xLastWakeTime, period);
-            uint8_t mode = sys->position_controller;
+            uint8_t mode = sys->position;
 
             if (mode == SPEED_REF_AUTO_BASIC) {
                 compute_auto_wheel_speed(
                     kin->x,   kin->y,   kin->theta,
                     kin->x_d, kin->y_d,
-                    sys->position_controller,
+                    sys->position,
                     whl->wL_ref, whl->wR_ref
                 );
             }
@@ -198,7 +207,7 @@ namespace PositionController {
                 compute_auto_wheel_speed_advanced(
                     kin->x,   kin->y,   kin->theta,
                     kin->x_d, kin->y_d,
-                    sys->position_controller,                
+                    sys->position,                
                     whl->wL_ref, whl->wR_ref
                 );
             }

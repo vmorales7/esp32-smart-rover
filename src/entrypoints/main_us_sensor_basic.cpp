@@ -28,7 +28,7 @@ volatile DistanceSensorData distance_data = {0};
 void setup() {
     Serial.begin(115200);
     delay(1000);
-    Serial.println("Test: Sensor Ultrasónico Izquierdo");
+    Serial.println("Test: Sensor Ultrasónico Central");
     DistanceSensors::init_system(distance_state, distance_data);
     DistanceSensors::set_state(ACTIVE, distance_state);
 }
@@ -51,6 +51,9 @@ void loop() {
     } else {
         Serial.println("Área despejada.");
     }
+
+    // // Pruebas
+    // if (obstacle_now) Serial.println(distance_data.us_mid_distance);
 
     delay(500);  // Tiempo entre lecturas
 }
