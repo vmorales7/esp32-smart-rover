@@ -10,13 +10,13 @@ La estructura del código sigue una arquitectura modular, que separa claramente 
 
 ```text
 📁 src/
-├── motor_drive/         # Control de velocidad de ruedas, driver L298N, y PID de velocidad
-├── sensors_firmware/    # Módulos para leer encoders, sensores ultrasónicos, infrarrojos e IMU
+├── motor_drive/         # Control de driver L298N por PWM, y control PI de velocidad de ruedas
+├── sensors_firmware/    # Módulos para leer encoders, sensores ultrasónicos, e IMU
 ├── position_system/     # Estimador de pose y controladores de posición (clásico y avanzado)
-├── communication/       # Conexión a Firebase, WiFi y mensajería (futuro)
-├── vehicle_os/          # Módulo de lógica de operación del vehículo (futuro)
+├── communication/       # Conexión a Firebase, WiFi y mensajería
+├── vehicle_os/          # Módulo de lógica de operación del vehículo
 ├── entrypoints/         # Archivos main.cpp individuales para pruebas específicas
-├── main.cpp             # Main por defecto
+├── main.cpp             # Main por defecto (no usado)
 ├── main_selector.h      # Selector de archivo main activo para compilar desde PlatformIO
 └── project_config.h     # Configuraciones generales del sistema, constantes físicas y pines
 ```
