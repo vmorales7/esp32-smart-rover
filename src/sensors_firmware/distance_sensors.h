@@ -28,7 +28,7 @@ constexpr uint8_t OBSTACLE_THRESHOLD_CM = 30;
  * Si la lectura supera este valor, se considera inválida o sin respuesta
  * y se devuelve US_MAX_DISTANCE_CM.
  */
-constexpr uint8_t US_MAX_DISTANCE_CM = OBSTACLE_THRESHOLD_CM + 10U;
+constexpr uint8_t US_MAX_DISTANCE_CM = 100U;
 
 /**
  * @brief Tiempo máximo de espera para el pulso de eco [µs].
@@ -65,40 +65,74 @@ namespace DistanceSensors {
     uint8_t read_distance(const uint8_t trig_pin, const uint8_t echo_pin);
 
     /**
-     * @brief Reinicia completamente la estructura DistanceSensorData.
-     * 
-     * Establece todas las distancias en US_MAX_DISTANCE_CM y todas las banderas
-     * de detección de obstáculos en false. Se utiliza durante la inicialización
-     * o al reiniciar el módulo de sensores.
-     * 
-     * @param distance_data Variable global con la estructura DistanceSensorData que se desea reiniciar.
-     * @param distance_state Variable global con el estado de operación del sistema
+     * @brief Reinicia el sistema de sensores de distancia con variables individuales.
+     *
+     * Esta función establece todas las distancias en el valor máximo permitido (`US_MAX_DISTANCE_CM`),
+     * limpia todas las banderas de detección de obstáculos (izquierda, medio, derecha y global).
+     *
+     * @param left_dist Referencia a la distancia medida por el sensor izquierdo [cm].
+     * @param left_obst Referencia al flag de obstáculo detectado por el sensor izquierdo.
+     * @param mid_dist Referencia a la distancia medida por el sensor central [cm].
+     * @param mid_obst Referencia al flag de obstáculo detectado por el sensor central.
+     * @param right_dist Referencia a la distancia medida por el sensor derecho [cm].
+     * @param right_obst Referencia al flag de obstáculo detectado por el sensor derecho.
+     * @param obstacle Referencia al flag de obstáculo global (combinado).
      */
-    void reset_system(volatile DistanceSensorData& distance_data, volatile uint8_t& distance_state);
+    void reset_system(
+        volatile uint8_t& left_dist, volatile bool& left_obst,
+        volatile uint8_t& mid_dist, volatile bool& mid_obst,
+        volatile uint8_t& right_dist, volatile bool& right_obst,
+        volatile bool& obstacle
+    );
 
     /**
      * @brief Inicializa los sensores de distancia y reinicia la estructura de datos asociada.
      * 
      * Configura los pines TRIG y ECHO de los sensores ultrasónicos (izquierdo, medio y derecho).
-     * Además, deja en estado INACTIVE el módulo y reinicia la estructura `DistanceSensorData`:
+     * Además, deja en estado INACTIVE el módulo y reinicia valores:
      * - Todas las distancias se establecen en `US_MAX_DISTANCE_CM`.
      * - Todas las banderas de obstáculos se ponen en `false`.
      * 
-     * @param distance_state Variable global con estado global del módulo de sensores (ACTIVE o INACTIVE).
-     * @param distance_data Variable global con la estructura `DistanceSensorData` que será reiniciada.
+     * @param left_dist Referencia a la distancia medida por el sensor izquierdo [cm].
+     * @param left_obst Referencia al flag de obstáculo detectado por el sensor izquierdo.
+     * @param mid_dist Referencia a la distancia medida por el sensor central [cm].
+     * @param mid_obst Referencia al flag de obstáculo detectado por el sensor central.
+     * @param right_dist Referencia a la distancia medida por el sensor derecho [cm].
+     * @param right_obst Referencia al flag de obstáculo detectado por el sensor derecho.
+     * @param obstacle Referencia al flag de obstáculo global (combinado).
+     * @param distance_state Referencia al estado del sistema de sensores (se establece como INACTIVE).
      */
-    void init_system(
-        volatile uint8_t& distance_state,
-        volatile DistanceSensorData& distance_data
+    void init(
+        volatile uint8_t& left_dist, volatile bool& left_obst,
+        volatile uint8_t& mid_dist, volatile bool& mid_obst,
+        volatile uint8_t& right_dist, volatile bool& right_obst,
+        volatile bool& obstacle, volatile uint8_t& distance_state
     );
 
     /**
-     * @brief Cambia el estado activo/inactivo del módulo de sensores de distancia.
-     * 
-     * @param new_mode Valor deseado del estado (ACTIVE o INACTIVE).
-     * @param distance_state Variable global con estado global del módulo.
+     * @brief Establece el estado operativo del sistema de sensores de distancia.
+     *
+     * Esta función cambia el estado del sistema de sensores a ACTIVE o INACTIVE.
+     * Si el nuevo estado es INACTIVE, se ejecuta automáticamente un reinicio completo
+     * de las distancias y banderas de detección de obstáculos individuales y global.
+     *
+     * @param new_mode Nuevo modo a establecer (ACTIVE o INACTIVE).
+     * @param distance_state Referencia al estado actual del sistema de sensores.
+     * @param left_dist Referencia a la distancia medida por el sensor izquierdo [cm].
+     * @param left_obst Referencia al flag de obstáculo detectado por el sensor izquierdo.
+     * @param mid_dist Referencia a la distancia medida por el sensor central [cm].
+     * @param mid_obst Referencia al flag de obstáculo detectado por el sensor central.
+     * @param right_dist Referencia a la distancia medida por el sensor derecho [cm].
+     * @param right_obst Referencia al flag de obstáculo detectado por el sensor derecho.
+     * @param obstacle Referencia al flag de obstáculo global (true si cualquiera de los sensores lo detecta).
      */
-    void set_state(const uint8_t new_mode, volatile uint8_t& distance_state);
+    void set_state(
+        const uint8_t new_mode, volatile uint8_t& distance_state,
+        volatile uint8_t& left_dist,  volatile bool& left_obst,
+        volatile uint8_t& mid_dist,   volatile bool& mid_obst,
+        volatile uint8_t& right_dist, volatile bool& right_obst,
+        volatile bool& obstacle
+    );
 
     /**
      * @brief Evalúa un único sensor ultrasónico y actualiza su distancia y estado de obstáculo.
@@ -123,26 +157,39 @@ namespace DistanceSensors {
     );
 
     /**
-     * @brief Actualiza el flag global de detección de obstáculos basado en los sensores individuales.
+     * @brief Calcula la presencia de un obstáculo global a partir de las banderas individuales.
      *
-     * Esta función verifica si alguno de los sensores (izquierdo, central o derecho)
-     * ha detectado un obstáculo, y actualiza el flag `obstacle_detected` en la estructura
-     * `DistanceSensorData`.
+     * Esta función retorna `true` si al menos uno de los sensores ultrasónicos
+     * (izquierdo, medio o derecho) ha detectado un obstáculo.
      *
-     * @param data Referencia a la estructura `DistanceSensorData` que contiene los flags individuales.
-     * @return Un bool que indica si la flag es true o false
+     * @param left_obst Referencia al flag de obstáculo detectado por el sensor izquierdo.
+     * @param mid_obst Referencia al flag de obstáculo detectado por el sensor central.
+     * @param right_obst Referencia al flag de obstáculo detectado por el sensor derecho.
+     * @return `true` si hay al menos un obstáculo detectado por alguno de los sensores.
      */
-    bool compute_global_obstacle_flag(volatile DistanceSensorData& data);
+    bool compute_global_obstacle_flag(
+        volatile bool& left_obst,
+        volatile bool& mid_obst,
+        volatile bool& right_obst
+    );
 
     /**
-     * @brief Actualiza el flag global de detección de obstáculos basado en los sensores individuales.
+     * @brief Actualiza el flag global de detección de obstáculos.
      *
-     * Esta función verifica si alguno de los sensores (izquierdo, central o derecho) ha detectado un obstáculo.
-     * Actualiza el flag global
+     * Esta función calcula si existe un obstáculo en base a las banderas individuales
+     * de los sensores (izquierdo, medio, derecho) y actualiza el flag global `obstacle`.
      *
-     * @param data Referencia a la estructura `DistanceSensorData` que contiene los flags individuales.
+     * @param left_obst Referencia al flag de obstáculo detectado por el sensor izquierdo.
+     * @param mid_obst Referencia al flag de obstáculo detectado por el sensor central.
+     * @param right_obst Referencia al flag de obstáculo detectado por el sensor derecho.
+     * @param obstacle Referencia al flag global de obstáculo, que se actualiza como salida de la función.
      */
-    void update_global_obstacle_flag(volatile DistanceSensorData& data);
+    void update_global_obstacle_flag(
+        volatile bool& left_obst,
+        volatile bool& mid_obst,
+        volatile bool& right_obst,
+        volatile bool& obstacle
+    );
 
     /**
      * @brief Tarea RTOS que verifica periódicamente el sensor ultrasónico izquierdo.

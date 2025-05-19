@@ -23,25 +23,25 @@ namespace PositionController {
 
     void init(
         volatile uint8_t& control_mode,
-        volatile float& wL_ref, volatile float& wR_ref
+        volatile float& w_L_ref, volatile float& w_R_ref
     ) {
         control_mode = SPEED_REF_INACTIVE;
-        wL_ref = 0.0f;
-        wR_ref = 0.0f;
+        w_L_ref = 0.0f;
+        w_R_ref = 0.0f;
     }
 
     void set_control_mode(
         const uint8_t new_mode,
         volatile uint8_t& control_mode,
-        volatile float& wL_ref, volatile float& wR_ref
+        volatile float& w_L_ref, volatile float& w_R_ref
     ) {
         // Si se entrega el mismo modo, no se hace nada
         if (new_mode == control_mode) return;
 
         // Siempre se reincian las referencias
         control_mode = new_mode;
-        wL_ref = 0.0f;
-        wR_ref = 0.0f;
+        w_L_ref = 0.0f;
+        w_R_ref = 0.0f;
 
         // Acá irían los condicionales según caso
     }
@@ -57,18 +57,18 @@ namespace PositionController {
     }
 
     void set_wheel_speed_ref(
-        const float wL, const float wR,
-        volatile float& wL_ref_global, volatile float& wR_ref_global,
+        const float w_L, const float w_R,
+        volatile float& w_L_ref_global, volatile float& w_R_ref_global,
         volatile uint8_t& control_mode
     ) {
         if (control_mode == SPEED_REF_MANUAL) {
-            wL_ref_global = constrain(wL, -WM_NOM, WM_NOM);
-            wR_ref_global = constrain(wR, -WM_NOM, WM_NOM);
+            w_L_ref_global = constrain(w_L, -WM_NOM, WM_NOM);
+            w_R_ref_global = constrain(w_R, -WM_NOM, WM_NOM);
 
         // El controlador internamente debe hacer el ajuste
         } else if (control_mode == SPEED_REF_AUTO_BASIC || control_mode == SPEED_REF_AUTO_ADVANCED){ 
-            wL_ref_global = wL;
-            wR_ref_global = wR;
+            w_L_ref_global = w_L;
+            w_R_ref_global = w_R;
         }
     }
 
@@ -79,8 +79,8 @@ namespace PositionController {
         const float x_d,
         const float y_d,
         volatile uint8_t& control_mode,
-        volatile float& wL_ref,
-        volatile float& wR_ref
+        volatile float& w_L_ref,
+        volatile float& w_R_ref
     ) {
         if (control_mode != SPEED_REF_AUTO_BASIC) return;
 
@@ -136,7 +136,7 @@ namespace PositionController {
         float wL = compute_wheel_speed_ref(v_ref, w_ref, WHEEL_LEFT);
         float wR = compute_wheel_speed_ref(v_ref, w_ref, WHEEL_RIGHT);
 
-        set_wheel_speed_ref(wL, wR, wL_ref, wR_ref, control_mode);
+        set_wheel_speed_ref(wL, wR, w_L_ref, w_R_ref, control_mode);
         last_millis = now;
     }
 
@@ -200,7 +200,7 @@ namespace PositionController {
                     kin->x,   kin->y,   kin->theta,
                     kin->x_d, kin->y_d,
                     sys->position,
-                    whl->wL_ref, whl->wR_ref
+                    whl->w_L_ref, whl->w_R_ref
                 );
             }
             else if (mode == SPEED_REF_AUTO_ADVANCED) {
@@ -208,7 +208,7 @@ namespace PositionController {
                     kin->x,   kin->y,   kin->theta,
                     kin->x_d, kin->y_d,
                     sys->position,                
-                    whl->wL_ref, whl->wR_ref
+                    whl->w_L_ref, whl->w_R_ref
                 );
             }
         }

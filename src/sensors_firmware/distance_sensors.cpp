@@ -28,32 +28,50 @@ namespace DistanceSensors {
     }
 
 
-    void reset_system(volatile DistanceSensorData& distance_data, volatile uint8_t& distance_state) {
-        // Reset de la estructura DistanceSensorData
-        distance_data.obstacle_detected   = false;
-        distance_data.us_left_obstacle    = false;
-        distance_data.us_mid_obstacle     = false;
-        distance_data.us_right_obstacle   = false;
-        distance_data.us_left_distance    = US_MAX_DISTANCE_CM;
-        distance_data.us_mid_distance     = US_MAX_DISTANCE_CM;
-        distance_data.us_right_distance   = US_MAX_DISTANCE_CM;
-        set_state(INACTIVE, distance_state);
+    void reset_system(
+        volatile uint8_t& left_dist, volatile bool& left_obst,
+        volatile uint8_t& mid_dist, volatile bool& mid_obst,
+        volatile uint8_t& right_dist, volatile bool& right_obst,
+        volatile bool& obstacle
+    ) {
+        obstacle = false;
+        left_obst  = false;
+        mid_obst   = false;
+        right_obst = false;
+        left_dist  = US_MAX_DISTANCE_CM;
+        mid_dist  = US_MAX_DISTANCE_CM;
+        right_dist  = US_MAX_DISTANCE_CM;
     }
 
     
-    void init_system(volatile uint8_t& distance_state, volatile DistanceSensorData& distance_data) {
+    void init(
+        volatile uint8_t& left_dist, volatile bool& left_obst,
+        volatile uint8_t& mid_dist, volatile bool& mid_obst,
+        volatile uint8_t& right_dist, volatile bool& right_obst,
+        volatile bool& obstacle, volatile uint8_t& distance_state
+    ) {
         // Configuración de pines de sensores ultrasónicos
         init_sensor(US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN);
         init_sensor(US_MID_TRIG_PIN, US_MID_ECHO_PIN);
         init_sensor(US_RIGHT_TRIG_PIN, US_RIGHT_ECHO_PIN);
 
         // Reset de la estructura DistanceSensorData
-        reset_system(distance_data, distance_state);
+        reset_system(left_dist, left_obst, mid_dist, mid_obst, right_dist, right_obst, obstacle);
     }
 
 
-    void set_state(const uint8_t new_mode, volatile uint8_t& distance_state) {
+    void set_state(
+        const uint8_t new_mode, volatile uint8_t& distance_state,
+        volatile uint8_t& left_dist, volatile bool& left_obst,
+        volatile uint8_t& mid_dist, volatile bool& mid_obst,
+        volatile uint8_t& right_dist, volatile bool& right_obst,
+        volatile bool& obstacle
+    ) {
+        if (new_mode == distance_state) return;
         distance_state = (new_mode == ACTIVE) ? ACTIVE : INACTIVE;
+        if (distance_state == INACTIVE) {
+            reset_system(left_dist, left_obst, mid_dist, mid_obst, right_dist, right_obst, obstacle);
+        }
     }
 
 
@@ -83,16 +101,16 @@ namespace DistanceSensors {
         return obstacle_flag;
     }
 
-    bool compute_global_obstacle_flag(volatile DistanceSensorData& data) {
-        bool obstacle_detected =
-            data.us_left_obstacle ||
-            data.us_mid_obstacle ||
-            data.us_right_obstacle;
-        return obstacle_detected;
+    bool compute_global_obstacle_flag(
+        volatile bool& left_obst, volatile bool& mid_obst, volatile bool& right_obst
+    ) {
+        return left_obst || mid_obst || right_obst;
     }
 
-    void update_global_obstacle_flag(volatile DistanceSensorData& data) {
-        data.obstacle_detected = compute_global_obstacle_flag(data);
+    void update_global_obstacle_flag(
+        volatile bool& left_obst, volatile bool& mid_obst, volatile bool& right_obst, volatile bool& obstacle
+    ) { 
+        obstacle = compute_global_obstacle_flag(left_obst, mid_obst, right_obst);
     }
 
     void Task_CheckLeftObstacle(void* pvParameters) {
@@ -105,8 +123,8 @@ namespace DistanceSensors {
             vTaskDelayUntil(&xLastWakeTime, period);
             check_sensor_obstacle(
                 US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN,
-                ctx->distance_ptr->us_left_distance,
-                ctx->distance_ptr->us_left_obstacle,
+                ctx->distance_ptr->left_dist,
+                ctx->distance_ptr->left_obst,
                 ctx->distance_ptr->obstacle_detected,
                 ctx->systems_ptr->distance
             );            
@@ -123,8 +141,8 @@ namespace DistanceSensors {
             vTaskDelayUntil(&xLastWakeTime, period);
             check_sensor_obstacle(
                 US_MID_TRIG_PIN, US_MID_ECHO_PIN,
-                ctx->distance_ptr->us_mid_distance,
-                ctx->distance_ptr->us_mid_obstacle,
+                ctx->distance_ptr->mid_dist,
+                ctx->distance_ptr->mid_obst,
                 ctx->distance_ptr->obstacle_detected,
                 ctx->systems_ptr->distance
             );
@@ -141,8 +159,8 @@ namespace DistanceSensors {
             vTaskDelayUntil(&xLastWakeTime, period);
             check_sensor_obstacle(
                 US_RIGHT_TRIG_PIN, US_RIGHT_ECHO_PIN,
-                ctx->distance_ptr->us_right_distance,
-                ctx->distance_ptr->us_right_obstacle,
+                ctx->distance_ptr->right_dist,
+                ctx->distance_ptr->right_obst,
                 ctx->distance_ptr->obstacle_detected,
                 ctx->systems_ptr->distance
             );            
