@@ -127,6 +127,7 @@ constexpr uint16_t US_SENSOR_READ_PERIOD_MS = 250;
 constexpr uint16_t OBSTACLE_CHECK_PERIOD_MS = 100;
 constexpr uint16_t POSE_ESTIMATOR_PERIOD_MS = 200; 
 constexpr uint16_t POSITION_CONTROL_PERIOD_MS = 200;
+constexpr uint16_t IMU_READ_PERIOD_MS = 20;
 
 
 /* -------------------- Estructuras con la data del sistema --------------------*/
@@ -285,15 +286,12 @@ struct DistanceSensorData {
  * - Movimiento de angulos segun magnetometro
  */
 struct IMUSensorData{
-    
     float ax; ///< aceleración en el eje x
     float ay; ///< aceleración en el eje y
     float vx; ///< velocidad en el eje x
     float vy; ///< velocidad en el eje y
     float w_gyro; ///< velocidad angular con respecto al eje z
-    float theta_in; ///< ángulo rotación respecto al norte magnetico inicial
-    float theta_f; ///< ángulo rotación respecto al norte magnetico final
-    float theta; ///< ángulo rotación respecto al norte magnetico de output total (orientacion absoluta)
+    float mag_angle; ///< ángulo rotación respecto al norte magnetico de output total (orientacion absoluta)
 };
 
 

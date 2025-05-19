@@ -70,7 +70,9 @@ void Task_ControlPorPuntos(void* pvParameters) {
         float dx = kinem.x_d - kinem.x;
         float dy = kinem.y_d - kinem.y;
         float dist = sqrtf(dx * dx + dy * dy);
-        if (dist < DISTANCE_TOLERANCE) {
+        if (dist > DISTANCE_TOLERANCE) {
+            Serial.printf("Punto %d no alcanzado (x=%.2f, y=%.2f)\n", punto_actual, kinem.x, kinem.y);
+        } else {
             Serial.printf("Punto %d alcanzado (x=%.2f, y=%.2f)\n", punto_actual, kinem.x, kinem.y);
             punto_actual++;
         }

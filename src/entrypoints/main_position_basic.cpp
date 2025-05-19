@@ -22,8 +22,8 @@ GlobalContext ctx = {
 };
 
 // ====================== CONFIGURACIÓN OBJETIVO ======================
-constexpr float X_OBJETIVO = 1.5f;  // metros
-constexpr float Y_OBJETIVO = 0.8f;  // metros
+constexpr float X_OBJETIVO = 1.0f;  // metros
+constexpr float Y_OBJETIVO = 1.0f;  // metros
 
 // ====================== PROTOTIPOS ======================
 void Task_PrintPose(void* pvParameters);
@@ -73,7 +73,7 @@ void Task_PrintPose(void* pvParameters) {
 
     for (;;) {
         vTaskDelayUntil(&xLastWakeTime, period);
-        Serial.printf("x: %.2f  y: %.2f  θ: %.2f  |  v: %.2f  w: %.2f\n", 
+        Serial.printf("x: %.2f  y: %.2f  θ: %.1f  |  v: %.2f  w: %.2f\n", 
             kinem.x, kinem.y, (kinem.theta * PI), kinem.v, kinem.w);
     }
 }
