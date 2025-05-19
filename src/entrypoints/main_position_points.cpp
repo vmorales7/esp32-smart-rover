@@ -16,10 +16,12 @@ volatile DistanceSensorData distance_data = {0};
 volatile PoseData pose = {0};
 
 GlobalContext ctx = {
-    .systems_ptr = &states,
-    .kinematic_ptr = &kinem,
-    .wheels_ptr = &wheels,
-    .distance_ptr = &distance_data
+    .systems_ptr     = &states,
+    .os_ptr          = nullptr,
+    .kinematic_ptr   = &kinem,
+    .wheels_ptr      = &wheels,
+    .imu_ptr         = nullptr,
+    .distance_ptr    = &distance_data
 };
 
 
@@ -48,15 +50,16 @@ void Task_ControlPorPuntos(void* pvParameters) {
 
         // Si ya completó todos los puntos
         if (punto_actual >= NUM_PUNTOS) {
-            MotorController::set_motors_mode(MOTOR_IDLE, states.motors, wheels.duty_left, wheels.duty_right);
-            PositionController::set_wheel_speed_ref(0.0f, 0.0f, wheels.wL_ref, wheels.wR_ref, states.position);
+            MotorController::set_motors_mode(MOTOR_IDLE, states.motors, wheels.duty_L, wheels.duty_R);
+            PositionController::set_wheel_speed_ref(0.0f, 0.0f, wheels.w_L_ref, wheels.w_R_ref, states.position);
             vTaskSuspend(nullptr);
         }
 
         // Si hay obstáculo, detenemos motores (solo referencia)
-        DistanceSensors::update_global_obstacle_flag(distance_data);
+        DistanceSensors::update_global_obstacle_flag(
+            distance_data.left_obst, distance_data.mid_obst, distance_data.right_obst, distance_data.obstacle_detected);
         if (distance_data.obstacle_detected) {
-            PositionController::set_wheel_speed_ref(0.0f, 0.0f, wheels.wL_ref, wheels.wR_ref, states.position);
+            PositionController::set_wheel_speed_ref(0.0f, 0.0f, wheels.w_L_ref, wheels.w_R_ref, states.position);
             continue;
         }
 
@@ -83,18 +86,29 @@ void setup() {
     Serial.println("Inicio: Seguimiento de puntos");
 
     // Inicialización de sistemas
-    EncoderReader::init(wheels, states.encoders);
-    PoseEstimator::init(kinem.x, kinem.y, kinem.theta, wheels.steps_left, wheels.steps_right, states.pose);
-    MotorController::init(states.motors, wheels.duty_left, wheels.duty_right);
-    DistanceSensors::init_system(states.distance, distance_data);
-    PositionController::init(states.position, wheels.wL_ref, wheels.wR_ref);
+    EncoderReader::init(wheels.steps_L, wheels.steps_R, wheels.w_L, wheels.w_R, states.encoders);
+    PoseEstimator::init(kinem.x, kinem.y, kinem.theta, kinem.v, kinem.w, wheels.steps_L, wheels.steps_R, states.pose);
+    MotorController::init(states.motors, wheels.duty_L, wheels.duty_R);
+    DistanceSensors::init(
+        distance_data.left_dist, distance_data.left_obst, 
+        distance_data.mid_dist, distance_data.mid_obst,
+        distance_data.right_dist, distance_data.right_obst, 
+        distance_data.obstacle_detected, states.distance
+    );
+    PositionController::init(states.position, wheels.w_L_ref, wheels.w_R_ref);
 
     // Puesta en marcha de todo
     EncoderReader::resume(states.encoders);
     PoseEstimator::set_state(ACTIVE, states.pose);
-    DistanceSensors::set_state(ACTIVE, states.distance);
-    MotorController::set_motors_mode(MOTOR_AUTO, states.motors, wheels.duty_left, wheels.duty_right);
-    PositionController::set_control_mode(SPEED_REF_AUTO_BASIC, states.position, wheels.duty_left, wheels.duty_right);
+    DistanceSensors::set_state(
+        ACTIVE, states.distance,
+        distance_data.left_dist, distance_data.left_obst, 
+        distance_data.mid_dist, distance_data.mid_obst,
+        distance_data.right_dist, distance_data.right_obst, 
+        distance_data.obstacle_detected
+    );
+    MotorController::set_motors_mode(MOTOR_AUTO, states.motors, wheels.duty_L, wheels.duty_R);
+    PositionController::set_control_mode(SPEED_REF_AUTO_BASIC, states.position, wheels.w_L_ref, wheels.w_R_ref);
 
     // Tareas de sistema
     xTaskCreatePinnedToCore(EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2048, &ctx, 1, nullptr, 1);

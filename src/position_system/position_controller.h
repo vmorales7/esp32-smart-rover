@@ -31,13 +31,13 @@ namespace PositionController {
      * Establece todas las referencias (v_ref, w_ref, wL_ref, wR_ref) en cero
      * y configura el modo del controlador como SPEED_REF_INACTIVE.
      *
-     * @param wL_ref Variable con referencia de rueda izquierda [rad/s]
-     * @param wR_ref Variable con referencia de rueda derecha [rad/s]
+     * @param w_L_ref Variable con referencia de rueda izquierda [rad/s]
+     * @param w_R_ref Variable con referencia de rueda derecha [rad/s]
      * @param control_mode Variable con modo actual del controlador de posición
      */
     void init(
         volatile uint8_t& control_mode,
-        volatile float& wL_ref, volatile float& wR_ref
+        volatile float& w_L_ref, volatile float& w_R_ref
     );
 
     /**
@@ -45,13 +45,13 @@ namespace PositionController {
      *
      * @param new_mode Nuevo modo deseado (SPEED_REF_INACTIVE, SPEED_REF_MANUAL, SPEED_REF_AUTO)
      * @param control_mode Variable con estado del controlador de posición
-     * @param wL_ref Variable con referencia de rueda izquierda [rad/s]
-     * @param wR_ref Variable con referencia de rueda derecha [rad/s]
+     * @param w_L_ref Variable con referencia de rueda izquierda [rad/s]
+     * @param w_R_ref Variable con referencia de rueda derecha [rad/s]
      */
     void set_control_mode(
         const uint8_t new_mode,
         volatile uint8_t& control_mode,
-        volatile float& wL_ref, volatile float& wR_ref
+        volatile float& w_L_ref, volatile float& w_R_ref
     );
 
     /**
@@ -74,15 +74,15 @@ namespace PositionController {
      *
      * Si el modo del controlador está en SPEED_REF_INACTIVE, no se hace nada.
      *
-     * @param wL Valor deseado para rueda izquierda [rad/s]
-     * @param wR Valor deseado para rueda derecha [rad/s]
-     * @param wL_ref_global Variable con referencia izquierda
-     * @param wR_ref_global Variable con referencia derecha
+     * @param w_L Valor deseado para rueda izquierda [rad/s]
+     * @param w_R Valor deseado para rueda derecha [rad/s]
+     * @param w_L_ref_global Variable con referencia izquierda
+     * @param w_R_ref_global Variable con referencia derecha
      * @param control_mode Variable con modo del controlador
      */
     void set_wheel_speed_ref(
-        const float wL, const float wR,
-        volatile float& wL_ref_global, volatile float& wR_ref_global,
+        const float w_L, const float w_R,
+        volatile float& w_L_ref_global, volatile float& w_R_ref_global,
         volatile uint8_t& control_mode
     );
 

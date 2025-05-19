@@ -35,6 +35,9 @@ constexpr uint8_t US_RIGHT_ECHO_PIN = 23;
 constexpr uint8_t IMU_SDA_PIN = 4;
 constexpr uint8_t IMU_SCL_PIN = 5;
 
+// Aux
+constexpr uint8_t ESP32_LED = 2;
+
 
 /* -------------- Constantes generales --------------*/
 
@@ -46,19 +49,12 @@ constexpr float WHEEL_DISTANCE = 0.194f / 2.0f;   // distancia entre ruedas (L)
 constexpr uint16_t RPM_NOM = 215U;            // rpm nominales bajo carga (son 280 sin carga)       
 constexpr float WM_NOM = RPM_NOM * 2*PI/60.0; // rad/s nominales bajo carga = 22.51 (29.3 sin carga)
 
-// Para los estados de los sistemas
+// Auxiliares
 constexpr uint8_t ACTIVE   = 1U;
 constexpr uint8_t INACTIVE = 0U;
-
-// Para los condicionales con las ruedas
 constexpr uint8_t WHEEL_LEFT  = 0U;
 constexpr uint8_t WHEEL_RIGHT = 1U;
-
-// Auxiliares
 constexpr float MS_TO_S = 0.001f;
-
-
-/* -------------- Constantes del Motor Controller --------------*/
 
 // Motor modes
 enum MotorMode : uint8_t {
@@ -68,15 +64,7 @@ enum MotorMode : uint8_t {
     MOTOR_BREAK = 3U    // Motores bloqueados, frena el motor
 };
 
-// RTOS
-
-constexpr uint16_t WHEEL_CONTROL_PERIOD_MS = 10;
-
-
-/* -------------- Constantes del Encoder Reader --------------*/
-
 // Según tipo de configuración de encoder
-
 enum class EncoderMode {
     SINGLE_EDGE = 1,  // 1x
     HALF_QUAD   = 2,  // 2x
@@ -90,29 +78,12 @@ constexpr float get_encoder_multiplier(EncoderMode mode) {
            1.0f;
 }
 
-// Variables usadas en cálculos (usado en varios módulos)
-
+// Constantes para interpretar data de los encoders
 constexpr float RAW_ENCODER_PPR = 11.0f * 21.3f; // Steps del encoder x razón de engranaje de motor
 constexpr float ENCODER_PPR = RAW_ENCODER_PPR * get_encoder_multiplier(ENCODER_MODE);
 constexpr float RAD_PER_PULSE = (2.0f * PI) / ENCODER_PPR;
 
-// RTOS
-
-constexpr uint16_t ENCODER_READ_PERIOD_MS = 10;
-
-
-/* -------------- Constantes del Pose Estimator --------------*/
-
-constexpr uint16_t POSE_ESTIMATOR_PERIOD_MS = 200; 
-
-
-/* -------------- Constantes de sensores de distancia --------------*/
-
-constexpr uint16_t US_SENSOR_READ_PERIOD_MS = 250;
-constexpr uint16_t OBSTACLE_CHECK_PERIOD = 100;
-
-/* -------------- Constantes del control de posición --------------*/
-
+// Opciones de control de posición
 enum PositionControlMode : uint8_t {
     SPEED_REF_INACTIVE = 0U,
     SPEED_REF_MANUAL = 1U,
@@ -120,11 +91,42 @@ enum PositionControlMode : uint8_t {
     SPEED_REF_AUTO_ADVANCED = 3U
 };
 
+
+/* ------------------------ Constantes OS ------------------------*/
+
+enum class OS_State : uint8_t {
+    INIT = 0,          // Estado inicial al encender
+    IDLE,              // Espera sin movimiento
+    STAND_BY,          // Espera sin movimiento
+    MOVE,              // Desplazamiento hacia objetivo
+    EVADE,             // Evasión de obstáculo
+};
+
+constexpr uint8_t MAX_TRAJECTORY_POINTS = 100; // Define máximo de puntos
+
+// Estructura de punto
+struct TargetPoint {
+    float x;
+    float y;
+};
+
+// Instrucciones posibles desde Firebase o interfaz web
+enum class RemoteCommand : uint8_t {
+    NONE = 0,
+    START,
+    STOP,
+    IDLE
+};
+
+
+/* -------------- Tiempos de poleo para tareas RTOS --------------*/
+
+constexpr uint16_t WHEEL_CONTROL_PERIOD_MS = 10;
+constexpr uint16_t ENCODER_READ_PERIOD_MS = 10;
+constexpr uint16_t US_SENSOR_READ_PERIOD_MS = 250;
+constexpr uint16_t OBSTACLE_CHECK_PERIOD_MS = 100;
+constexpr uint16_t POSE_ESTIMATOR_PERIOD_MS = 200; 
 constexpr uint16_t POSITION_CONTROL_PERIOD_MS = 200;
-
-/* -------------- Constantes del control de posición --------------*/
-
-constexpr uint16_t CHECK_OBSTACLE_FLAG_PERIOD = US_SENSOR_READ_PERIOD_MS * 0.5f;
 
 
 /* -------------------- Estructuras con la data del sistema --------------------*/
@@ -216,41 +218,42 @@ struct WheelsData {
     /// Pasos/pulsos acumulados del encoder izquierdo.
     /// Se actualiza periódicamente por el módulo `encoder_reader`.
     /// Solo una lectura por medio del estimador de pose puede reiniciar su valor para evitar perder datos.
-    int64_t steps_left;
+    int64_t steps_L;
 
     /// Pasos acumulados del encoder derecho.
     /// Incrementado de forma sincronizada con el encoder izquierdo.
     /// Solo una lectura por medio del estimador de pose puede reiniciar su valor para evitar perder datos.
-    int64_t steps_right;
+    int64_t steps_R;
 
     /// Velocidad angular medida de la rueda izquierda [rad/s].
     /// Calculada a partir del número de pasos y el intervalo de muestreo.
     /// Se utiliza en el controlador PI realimentar y ajustar la velocidad.
-    float wL_measured;
+    float w_L;
 
     /// Velocidad angular medida de la rueda derecha [rad/s].
     /// Calculada a partir del número de pasos y el intervalo de muestreo.
     /// Se utiliza en el controlador PI realimentar y ajustar la velocidad.
-    float wR_measured;
+    float w_R;
 
     /// Velocidad angular de referencia para la rueda izquierda [rad/s].
     /// Calculada desde la velocidad lineal/angular deseada. Se ajusta por el controlador de posición.
-    float wL_ref;
+    float w_L_ref;
 
     /// Velocidad angular de referencia para la rueda derecha [rad/s].
     /// Calculada desde la velocidad lineal/angular deseada. Se ajusta por el controlador de posición.
-    float wR_ref;
+    float w_R_ref;
 
     /// Duty aplicado al PWM del motor izquierdo (normalizado en [-1, 1]).
     /// Su signo determina el sentido de giro de la rueda.
     /// Se ajusta automáticamente por el controlador de velocidad de rueda.
-    float duty_left;
+    float duty_L;
 
     /// Duty aplicado al PWM del motor derecho (normalizado en [-1, 1]).
     /// Se ajusta automáticamente por el controlador de velocidad.
     /// Se ajusta automáticamente por el controlador de velocidad de rueda.
-    float duty_right;
+    float duty_R;
 };
+
 
 /**
  * @brief Estructura que almacena el estado consolidado de sensores ultrasónicos frontales.
@@ -263,14 +266,57 @@ struct WheelsData {
 struct DistanceSensorData {
     bool obstacle_detected;        ///< true si cualquier sensor US detecta obstáculo (< threshold)
 
-    uint8_t us_left_distance;      ///< Distancia medida por sensor US izquierdo [cm]
-    uint8_t us_mid_distance;       ///< Distancia medida por sensor US medio/frontal [cm]
-    uint8_t us_right_distance;     ///< Distancia medida por sensor US derecho [cm]
+    uint8_t left_dist;      ///< Distancia medida por sensor US izquierdo [cm]
+    uint8_t mid_dist;       ///< Distancia medida por sensor US medio/frontal [cm]
+    uint8_t right_dist;     ///< Distancia medida por sensor US derecho [cm]
 
-    bool us_left_obstacle;         ///< true si el sensor izquierdo detecta obstáculo (< threshold)
-    bool us_mid_obstacle;          ///< true si el sensor medio detecta obstáculo
-    bool us_right_obstacle;        ///< true si el sensor derecho detecta obstáculo
+    bool left_obst;         ///< true si el sensor izquierdo detecta obstáculo (< threshold)
+    bool mid_obst;          ///< true si el sensor medio detecta obstáculo
+    bool right_obst;        ///< true si el sensor derecho detecta obstáculo
 };
+
+
+/**
+ * @brief Estructura que almacena el estado consolidado del IMU.
+ *
+ * Contiene:
+ * - Distancias individuales medidas por integracion en distancia (movimiento en ejes)
+ * - Angulos de movimiento segun giroscopio
+ * - Movimiento de angulos segun magnetometro
+ */
+struct IMUSensorData{
+    
+    float ax; ///< aceleración en el eje x
+    float ay; ///< aceleración en el eje y
+    float vx; ///< velocidad en el eje x
+    float vy; ///< velocidad en el eje y
+    float w_gyro; ///< velocidad angular con respecto al eje z
+    float theta_in; ///< ángulo rotación respecto al norte magnetico inicial
+    float theta_f; ///< ángulo rotación respecto al norte magnetico final
+    float theta; ///< ángulo rotación respecto al norte magnetico de output total (orientacion absoluta)
+};
+
+
+/**
+ * @brief Contiene la información de alto nivel relacionada con la operación del vehículo autónomo.
+ *
+ * Esta estructura centraliza el estado actual del sistema, la trayectoria de navegación cargada,
+ * y la última instrucción remota recibida (por ejemplo, desde Firebase). Se utiliza por la máquina
+ * de estados principal (`vehicle_os`) para coordinar la lógica de navegación y comportamiento del vehículo.
+ *
+ * Campos clave:
+ * - current_state: Estado operativo actual del sistema (ej. INIT, NAVIGATING, etc.)
+ * - trajectory: Lista de puntos objetivo a seguir, en orden.
+ * - total_targets: Cantidad de puntos cargados actualmente en `trajectory`.
+ * - last_remote_command: Última instrucción recibida por interfaz remota (START, STOP, etc.)
+ */
+struct OperationData {
+    OS_State state;                          ///< Estado actual de la máquina de estados
+    uint8_t total_targets;                           ///< Número de puntos cargados en trayectoria
+    TargetPoint trajectory[MAX_TRAJECTORY_POINTS];   ///< Lista de puntos objetivo a seguir
+    RemoteCommand last_command;               ///< Última instrucción remota recibida (ej. START, STOP)
+};
+
 
 /**
  * @brief Estructura global de contexto que agrupa punteros a las principales estructuras de estado del sistema.
@@ -278,8 +324,10 @@ struct DistanceSensorData {
  */
 struct GlobalContext {
     volatile SystemStates* systems_ptr;
+    volatile OperationData* os_ptr;
     volatile KinematicState* kinematic_ptr;
     volatile WheelsData* wheels_ptr;
+    volatile IMUSensorData* imu_ptr;
     volatile DistanceSensorData* distance_ptr;
 };
 

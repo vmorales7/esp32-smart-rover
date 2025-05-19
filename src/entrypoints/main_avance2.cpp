@@ -9,14 +9,16 @@
 // ====================== VARIABLES GLOBALES ======================
 volatile SystemStates states = {0};
 volatile WheelsData wheels = {0};
-volatile DistanceSensorData distance_data = {0};
+volatile DistanceSensorData distances = {0};
 volatile KinematicState kinematic = {0};
 
 GlobalContext ctx = {
-    .systems_ptr = &states,
-    .kinematic_ptr = &kinematic,
-    .wheels_ptr = &wheels,
-    .distance_ptr = &distance_data
+    .systems_ptr     = &states,
+    .os_ptr          = nullptr,         // Aún no se usa OperationData
+    .kinematic_ptr   = &kinematic,
+    .wheels_ptr      = &wheels,
+    .imu_ptr         = nullptr,         // IMU no implementada aún
+    .distance_ptr    = &distances
 };
 
 // constexpr float W_STOP_THRESHOLD = 0.05 * WM_NOM;  // Threshold de velocidad para considerar stop [rad/s]
@@ -72,7 +74,7 @@ void Task_FaseManager(void* pvParameters) {
                     break;
                 }
 
-                if (distance_data.obstacle_detected) {
+                if (distances.obstacle_detected) {
                     fase_estado = FaseEstado::OBSTACULO;
                     fase_wL_ref = 0.0f;
                     fase_wR_ref = 0.0f;
@@ -96,25 +98,25 @@ void Task_FaseManager(void* pvParameters) {
             case FaseEstado::OBSTACULO: {
                 fase_wL_ref = 0.0f;
                 fase_wR_ref = 0.0f;
-                if (fabsf(wheels.wL_measured) < W_STOP_THRESHOLD &&
-                    fabsf(wheels.wR_measured) < W_STOP_THRESHOLD) {
-                    MotorController::set_motors_mode(
-                        MOTOR_IDLE, states.motors, wheels.duty_left, wheels.duty_right);
+                if (fabsf(wheels.w_L) < W_STOP_THRESHOLD &&
+                    fabsf(wheels.w_R) < W_STOP_THRESHOLD) {
+                    MotorController::set_motors_mode(MOTOR_IDLE, states.motors, wheels.duty_L, wheels.duty_R);
                     fase_estado = FaseEstado::DETENIDO_POR_OBSTACULO;
                     Serial.println("Vehiculo detenido completamente por obstaculo.");
                 }
                 break;
             }
             case FaseEstado::DETENIDO_POR_OBSTACULO: {
-                const bool obstacle_flag = DistanceSensors::compute_global_obstacle_flag(distance_data);
+                const bool obstacle_flag = DistanceSensors::compute_global_obstacle_flag(
+                    distances.left_obst, distances.mid_obst, distances.right_obst);
                 if (!obstacle_flag) {
                     fase_estado = FaseEstado::EJECUTANDO;
-                    MotorController::set_motors_mode(
-                        MOTOR_AUTO, states.motors, wheels.duty_left, wheels.duty_right);
+                    MotorController::set_motors_mode(MOTOR_AUTO, states.motors, wheels.duty_L, wheels.duty_R);
                     fase_wL_ref = fases[fase_indice_actual].wL_ref;
                     fase_wR_ref = fases[fase_indice_actual].wR_ref;
                     Serial.println("Obstaculo retirado. Reanudando fase actual.");
-                    DistanceSensors::update_global_obstacle_flag(distance_data);
+                    DistanceSensors::update_global_obstacle_flag(
+                        distances.left_obst, distances.mid_obst, distances.right_obst, distances.obstacle_detected);
                 }
                 break;
             }
@@ -122,17 +124,15 @@ void Task_FaseManager(void* pvParameters) {
                 fase_wL_ref = 0.0f;
                 fase_wR_ref = 0.0f;
                 PositionController::set_wheel_speed_ref(
-                    fase_wL_ref, fase_wR_ref, wheels.wL_ref, wheels.wR_ref, states.position);
-                MotorController::set_motors_mode(
-                    MOTOR_IDLE, states.motors, wheels.duty_left, wheels.duty_right);
+                    fase_wL_ref, fase_wR_ref, wheels.w_L_ref, wheels.w_R_ref, states.position);
+                MotorController::set_motors_mode(MOTOR_IDLE, states.motors, wheels.duty_L, wheels.duty_R);
                 Serial.println("Finalizado.");
                 vTaskSuspend(nullptr);
                 break;
             }
         }
 
-        PositionController::set_wheel_speed_ref(
-            fase_wL_ref, fase_wR_ref, wheels.wL_ref, wheels.wR_ref, states.position);
+        PositionController::set_wheel_speed_ref(fase_wL_ref, fase_wR_ref, wheels.w_L_ref, wheels.w_R_ref, states.position);
     }
 }
 
@@ -143,9 +143,9 @@ void Task_Printer(void* pvParameters) {
     for (;;) {
         vTaskDelayUntil(&xLastWakeTime, period);
         Serial.printf("wL_ref %.1f | wR_ref %.1f\n",
-                      wheels.wL_ref, wheels.wR_ref);        
+                      wheels.w_L_ref, wheels.w_R_ref);        
         Serial.printf("wL %.1f dutyL %.2f | wR %.1f dutyR %.2f\n",
-                      wheels.wL_measured, wheels.duty_left, wheels.wR_measured, wheels.duty_right);
+                      wheels.w_L, wheels.duty_L, wheels.w_R, wheels.duty_R);
         Serial.println();
     }
 }
@@ -158,16 +158,23 @@ void setup() {
     Serial.println("Inicio: Avance 2");
     delay(1000);
 
-    MotorController::init(states.motors, wheels.duty_left, wheels.duty_right);
-    MotorController::set_motors_mode(MOTOR_AUTO, states.motors, wheels.duty_left, wheels.duty_right);
+    MotorController::init(states.motors, wheels.duty_L, wheels.duty_R);
+    MotorController::set_motors_mode(MOTOR_AUTO, states.motors, wheels.duty_L, wheels.duty_R);
 
-    PositionController::init(states.position, wheels.wL_ref, wheels.wR_ref);
-    PositionController::set_control_mode(SPEED_REF_MANUAL, states.position, wheels.wL_ref, wheels.wR_ref);
+    PositionController::init(states.position, wheels.w_L_ref, wheels.w_R_ref);
+    PositionController::set_control_mode(SPEED_REF_MANUAL, states.position, wheels.w_L_ref, wheels.w_R_ref);
 
-    DistanceSensors::init_system(states.distance, distance_data);
-    DistanceSensors::set_state(ACTIVE, states.distance);
+    DistanceSensors::init(
+        distances.left_dist, distances.left_obst, distances.mid_dist, distances.mid_obst,
+        distances.right_dist, distances.right_obst, distances.obstacle_detected, states.distance
+    );
+    DistanceSensors::set_state(
+        ACTIVE, states.distance,
+        distances.left_dist, distances.left_obst, distances.mid_dist, distances.mid_obst,
+        distances.right_dist, distances.right_obst, distances.obstacle_detected
+    );
 
-    EncoderReader::init(wheels, states.encoders);
+    EncoderReader::init(wheels.steps_L, wheels.steps_R, wheels.w_L, wheels.w_R, states.encoders);
     EncoderReader::resume(states.encoders);
 
     // Tareas principales (núcleo 1)

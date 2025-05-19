@@ -13,10 +13,12 @@ volatile KinematicState kinem = {0};
 volatile PoseData pose = {0};
 
 GlobalContext ctx = {
-    .systems_ptr   = &states,
-    .kinematic_ptr = &kinem,
-    .wheels_ptr    = &wheels,
-    .distance_ptr  = nullptr
+    .systems_ptr     = &states,
+    .os_ptr          = nullptr,
+    .kinematic_ptr   = &kinem,
+    .wheels_ptr      = &wheels,
+    .imu_ptr         = nullptr,
+    .distance_ptr    = nullptr
 };
 
 // ====================== CONFIGURACIÓN OBJETIVO ======================
@@ -34,15 +36,15 @@ void setup() {
     Serial.println("Debug: Position Control — Basic");
 
     // Inicialización de módulos
-    EncoderReader::init(wheels, states.encoders);
-    PoseEstimator::init(kinem.x, kinem.y, kinem.theta, wheels.steps_left, wheels.steps_right, states.pose);
-    MotorController::init(states.motors, wheels.duty_left, wheels.duty_right);
-    PositionController::init(states.position, wheels.wL_ref, wheels.wR_ref);
+    EncoderReader::init(wheels.steps_L, wheels.steps_R, wheels.w_L, wheels.w_R, states.encoders);
+    PoseEstimator::init(kinem.x, kinem.y, kinem.theta, kinem.v, kinem.w, wheels.steps_L, wheels.steps_R, states.pose);
+    MotorController::init(states.motors, wheels.duty_L, wheels.duty_R);
+    PositionController::init(states.position, wheels.w_L_ref, wheels.w_R_ref);
 
     // Establecer modos
-    PositionController::set_control_mode(SPEED_REF_AUTO_ADVANCED, states.position, wheels.wL_ref, wheels.wR_ref);
+    PositionController::set_control_mode(SPEED_REF_AUTO_ADVANCED, states.position, wheels.w_L_ref, wheels.w_R_ref);
     EncoderReader::resume(states.encoders);
-    MotorController::set_motors_mode(MOTOR_AUTO, states.motors, wheels.duty_left, wheels.duty_right);
+    MotorController::set_motors_mode(MOTOR_AUTO, states.motors, wheels.duty_L, wheels.duty_R);
     PoseEstimator::set_state(ACTIVE, states.pose);
 
     // Asignar punto objetivo

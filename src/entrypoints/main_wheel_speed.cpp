@@ -15,11 +15,13 @@ volatile SystemStates states = {0};
 volatile WheelsData wheels_data = {0};
 volatile KinematicState kinematic_data = {0};
 
-GlobalContext global_ctx = {
-    .systems_ptr = &states,
-    .kinematic_ptr = &kinematic_data,
-    .wheels_ptr = &wheels_data,
-    .distance_ptr = nullptr  // no usado en este ejemplo
+GlobalContext ctx = {
+    .systems_ptr     = &states,
+    .os_ptr          = nullptr,
+    .kinematic_ptr   = &kinematic_data,
+    .wheels_ptr      = &wheels_data,
+    .imu_ptr         = nullptr,
+    .distance_ptr    = nullptr
 };
 
 
@@ -29,8 +31,8 @@ void Task_ToggleReference(void* pvParameters) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t period = pdMS_TO_TICKS(TOGGLE_INTERVAL_MS);
     GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
-    volatile float* wL_ref = &ctx->wheels_ptr->wL_ref;
-    volatile float* wR_ref = &ctx->wheels_ptr->wR_ref;
+    volatile float* w_L_ref = &ctx->wheels_ptr->w_L_ref;
+    volatile float* w_R_ref = &ctx->wheels_ptr->w_R_ref;
     volatile uint8_t* control_mode_ptr = &ctx->systems_ptr->position;
 
     float currentWref = W1;
@@ -39,7 +41,7 @@ void Task_ToggleReference(void* pvParameters) {
         vTaskDelayUntil(&xLastWakeTime, period);
         currentWref = (currentWref == W1) ? W2 : W1;
         PositionController::set_wheel_speed_ref(
-            currentWref, currentWref, *wL_ref, *wR_ref, *control_mode_ptr);
+            currentWref, currentWref, *w_L_ref, *w_R_ref, *control_mode_ptr);
         Serial.printf("Nueva w_ref: %.2f rad/s\n", currentWref);
     }
 }
@@ -54,29 +56,27 @@ void setup() {
     Serial.begin(115200);
 
     // Inicialización
-    MotorController::init(states.motors, wheels_data.duty_left, wheels_data.duty_right);
-    MotorController::set_motors_mode(MOTOR_AUTO, states.motors, wheels_data.duty_left, wheels_data.duty_right);
-    EncoderReader::init(wheels_data, states.encoders);
-    PositionController::init(states.position, wheels_data.wL_ref, wheels_data.wR_ref);
-    PositionController::set_control_mode(SPEED_REF_MANUAL, states.position, wheels_data.wL_ref, wheels_data.wR_ref);
+    MotorController::init(states.motors, wheels_data.duty_L, wheels_data.duty_R);
+    MotorController::set_motors_mode(MOTOR_AUTO, states.motors, wheels_data.duty_L, wheels_data.duty_R);
+    EncoderReader::init(wheels_data.steps_L, wheels_data.steps_R,wheels_data.w_L, wheels_data.w_R, states.encoders);
+    PositionController::init(states.position, wheels_data.w_L_ref, wheels_data.w_R_ref);
+    PositionController::set_control_mode(SPEED_REF_MANUAL, states.position, wheels_data.w_L_ref, wheels_data.w_R_ref);
     EncoderReader::resume(states.encoders);
-    PositionController::set_wheel_speed_ref(W1, W1, wheels_data.wL_ref, wheels_data.wR_ref, states.position);
+    PositionController::set_wheel_speed_ref(W1, W1, wheels_data.w_L_ref, wheels_data.w_R_ref, states.position);
 
     // Lanzar todas las tareas RTOS
-    xTaskCreatePinnedToCore(EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2048, &global_ctx, 3, nullptr, 1);
-    xTaskCreatePinnedToCore(MotorController::Task_WheelControl, "WheelControl", 2048, &global_ctx, 2, nullptr, 1);
-    xTaskCreatePinnedToCore(Task_ToggleReference, "ToggleRef", 2048, &global_ctx, 1, nullptr, 1);
-    // xTaskCreatePinnedToCore(Task_Printer, "Printer", 2048, &global_ctx, 1, nullptr, 0);
-    xTaskCreatePinnedToCore(Task_PrintPerformance, "PrintPerformance", 2048, &global_ctx, 1, nullptr, 0);
-    // xTaskCreatePinnedToCore(Task_SerialPlot, "SerialPlot", 2048, &global_ctx, 1, nullptr, 0);
+    xTaskCreatePinnedToCore(EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2048, &ctx, 3, nullptr, 1);
+    xTaskCreatePinnedToCore(MotorController::Task_WheelControl, "WheelControl", 2048, &ctx, 2, nullptr, 1);
+    xTaskCreatePinnedToCore(Task_ToggleReference, "ToggleRef", 2048, &ctx, 1, nullptr, 1);
+    // xTaskCreatePinnedToCore(Task_Printer, "Printer", 2048, &ctx, 1, nullptr, 0);
+    xTaskCreatePinnedToCore(Task_PrintPerformance, "PrintPerformance", 2048, &ctx, 1, nullptr, 0);
+    // xTaskCreatePinnedToCore(Task_SerialPlot, "SerialPlot", 2048, &ctx, 1, nullptr, 0);
 
 }
 
 void loop() {
     // No se usa, todo se maneja con RTOS
 }
-
-
 
 
 // ------------------------ Tareas RTOS adicionales -------------------------
@@ -89,8 +89,8 @@ void Task_Printer(void* pvParameters) {
     for (;;) {
         vTaskDelayUntil(&xLastWakeTime, period);
         Serial.printf("wL %.2f dutyL %.2f | wR %.2f dutyR %.2f\n",
-                      wheels->wL_measured, wheels->duty_left,
-                      wheels->wR_measured, wheels->duty_right);
+                      wheels->w_L, wheels->duty_L,
+                      wheels->w_R, wheels->duty_R);
     }
 }
 
@@ -105,9 +105,9 @@ void Task_PrintPerformance(void* pvParameters) {
 
         // Imprimir solo datos de la rueda izquierda, separados por tabulaciones
         Serial.printf("%.1f\t%.1f\t%.2f\n",
-                      wheels->wL_ref,      // referencia angular
-                      wheels->wL_measured, // velocidad medida
-                      wheels->duty_left);  // duty aplicado
+                      wheels->w_L_ref,      // referencia angular
+                      wheels->w_L, // velocidad medida
+                      wheels->duty_L);  // duty aplicado
     }
 }
 
@@ -121,14 +121,14 @@ void Task_SerialPlot(void* pvParameters) {
         vTaskDelayUntil(&xLastWakeTime, period);
 
         Serial.print("wL_ref:");
-        Serial.print(wheels->wL_ref, 2);
+        Serial.print(wheels->w_L_ref, 2);
         Serial.print("\t");
 
         Serial.print("wL_meas:");
-        Serial.print(wheels->wL_measured, 2);
+        Serial.print(wheels->w_L, 2);
         Serial.print("\t");
 
         Serial.print("dutyL:");
-        Serial.println(wheels->duty_left, 2);
+        Serial.println(wheels->duty_L, 2);
     }
 }

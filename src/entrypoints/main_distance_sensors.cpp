@@ -6,10 +6,12 @@
 volatile SystemStates states = {0};
 volatile DistanceSensorData distances = {0};
 GlobalContext ctx = {
-    .systems_ptr = &states,
-    .kinematic_ptr = nullptr,
-    .wheels_ptr = nullptr,
-    .distance_ptr = &distances
+    .systems_ptr     = &states,
+    .os_ptr          = nullptr,       
+    .kinematic_ptr   = nullptr,
+    .wheels_ptr      = nullptr,
+    .imu_ptr         = nullptr,      
+    .distance_ptr    = &distances
 };
 
 // ====================== TAREA: Manejo de eventos por obstáculo ======================
@@ -26,15 +28,15 @@ void Task_ObstacleResponse(void* pvParameters) {
             Serial.println("Obstáculo detectado. Procesando evento...");
 
             Serial.print("  Distancia izquierda: ");
-            Serial.print(ctx->distance_ptr->us_left_distance);
+            Serial.print(ctx->distance_ptr->left_dist);
             Serial.println(" cm");
 
             Serial.print("  Distancia frontal: ");
-            Serial.print(ctx->distance_ptr->us_mid_distance);
+            Serial.print(ctx->distance_ptr->mid_dist);
             Serial.println(" cm");
 
             Serial.print("  Distancia derecha: ");
-            Serial.print(ctx->distance_ptr->us_right_distance);
+            Serial.print(ctx->distance_ptr->right_dist);
             Serial.println(" cm");
             Serial.println();
 
@@ -52,8 +54,19 @@ void setup() {
     delay(1000);
 
     // Inicializar el sistema
-    DistanceSensors::init_system(states.distance, distances);
-    DistanceSensors::set_state(ACTIVE, states.distance);
+    DistanceSensors::init(
+        distances.left_dist, distances.left_obst,
+        distances.mid_dist, distances.mid_obst,
+        distances.right_dist, distances.right_obst,
+        distances.obstacle_detected, states.distance
+    );    
+    DistanceSensors::set_state(
+        ACTIVE, states.distance,
+        distances.left_dist, distances.left_obst,
+        distances.mid_dist, distances.mid_obst,
+        distances.right_dist, distances.right_obst,
+        distances.obstacle_detected
+    );
 
     // Crear tareas para cada sensor ultrasónico
     xTaskCreatePinnedToCore(DistanceSensors::Task_CheckLeftObstacle, "US_Left", 2048, &ctx, 2, nullptr, 0);

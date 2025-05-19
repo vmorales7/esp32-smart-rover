@@ -24,38 +24,58 @@ constexpr float EMA_ALPHA = 0.35f; // 0.5 ≈ promedio de 3 lecturas; menor α p
 namespace EncoderReader {
 
     /**
-     * @brief Inicializa el módulo de encoders. Configura los pines, pausa los contadores
-     * y deja los valores iniciales de pasos y velocidades en cero.
-     * 
-     * @param wheels_data Variable global con la estructura con pasos y velocidades de rueda.
-     * @param encoder_state Variable global con estado del módulo de encoder (ACTIVE / INACTIVE).
+     * @brief Inicializa el módulo de encoders.
+     *
+     * Configura los pines de los encoders, detiene los contadores,
+     * y deja las variables de pasos y velocidades en cero.
+     * El estado del módulo se establece como INACTIVE.
+     *
+     * @param steps_L Referencia a la variable que almacena los pasos acumulados de la rueda izquierda.
+     * @param steps_R Referencia a la variable que almacena los pasos acumulados de la rueda derecha.
+     * @param w_L Referencia a la velocidad angular medida de la rueda izquierda [rad/s].
+     * @param w_R Referencia a la velocidad angular medida de la rueda derecha [rad/s].
+     * @param encoder_state Estado actual del módulo de encoders (se establece como INACTIVE).
      */
     void init(
-        volatile WheelsData& wheels_data,
+        volatile int64_t& steps_L, volatile int64_t& steps_R, 
+        volatile float& w_L, volatile float& w_R, 
         volatile uint8_t& encoder_state
     );
 
     /**
-     * @brief Actualiza los pasos acumulados y la velocidad angular de cada rueda.
-     * Si el módulo está inactivo, no realiza ninguna operación.
-     * 
-     * @param wheels_data Variable global con la estructura con pasos y velocidades de rueda.
-     * @param encoder_state Variable global con estado del módulo de encoder.
+     * @brief Actualiza los pasos acumulados y las velocidades angulares de las ruedas.
+     *
+     * Esta función calcula el número de pasos desde la última lectura y actualiza
+     * las velocidades angulares de cada rueda. No realiza ninguna operación si el módulo está inactivo.
+     *
+     * @param steps_L Referencia a la variable con los pasos acumulados de la rueda izquierda.
+     * @param steps_R Referencia a la variable con los pasos acumulados de la rueda derecha.
+     * @param w_L Referencia a la velocidad angular de la rueda izquierda [rad/s].
+     * @param w_R Referencia a la velocidad angular de la rueda derecha [rad/s].
+     * @param encoder_state Estado actual del módulo de encoders (debe estar en ACTIVE para ejecutar la actualización).
      */
     void update_encoder_data(
-        volatile WheelsData& wheels_data,
+        volatile int64_t& steps_L, volatile int64_t& steps_R, 
+        volatile float& w_L, volatile float& w_R, 
         volatile uint8_t& encoder_state
     );
 
     /**
-     * @brief Pausa el conteo de los encoders, actualiza velocidades, y las deja en cero.
-     * Los acumuladores de pasos se conservan (solo `pose_estimator` los reinicia).
-     * 
-     * @param wheels_data Variable global con la estructura con pasos y velocidades de rueda.
-     * @param encoder_state Variable global con estado del módulo de encoder.
+     * @brief Pausa el conteo de los encoders y detiene la actualización de velocidades.
+     *
+     * Esta función detiene los contadores físicos de los encoders, actualiza una última vez
+     * la velocidad angular medida, y luego pone ambas velocidades en cero. Los pasos acumulados
+     * se conservan (no se reinician aquí).
+     *
+     * @param steps_L Referencia a la variable con los pasos acumulados de la rueda izquierda.
+     * @param steps_R Referencia a la variable con los pasos acumulados de la rueda derecha.
+     * @param w_L Referencia a la velocidad angular de la rueda izquierda [rad/s].
+     * @param w_R Referencia a la velocidad angular de la rueda derecha [rad/s].
+     * @param encoder_state Estado actual del módulo de encoders (se establece como INACTIVE al pausar).
      */
     void pause(
-        volatile WheelsData& wheels_data,
+        volatile int64_t& steps_L, volatile int64_t& steps_R, 
+        volatile float& w_L, volatile float& w_R,
         volatile uint8_t& encoder_state
     );
 

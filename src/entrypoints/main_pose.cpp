@@ -13,10 +13,12 @@ volatile WheelsData wheels = {0};
 volatile KinematicState kinem = {0};
 volatile PoseData pose = {0};
 GlobalContext ctx = {
-    .systems_ptr   = &states,
-    .kinematic_ptr = &kinem,
-    .wheels_ptr    = &wheels,
-    .distance_ptr  = nullptr
+    .systems_ptr     = &states,
+    .os_ptr          = nullptr,
+    .kinematic_ptr   = &kinem,
+    .wheels_ptr      = &wheels,
+    .imu_ptr         = nullptr,
+    .distance_ptr    = nullptr
 };
 
 constexpr float Wref = 10.0f;
@@ -36,18 +38,18 @@ void setup() {
     delay(1000);
 
     // Inicializar encoder
-    EncoderReader::init(wheels, states.encoders);
+    EncoderReader::init(wheels.steps_L, wheels.steps_R, wheels.w_L, wheels.w_R, states.encoders);
 
     // Inicializar estimador de pose
-    PoseEstimator::init(kinem.x, kinem.y, kinem.theta, wheels.steps_left, wheels.steps_right, states.pose);
+    PoseEstimator::init(kinem.x, kinem.y, kinem.theta, kinem.v, kinem.w, wheels.steps_L, wheels.steps_R, states.pose);
 
     // Inicializar motores
-    MotorController::init(states.motors, wheels.duty_left, wheels.duty_right);
-    // MotorController::set_motors_mode(MOTOR_AUTO, states.motor_operation, wheels.duty_left, wheels.duty_right);
+    MotorController::init(states.motors, wheels.duty_L, wheels.duty_R);
+    // MotorController::set_motors_mode(MOTOR_AUTO, states.motor_operation, wheels.duty_L, wheels.duty_R);
 
     // Inicializar controlador de posición
-    PositionController::init(states.position, wheels.wL_ref, wheels.wR_ref);
-    PositionController::set_control_mode(SPEED_REF_MANUAL, states.position, wheels.wL_ref, wheels.wR_ref);
+    PositionController::init(states.position, wheels.w_L_ref, wheels.w_R_ref);
+    PositionController::set_control_mode(SPEED_REF_MANUAL, states.position, wheels.w_L_ref, wheels.w_R_ref);
 
     // Instrucciones de inicio
     // PositionController::set_wheel_speed_ref(Wref, Wref, wheels.wL_ref, wheels.wR_ref, states.position_controller);
@@ -61,7 +63,7 @@ void setup() {
 
     // Debug
     //xTaskCreatePinnedToCore(Task_PrintPose, "PrintPose", 2048, &ctx, 1, nullptr, 0);
-    MotorController::set_motors_mode(MOTOR_IDLE, states.motors, wheels.duty_left, wheels.duty_right);
+    MotorController::set_motors_mode(MOTOR_IDLE, states.motors, wheels.duty_L, wheels.duty_R);
     xTaskCreatePinnedToCore(Task_PrintXY, "PrintXY", 2048, &ctx, 1, nullptr, 0);
 }
 

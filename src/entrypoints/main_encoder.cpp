@@ -4,13 +4,15 @@
 #warning "Compilando main_encoder.cpp"
 
 // ====================== VARIABLES GLOBALES ======================
-volatile SystemStates system_states = {0};
-volatile WheelsData wheels_data = {0};
+volatile SystemStates systems = {0};
+volatile WheelsData wheels = {0};
 GlobalContext ctx = {
-    .systems_ptr = &system_states,
-    .kinematic_ptr = nullptr,
-    .wheels_ptr = &wheels_data,
-    .distance_ptr = nullptr
+    .systems_ptr     = &systems,
+    .os_ptr          = nullptr,
+    .kinematic_ptr   = nullptr,
+    .wheels_ptr      = &wheels,
+    .imu_ptr         = nullptr,
+    .distance_ptr    = nullptr
 };
 
 constexpr uint16_t PRINT_PERIOD_MS = 250;
@@ -22,12 +24,12 @@ void Task_SerialPrint(void* pvParameters) {
     for (;;) {
         vTaskDelayUntil(&xLastWakeTime, period);
         Serial.print("Steps: ");
-        Serial.print(wheels_data.steps_left);
-        uint64_t delta = wheels_data.wL_measured * PRINT_PERIOD_MS;
+        Serial.print(wheels.steps_L);
+        uint64_t delta = wheels.w_L * PRINT_PERIOD_MS;
         Serial.print(" | delta steps: ");
         Serial.print(delta);
         Serial.print(" | w (rad/s): ");
-        Serial.println(wheels_data.wL_measured, 2);
+        Serial.println(wheels.w_L, 2);
     }
 }
 
@@ -46,9 +48,9 @@ void Task_SerialPrintPlot(void* pvParameters) {
         // Imprimir: tiempo | steps | velocidad
         Serial.print(t, 2);
         Serial.print(" ");
-        Serial.print(wheels_data.steps_left);
+        Serial.print(wheels.steps_L);
         Serial.print(" ");
-        Serial.println(wheels_data.wL_measured, 2);
+        Serial.println(wheels.w_L, 2);
     }
 }
 
@@ -59,26 +61,22 @@ void setup() {
     Serial.println("Inicio: Test con encoder + tarea RTOS");
 
     // Inicializar motor
-    MotorController::init(
-        system_states.motors, wheels_data.duty_left, wheels_data.duty_right);
-    MotorController::set_motors_mode(
-        MOTOR_ACTIVE, system_states.motors, wheels_data.duty_left, wheels_data.duty_right);
+    MotorController::init(systems.motors, wheels.duty_L, wheels.duty_R);
+    MotorController::set_motors_mode(MOTOR_ACTIVE, systems.motors, wheels.duty_L, wheels.duty_R);
 
     // Inicializar encoder
-    EncoderReader::init(wheels_data, system_states.encoders);
-    EncoderReader::resume(system_states.encoders);
+    EncoderReader::init(wheels.steps_L, wheels.steps_R, wheels.w_L, wheels.w_R, systems.encoders);
+    EncoderReader::resume(systems.encoders);
 
     // Crear tareas
     xTaskCreatePinnedToCore(EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2048, &ctx, 2, nullptr, APP_CPU_NUM);
     // xTaskCreatePinnedToCore(Task_SerialPrint, "SerialMonitor", 2048, nullptr, 1, nullptr, APP_CPU_NUM);
 
     // Empezamos la operación
-    MotorController::set_motors_duty(
-        0.5f, 0.5f, wheels_data.duty_left, wheels_data.duty_right, system_states.motors);
+    MotorController::set_motors_duty(0.5f, 0.5f, wheels.duty_L, wheels.duty_R, systems.motors);
 
     // Pruebas de desempeño
-    // MotorController::set_motors_mode(
-    //     MOTOR_IDLE, system_states.motor_operation, wheels_data.duty_left, wheels_data.duty_right);
+    // MotorController::set_motors_mode(MOTOR_IDLE, systems.motor_operation, wheels.duty_L, wheels.duty_R);
     // xTaskCreatePinnedToCore(Task_SerialPrintPlot, "PrintPlot", 2048, nullptr, 1, nullptr, APP_CPU_NUM);
 }
 
