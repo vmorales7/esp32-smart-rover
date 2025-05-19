@@ -14,7 +14,12 @@ namespace EncoderReader {
     static float filteredWL = 0.0f;
     static float filteredWR = 0.0f;
 
-    void init(volatile WheelsData& wheels_data, volatile uint8_t& encoder_state) {
+
+    void init(
+        volatile int64_t& steps_L, volatile int64_t& steps_R, 
+        volatile float& w_L, volatile float& w_R, 
+        volatile uint8_t& encoder_state
+    ) {
         ESP32Encoder::useInternalWeakPullResistors = puType::up;
         if constexpr (ENCODER_MODE == EncoderMode::HALF_QUAD) {
             encoderLeft.attachHalfQuad(ENCODER_LEFT_A_PIN, ENCODER_LEFT_B_PIN);
@@ -31,8 +36,8 @@ namespace EncoderReader {
         encoderRight.clearCount();
 
         // Se inicializan las variables de conteo y las memorias privadas
-        wheels_data.steps_left = 0;
-        wheels_data.steps_right = 0;
+        steps_L = 0;
+        steps_R = 0;
         lastCountLeft = 0;
         lastCountRight = 0;
         lastMillis = millis();
@@ -40,15 +45,19 @@ namespace EncoderReader {
         // Todas las velocidades en cero
         filteredWL = 0.0f;
         filteredWR = 0.0f;
-        wheels_data.wL_measured = 0.0f;
-        wheels_data.wR_measured = 0.0f;
+        w_L = 0.0f;
+        w_R = 0.0f;
 
         // Actualizar el estado del encoder
         encoder_state = INACTIVE;
     }
 
-    void update_encoder_data(volatile WheelsData& wheels_data, volatile uint8_t& encoder_state) {
 
+    void update_encoder_data(
+        volatile int64_t& steps_L, volatile int64_t& steps_R, 
+        volatile float& w_L, volatile float& w_R, 
+        volatile uint8_t& encoder_state
+    ) {
         // Paso de tiempo
         unsigned long currentMillis = millis();
         float dt = (currentMillis - lastMillis) * MS_TO_S;  // Tiempo (s) transcurrido desde la ultima actualización
@@ -67,8 +76,8 @@ namespace EncoderReader {
         int64_t deltaRight = (currentCountRight - lastCountRight);
 
         // Se acumula el giro sobre el valor que se tenía antes
-        wheels_data.steps_left += deltaLeft;
-        wheels_data.steps_right += deltaRight;
+        steps_L += deltaLeft;
+        steps_R += deltaRight;
 
         // La velocidad es instantánea así que se actualiza con el factor para convertir en radianes
         float rawWL = deltaLeft * RAD_PER_PULSE / dt;
@@ -78,11 +87,11 @@ namespace EncoderReader {
         if constexpr (USE_VELOCITY_FILTER) {
             filteredWL = EMA_ALPHA * rawWL + (1.0f - EMA_ALPHA) * filteredWL;
             filteredWR = EMA_ALPHA * rawWR + (1.0f - EMA_ALPHA) * filteredWR;
-            wheels_data.wL_measured = filteredWL;
-            wheels_data.wR_measured = filteredWR;
+            w_L = filteredWL;
+            w_R = filteredWR;
         } else {
-            wheels_data.wL_measured = rawWL;
-            wheels_data.wR_measured = rawWR;
+            w_L = rawWL;
+            w_R = rawWR;
         }
         
         // Guardar datos para la próxima iteración
@@ -91,7 +100,12 @@ namespace EncoderReader {
         lastMillis = currentMillis;
     }
 
-    void pause(volatile WheelsData& wheels_data, volatile uint8_t& encoder_state) {
+
+    void pause(
+        volatile int64_t& steps_L, volatile int64_t& steps_R, 
+        volatile float& w_L, volatile float& w_R,
+        volatile uint8_t& encoder_state
+    ) {
         if (encoder_state != ACTIVE) return; // Solo pausar si estaba activo antes
 
         // Detener el conteo
@@ -99,7 +113,7 @@ namespace EncoderReader {
         encoderRight.pauseCount();
 
         // Última actualización antes de pausar (para no perder pasos entre ticks)
-        update_encoder_data(wheels_data, encoder_state);
+        update_encoder_data(steps_L, steps_R, w_L, w_R, encoder_state);
 
         // Reset hardware y control interno 
         // Importante que no se limpien las variables steps_R/L_ptr ya que esto solo lo puede hacer pose_estimator
@@ -111,12 +125,13 @@ namespace EncoderReader {
         // Dejar en cero las mediciones de velocidad
         filteredWL = 0.0f;
         filteredWR = 0.0f;
-        wheels_data.wL_measured = 0.0f;
-        wheels_data.wR_measured = 0.0f;
+        w_L = 0.0f;
+        w_R = 0.0f;
 
         // Actualizar el estado del encoder
         encoder_state = INACTIVE;
     }
+
 
     void resume(volatile uint8_t& encoder_state) {
         if (encoder_state != ACTIVE) { // Se modifica solo si no estaba activo ya
@@ -128,18 +143,20 @@ namespace EncoderReader {
     }
     
     void Task_EncoderUpdate(void* pvParameters) {
-        // Cosas de RTOS
+        // Configuración RTOS
         TickType_t xLastWakeTime = xTaskGetTickCount();
         const TickType_t period = pdMS_TO_TICKS(ENCODER_READ_PERIOD_MS);
 
-        // Recuperamos los inputs pasados a la tarea de RTOS
+        // Obtener contexto global
         GlobalContext* ctx_ptr = static_cast<GlobalContext*>(pvParameters);
-        volatile uint8_t* encoder_state_ptr = &ctx_ptr->systems_ptr->encoders;
-        volatile WheelsData* wheels_data_ptr = ctx_ptr->wheels_ptr;
+        volatile uint8_t& encoder_state = ctx_ptr->systems_ptr->encoders;
+        volatile WheelsData& whl = *ctx_ptr->wheels_ptr;
+
         for (;;) {
             vTaskDelayUntil(&xLastWakeTime, period);
-            // Solo continuar si encoder activo
-            if (*encoder_state_ptr == ACTIVE) update_encoder_data(*wheels_data_ptr, *encoder_state_ptr); 
+            if (encoder_state == ACTIVE) {
+                update_encoder_data(whl.steps_L, whl.steps_R, whl.w_L, whl.w_R, encoder_state);
+            }
         }
     }
     

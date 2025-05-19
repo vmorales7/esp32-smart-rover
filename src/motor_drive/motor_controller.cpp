@@ -235,34 +235,47 @@ namespace MotorController {
         dutyR_global = dutyR_data.duty_val;
     }
 
-    void update_motors_control(volatile WheelsData& wheels_data, volatile uint8_t& motor_state) {
-        if (motor_state != MOTOR_AUTO) return; // Se opera solo en modo auto
+    void update_motors_control(
+        volatile float& w_L, volatile float& w_R, 
+        volatile float& w_L_ref, volatile float& w_R_ref,
+        volatile float& duty_L, volatile float& duty_R, 
+        volatile uint8_t& state
+    ) {
+        if (state != MOTOR_AUTO) return; // Se opera solo en modo auto
         // Cálculo del PI
-        DutyProfile dutyL = pidLeft.compute(wheels_data.wL_ref, wheels_data.wL_measured);
-        DutyProfile dutyR = pidRight.compute(wheels_data.wR_ref, wheels_data.wR_measured);
+        DutyProfile dutyL = pidLeft.compute(w_L_ref, w_L);
+        DutyProfile dutyR = pidRight.compute(w_R_ref, w_R);
 
         // Aplicar
-        apply_duty_profile(WHEEL_LEFT, dutyL, wheels_data.duty_left, motor_state);
-        apply_duty_profile(WHEEL_RIGHT, dutyR, wheels_data.duty_right, motor_state);
+        apply_duty_profile(WHEEL_LEFT, dutyL, duty_L, state);
+        apply_duty_profile(WHEEL_RIGHT, dutyR, duty_R, state);
     }
 
     void Task_WheelControl(void* pvParameters) {
         // Datos de RTOS
         TickType_t xLastWakeTime = xTaskGetTickCount();
         const TickType_t period = pdMS_TO_TICKS(WHEEL_CONTROL_PERIOD_MS);
-    
+
         // Cast del parámetro entregado a GlobalContext
         GlobalContext* ctx_ptr = static_cast<GlobalContext*>(pvParameters);
-    
+
         // Punteros a las variables necesarias
-        volatile uint8_t* motor_state_ptr = &ctx_ptr->systems_ptr->motors;
-        volatile WheelsData* wheels_data_ptr = ctx_ptr->wheels_ptr;
+        volatile WheelsData* whl_ptr = ctx_ptr->wheels_ptr;
+        volatile uint8_t* state_ptr  = &ctx_ptr->systems_ptr->motors;
 
         // Llamar periódicamente a la función
         for (;;) {
             vTaskDelayUntil(&xLastWakeTime, period);
-            update_motors_control(*wheels_data_ptr, *motor_state_ptr);
+            update_motors_control(
+                whl_ptr->w_L,
+                whl_ptr->w_R,
+                whl_ptr->w_L_ref,
+                whl_ptr->w_R_ref,
+                whl_ptr->duty_L,
+                whl_ptr->duty_R,
+                *state_ptr
+            );
         }
-    }  
+    }
 
 }

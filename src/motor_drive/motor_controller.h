@@ -27,7 +27,7 @@ constexpr float KW_WHEEL = 0.01f;
 constexpr float MIN_PID_DT = 0.001f;  // Tiempo mínimo entre ejecuciones [s]
 constexpr float W_INVERT_THRESHOLD = 0.1 * WM_NOM;        // No invertir el signo del duty si va muy rápido [rad/s]
 constexpr float W_BRAKE_THRESHOLD  = 0.5 * WM_NOM;        // Threshold de velocidad para freno activo [rad/s]
-constexpr float W_STOP_THRESHOLD   = (2.0f * PI / 15.0f); // Threshold de velocidad para considerar stop [rad/s]
+constexpr float W_STOP_THRESHOLD   = (2.0f * PI / 20.0f); // Threshold de velocidad para considerar stop [rad/s]
 
 // Corrección de pines
 constexpr bool INVERT_MOTOR_LEFT = true;
@@ -121,9 +121,11 @@ namespace MotorController {
      * @param dutyL_global Referencia al duty aplicado a rueda izquierda.
      * @param dutyR_global Referencia al duty aplicado a rueda derecha.
      */
-    void init(volatile uint8_t& motor_state_global,
-              volatile float& dutyL_global,
-              volatile float& dutyR_global);
+    void init(
+        volatile uint8_t& motor_state_global,
+        volatile float& dutyL_global,
+        volatile float& dutyR_global
+    );
     
     /**
      * @brief Configura el PWM y pines de dirección de un motor individual.
@@ -165,7 +167,7 @@ namespace MotorController {
         volatile uint8_t& motor_state_global,
         volatile float& dutyL_global,
         volatile float& dutyR_global
-        );
+    );
 
     /**
      * @brief Aplica directamente un perfil de duty a un motor.
@@ -178,7 +180,8 @@ namespace MotorController {
         uint8_t wheel_id,
         const DutyProfile& duty_data,
         volatile float& global_duty,
-        volatile uint8_t& motor_state);
+        volatile uint8_t& motor_state
+    );
             
     /**
      * @brief Aplica un duty al PWM y actualiza la estructura correspondiente con el duty efectivo aplicado.
@@ -194,20 +197,30 @@ namespace MotorController {
         volatile float duty_right,
         volatile float& dutyL_global,
         volatile float& dutyR_global,
-        volatile uint8_t& motor_state);
+        volatile uint8_t& motor_state
+    );
 
     /**
      * @brief Ejecuta un paso de control para ambos motores en modo automático.
      *
-     * Esta función calcula el duty necesario para alcanzar la velocidad angular
-     * de referencia en cada rueda, usando un controlador PI con lógica de protección.
-     * Si el duty calculado es cero y la rueda aún gira, se aplica freno activo.
-     * @param wheels_data Estructura global de datos de ruedas.
-     * @param motor_state Estado del sistema (debe ser MOTOR_AUTO)
+     * Esta función calcula el duty necesario para que cada rueda alcance su velocidad angular
+     * de referencia, utilizando un controlador PI con protección contra inversión abrupta,
+     * arranques en parado y anti-windup. Si se detecta que el sentido deseado difiere del real
+     * y la velocidad aún es alta, se aplica frenado activo.
+     *
+     * @param w_L Velocidad angular medida de la rueda izquierda [rad/s].
+     * @param w_R Velocidad angular medida de la rueda derecha [rad/s].
+     * @param w_L_ref Velocidad angular de referencia para la rueda izquierda [rad/s].
+     * @param w_R_ref Velocidad angular de referencia para la rueda derecha [rad/s].
+     * @param duty_L Referencia al duty aplicado al motor izquierdo (salida) [-1.0, 1.0].
+     * @param duty_R Referencia al duty aplicado al motor derecho (salida) [-1.0, 1.0].
+     * @param state Estado del controlador de motores (debe estar en MOTOR_AUTO para ejecutar control).
      */
     void update_motors_control(
-        volatile WheelsData& wheels_data,
-        volatile uint8_t& motor_state
+        volatile float& w_L, volatile float& w_R, 
+        volatile float& w_L_ref, volatile float& w_R_ref,
+        volatile float& duty_L, volatile float& duty_R, 
+        volatile uint8_t& state
     );
 
     /**
