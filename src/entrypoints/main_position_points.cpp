@@ -35,7 +35,7 @@ Punto trayectoria[NUM_PUNTOS] = {
     {2.0f, 2.0f}
 };
 volatile uint8_t punto_actual = 0;
-constexpr float TOL_POS = 0.05f;  // 5 cm de tolerancia para considerar que llegó
+constexpr float TOL_POS = 0.1f;  // 5 cm de tolerancia para considerar que llegó
 
 
 // ====================== TAREA PRINCIPAL ======================
@@ -68,6 +68,9 @@ void Task_ControlPorPuntos(void* pvParameters) {
         float dx = kinem.x_d - kinem.x;
         float dy = kinem.y_d - kinem.y;
         float dist = sqrtf(dx * dx + dy * dy);
+        if (dist > TOL_POS) {
+            Serial.printf("Punto %d no alcanzado (x=%.2f, y=%.2f)\n", punto_actual, kinem.x, kinem.y);
+        }
         if (dist < TOL_POS) {
             Serial.printf("Punto %d alcanzado (x=%.2f, y=%.2f)\n", punto_actual, kinem.x, kinem.y);
             punto_actual++;
@@ -94,7 +97,7 @@ void setup() {
     PoseEstimator::set_state(ACTIVE, states.pose);
     DistanceSensors::set_state(ACTIVE, states.distance);
     MotorController::set_motors_mode(MOTOR_AUTO, states.motors, wheels.duty_left, wheels.duty_right);
-    PositionController::set_control_mode(SPEED_REF_AUTO_BASIC, states.position, wheels.duty_left, wheels.duty_right);
+    PositionController::set_control_mode(SPEED_REF_AUTO_BASIC, states.position, wheels.wL_ref, wheels.wR_ref);
 
     // Tareas de sistema
     xTaskCreatePinnedToCore(EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2048, &ctx, 1, nullptr, 1);

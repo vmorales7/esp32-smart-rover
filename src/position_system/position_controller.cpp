@@ -47,7 +47,7 @@ namespace PositionController {
     }
 
     float compute_wheel_speed_ref(const float v_ref, const float w_ref, const uint8_t wheel_id) {
-        float rotation_term = w_ref * WHEEL_DISTANCE / 2.0f;
+        float rotation_term = w_ref * WHEEL_DISTANCE;
         if (wheel_id == WHEEL_LEFT)
             return (v_ref - rotation_term) / WHEEL_RADIUS;
         else if (wheel_id == WHEEL_RIGHT)
