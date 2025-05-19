@@ -12,7 +12,7 @@ constexpr float DISTANCE_TOLERANCE = 0.1;
 constexpr float Kp_alpha = 3.0f; // Ganancia proporcional
 constexpr float Ki_alpha = 0.2f; // Ganancia integral
 constexpr float Kd_alpha = 0.0f; // Ganancia derivativa
-constexpr float Kv_rho   = 0.9f; // Ganancia proporcional
+constexpr float Kv_rho   = 0.8f; // Ganancia proporcional
 
 // Parámetros del controlador de posición
 constexpr float K1 = 2.0f; 

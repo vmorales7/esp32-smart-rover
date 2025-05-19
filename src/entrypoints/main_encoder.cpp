@@ -25,7 +25,8 @@ void Task_SerialPrint(void* pvParameters) {
         vTaskDelayUntil(&xLastWakeTime, period);
         Serial.print("Steps: ");
         Serial.print(wheels.steps_L);
-        uint64_t delta = wheels.w_L * PRINT_PERIOD_MS;
+        uint64_t delta = static_cast<uint64_t>(
+            wheels.w_L * static_cast<float>(PRINT_PERIOD_MS) * MS_TO_S / RAD_PER_PULSE);
         Serial.print(" | delta steps: ");
         Serial.print(delta);
         Serial.print(" | w (rad/s): ");
@@ -70,7 +71,7 @@ void setup() {
 
     // Crear tareas
     xTaskCreatePinnedToCore(EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2048, &ctx, 2, nullptr, APP_CPU_NUM);
-    // xTaskCreatePinnedToCore(Task_SerialPrint, "SerialMonitor", 2048, nullptr, 1, nullptr, APP_CPU_NUM);
+    xTaskCreatePinnedToCore(Task_SerialPrint, "SerialMonitor", 2048, nullptr, 1, nullptr, APP_CPU_NUM);
 
     // Empezamos la operación
     MotorController::set_motors_duty(0.5f, 0.5f, wheels.duty_L, wheels.duty_R, systems.motors);

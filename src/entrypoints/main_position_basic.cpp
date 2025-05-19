@@ -74,7 +74,7 @@ void Task_PrintPose(void* pvParameters) {
     for (;;) {
         vTaskDelayUntil(&xLastWakeTime, period);
         Serial.printf("x: %.2f  y: %.2f  θ: %.2f  |  v: %.2f  w: %.2f\n", 
-            kinem.x, kinem.y, (kinem.theta * 3.14), kinem.v, kinem.w);
+            kinem.x, kinem.y, (kinem.theta * PI), kinem.v, kinem.w);
     }
 }
 

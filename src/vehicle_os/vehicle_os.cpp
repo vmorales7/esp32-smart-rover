@@ -4,6 +4,17 @@ namespace OS {
 
     static OS_State current_state = OS_State::INIT;
 
+    void set_waypoint(GlobalContext* ctx_ptr) {
+        auto& os = *ctx_ptr->os_ptr;
+        auto& kin = *ctx_ptr->kinematic_ptr;
+
+        // Fijar el punto objetivo a partir del primer punto en la trayectoria
+        if (os.total_targets > 0) {
+            kin.x_d = os.trajectory[0].x;
+            kin.y_d = os.trajectory[0].y;
+        }
+    }
+
     void enter_init(GlobalContext* ctx_ptr) {
         auto& sts = *ctx_ptr->systems_ptr;
         auto& kin = *ctx_ptr->kinematic_ptr;

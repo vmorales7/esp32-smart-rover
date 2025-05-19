@@ -20,28 +20,30 @@ void Task_ObstacleResponse(void* pvParameters) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
 
     GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
+    auto& d = *ctx->distance_ptr;  // Referencia directa
 
     for (;;) {
         vTaskDelayUntil(&xLastWakeTime, period);
 
-        if (ctx->distance_ptr->obstacle_detected) {
+        if (d.obstacle_detected) {
             Serial.println("Obstáculo detectado. Procesando evento...");
 
             Serial.print("  Distancia izquierda: ");
-            Serial.print(ctx->distance_ptr->left_dist);
+            Serial.print(d.left_dist);
             Serial.println(" cm");
 
             Serial.print("  Distancia frontal: ");
-            Serial.print(ctx->distance_ptr->mid_dist);
+            Serial.print(d.mid_dist);
             Serial.println(" cm");
 
             Serial.print("  Distancia derecha: ");
-            Serial.print(ctx->distance_ptr->right_dist);
+            Serial.print(d.right_dist);
             Serial.println(" cm");
             Serial.println();
 
             // Consumir evento
-            ctx->distance_ptr->obstacle_detected = false;
+            DistanceSensors::update_global_obstacle_flag(
+                d.left_obst, d.mid_obst, d.right_obst, d.obstacle_detected);
         }
     }
 }

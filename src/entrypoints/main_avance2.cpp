@@ -91,7 +91,9 @@ void Task_FaseManager(void* pvParameters) {
                 if (fase_tiempo_acumulado >= fases[fase_indice_actual].duracion_ms) {
                     fase_indice_actual++;
                     fase_tiempo_acumulado = 0;
-                    Serial.printf("Fase completada. Avanzando a fase %d\n", fase_indice_actual);
+                    if(fase_indice_actual <= NUM_FASES-1) {
+                        Serial.printf("Fase completada. Avanzando a fase %d\n", fase_indice_actual);
+                    }
                 }
                 break;
             }
@@ -142,11 +144,13 @@ void Task_Printer(void* pvParameters) {
 
     for (;;) {
         vTaskDelayUntil(&xLastWakeTime, period);
-        Serial.printf("wL_ref %.1f | wR_ref %.1f\n",
-                      wheels.w_L_ref, wheels.w_R_ref);        
-        Serial.printf("wL %.1f dutyL %.2f | wR %.1f dutyR %.2f\n",
-                      wheels.w_L, wheels.duty_L, wheels.w_R, wheels.duty_R);
-        Serial.println();
+        if (fase_estado != FaseEstado::FINALIZADO) {
+            Serial.printf("wL_ref %.1f | wR_ref %.1f\n",
+                        wheels.w_L_ref, wheels.w_R_ref);        
+            Serial.printf("wL %.1f dutyL %.2f | wR %.1f dutyR %.2f\n",
+                        wheels.w_L, wheels.duty_L, wheels.w_R, wheels.duty_R);
+            Serial.println();
+        }
     }
 }
 

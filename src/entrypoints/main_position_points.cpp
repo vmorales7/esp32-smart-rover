@@ -37,7 +37,6 @@ Punto trayectoria[NUM_PUNTOS] = {
     {2.0f, 2.0f}
 };
 volatile uint8_t punto_actual = 0;
-constexpr float TOL_POS = 0.05f;  // 5 cm de tolerancia para considerar que llegó
 
 
 // ====================== TAREA PRINCIPAL ======================
@@ -71,7 +70,7 @@ void Task_ControlPorPuntos(void* pvParameters) {
         float dx = kinem.x_d - kinem.x;
         float dy = kinem.y_d - kinem.y;
         float dist = sqrtf(dx * dx + dy * dy);
-        if (dist < TOL_POS) {
+        if (dist < DISTANCE_TOLERANCE) {
             Serial.printf("Punto %d alcanzado (x=%.2f, y=%.2f)\n", punto_actual, kinem.x, kinem.y);
             punto_actual++;
         }

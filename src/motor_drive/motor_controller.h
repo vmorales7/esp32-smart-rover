@@ -27,7 +27,7 @@ constexpr float KW_WHEEL = 0.01f;
 constexpr float MIN_PID_DT = 0.001f;  // Tiempo mínimo entre ejecuciones [s]
 constexpr float W_INVERT_THRESHOLD = 0.1 * WM_NOM;        // No invertir el signo del duty si va muy rápido [rad/s]
 constexpr float W_BRAKE_THRESHOLD  = 0.5 * WM_NOM;        // Threshold de velocidad para freno activo [rad/s]
-constexpr float W_STOP_THRESHOLD   = (2.0f * PI / 15.0f); // Threshold de velocidad para considerar stop [rad/s]
+constexpr float W_STOP_THRESHOLD   = (2.0f * PI / 20.0f); // Threshold de velocidad para considerar stop [rad/s]
 
 // Corrección de pines
 constexpr bool INVERT_MOTOR_LEFT = true;

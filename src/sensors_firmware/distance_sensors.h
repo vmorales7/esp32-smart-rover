@@ -28,7 +28,7 @@ constexpr uint8_t OBSTACLE_THRESHOLD_CM = 30;
  * Si la lectura supera este valor, se considera inválida o sin respuesta
  * y se devuelve US_MAX_DISTANCE_CM.
  */
-constexpr uint8_t US_MAX_DISTANCE_CM = OBSTACLE_THRESHOLD_CM + 10U;
+constexpr uint8_t US_MAX_DISTANCE_CM = 100U;
 
 /**
  * @brief Tiempo máximo de espera para el pulso de eco [µs].

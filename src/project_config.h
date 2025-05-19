@@ -35,7 +35,7 @@ constexpr uint8_t US_RIGHT_ECHO_PIN = 23;
 constexpr uint8_t IMU_SDA_PIN = 4;
 constexpr uint8_t IMU_SCL_PIN = 5;
 
-// Aux
+// Aux: LED para debug
 constexpr uint8_t ESP32_LED = 2;
 
 

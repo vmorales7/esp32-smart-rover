@@ -21,7 +21,7 @@ GlobalContext ctx = {
     .distance_ptr    = nullptr
 };
 
-constexpr float Wref = 10.0f;
+constexpr float Wref = 9.0f;
 
 // ====================== Tarea auxiliar ======================
 
@@ -45,14 +45,14 @@ void setup() {
 
     // Inicializar motores
     MotorController::init(states.motors, wheels.duty_L, wheels.duty_R);
-    // MotorController::set_motors_mode(MOTOR_AUTO, states.motor_operation, wheels.duty_L, wheels.duty_R);
+    MotorController::set_motors_mode(MOTOR_AUTO, states.motors, wheels.duty_L, wheels.duty_R);
 
     // Inicializar controlador de posición
     PositionController::init(states.position, wheels.w_L_ref, wheels.w_R_ref);
     PositionController::set_control_mode(SPEED_REF_MANUAL, states.position, wheels.w_L_ref, wheels.w_R_ref);
 
     // Instrucciones de inicio
-    // PositionController::set_wheel_speed_ref(Wref, Wref, wheels.wL_ref, wheels.wR_ref, states.position_controller);
+    PositionController::set_wheel_speed_ref(Wref, Wref, wheels.w_L_ref, wheels.w_R_ref, states.position);
     PoseEstimator::set_state(ACTIVE, states.pose);
     EncoderReader::resume(states.encoders);
 
@@ -62,9 +62,11 @@ void setup() {
     xTaskCreatePinnedToCore(PoseEstimator::Task_PoseEstimatorEncoder, "PoseEstimator", 2048, &ctx, 1, nullptr, 1);
 
     // Debug
-    //xTaskCreatePinnedToCore(Task_PrintPose, "PrintPose", 2048, &ctx, 1, nullptr, 0);
-    MotorController::set_motors_mode(MOTOR_IDLE, states.motors, wheels.duty_L, wheels.duty_R);
-    xTaskCreatePinnedToCore(Task_PrintXY, "PrintXY", 2048, &ctx, 1, nullptr, 0);
+    xTaskCreatePinnedToCore(Task_PrintPose, "PrintPose", 2048, &ctx, 1, nullptr, 0);
+
+    // Performance tests
+    // MotorController::set_motors_mode(MOTOR_IDLE, states.motors, wheels.duty_L, wheels.duty_R);
+    // xTaskCreatePinnedToCore(Task_PrintXY, "PrintXY", 2048, &ctx, 1, nullptr, 0);
 }
 
 void loop() {
@@ -85,7 +87,7 @@ void Task_PrintPose(void* pvParameters) {
         Serial.printf("Pose => x: %.2f | y: %.2f | θ: %.2f || Vel => v: %.2f | w: %.2f\n",
                         k.x, k.y, k.theta, k.v, k.w);
     }
-    }
+}
 
 void Task_PrintXY(void* pvParameters) {
     auto& k = *static_cast<GlobalContext*>(pvParameters)->kinematic_ptr;

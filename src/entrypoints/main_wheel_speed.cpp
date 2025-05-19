@@ -68,9 +68,8 @@ void setup() {
     xTaskCreatePinnedToCore(EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2048, &ctx, 3, nullptr, 1);
     xTaskCreatePinnedToCore(MotorController::Task_WheelControl, "WheelControl", 2048, &ctx, 2, nullptr, 1);
     xTaskCreatePinnedToCore(Task_ToggleReference, "ToggleRef", 2048, &ctx, 1, nullptr, 1);
-    // xTaskCreatePinnedToCore(Task_Printer, "Printer", 2048, &ctx, 1, nullptr, 0);
-    xTaskCreatePinnedToCore(Task_PrintPerformance, "PrintPerformance", 2048, &ctx, 1, nullptr, 0);
-    // xTaskCreatePinnedToCore(Task_SerialPlot, "SerialPlot", 2048, &ctx, 1, nullptr, 0);
+    xTaskCreatePinnedToCore(Task_Printer, "Printer", 2048, &ctx, 1, nullptr, 0);
+    // xTaskCreatePinnedToCore(Task_PrintPerformance, "PrintPerformance", 2048, &ctx, 1, nullptr, 0);
 
 }
 
@@ -108,27 +107,5 @@ void Task_PrintPerformance(void* pvParameters) {
                       wheels->w_L_ref,      // referencia angular
                       wheels->w_L, // velocidad medida
                       wheels->duty_L);  // duty aplicado
-    }
-}
-
-void Task_SerialPlot(void* pvParameters) {
-    TickType_t xLastWakeTime = xTaskGetTickCount();
-    const TickType_t period = pdMS_TO_TICKS(PRINT_INTERVAL_MS);
-    GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
-    volatile WheelsData* wheels = ctx->wheels_ptr;
-
-    for (;;) {
-        vTaskDelayUntil(&xLastWakeTime, period);
-
-        Serial.print("wL_ref:");
-        Serial.print(wheels->w_L_ref, 2);
-        Serial.print("\t");
-
-        Serial.print("wL_meas:");
-        Serial.print(wheels->w_L, 2);
-        Serial.print("\t");
-
-        Serial.print("dutyL:");
-        Serial.println(wheels->duty_L, 2);
     }
 }
