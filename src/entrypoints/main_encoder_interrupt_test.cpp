@@ -3,7 +3,7 @@
 #warning "Compilando main_encoder_interrupt_test.cpp"
 
 // ====================== VARIABLES GLOBALES ======================
-volatile uint8_t motors_op = MOTOR_IDLE;
+volatile MotorMode motors_op = MotorMode::IDLE;
 volatile float dutyL = 0.0f;
 volatile float dutyR = 0.0f;
 volatile long encoder_steps = 0;
@@ -23,7 +23,7 @@ void setup() {
     
     // Inicializar motor
     MotorController::init(motors_op, dutyL, dutyR);
-    MotorController::set_motors_mode(MOTOR_ACTIVE, motors_op, dutyL, dutyR);
+    MotorController::set_motors_mode(MotorMode::ACTIVE, motors_op, dutyL, dutyR);
     MotorController::set_motors_duty(0.5f, 0.5f, dutyL, dutyR, motors_op);
     
     // Inicializar encoder

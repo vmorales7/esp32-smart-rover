@@ -7,7 +7,7 @@
 #warning "Compilando main_avance2.cpp"
 
 // ====================== VARIABLES GLOBALES ======================
-volatile SystemStates states = {0};
+volatile SystemStates states;
 volatile WheelsData wheels = {0};
 volatile DistanceSensorData distances = {0};
 volatile KinematicState kinematic = {0};
@@ -102,7 +102,7 @@ void Task_FaseManager(void* pvParameters) {
                 fase_wR_ref = 0.0f;
                 if (fabsf(wheels.w_L) < W_STOP_THRESHOLD &&
                     fabsf(wheels.w_R) < W_STOP_THRESHOLD) {
-                    MotorController::set_motors_mode(MOTOR_IDLE, states.motors, wheels.duty_L, wheels.duty_R);
+                    MotorController::set_motors_mode(MotorMode::IDLE, states.motors, wheels.duty_L, wheels.duty_R);
                     fase_estado = FaseEstado::DETENIDO_POR_OBSTACULO;
                     Serial.println("Vehiculo detenido completamente por obstaculo.");
                 }
@@ -113,7 +113,7 @@ void Task_FaseManager(void* pvParameters) {
                     distances.left_obst, distances.mid_obst, distances.right_obst);
                 if (!obstacle_flag) {
                     fase_estado = FaseEstado::EJECUTANDO;
-                    MotorController::set_motors_mode(MOTOR_AUTO, states.motors, wheels.duty_L, wheels.duty_R);
+                    MotorController::set_motors_mode(MotorMode::AUTO, states.motors, wheels.duty_L, wheels.duty_R);
                     fase_wL_ref = fases[fase_indice_actual].wL_ref;
                     fase_wR_ref = fases[fase_indice_actual].wR_ref;
                     Serial.println("Obstaculo retirado. Reanudando fase actual.");
@@ -127,7 +127,7 @@ void Task_FaseManager(void* pvParameters) {
                 fase_wR_ref = 0.0f;
                 PositionController::set_wheel_speed_ref(
                     fase_wL_ref, fase_wR_ref, wheels.w_L_ref, wheels.w_R_ref, states.position);
-                MotorController::set_motors_mode(MOTOR_IDLE, states.motors, wheels.duty_L, wheels.duty_R);
+                MotorController::set_motors_mode(MotorMode::IDLE, states.motors, wheels.duty_L, wheels.duty_R);
                 Serial.println("Finalizado.");
                 vTaskSuspend(nullptr);
                 break;
@@ -163,10 +163,10 @@ void setup() {
     delay(1000);
 
     MotorController::init(states.motors, wheels.duty_L, wheels.duty_R);
-    MotorController::set_motors_mode(MOTOR_AUTO, states.motors, wheels.duty_L, wheels.duty_R);
+    MotorController::set_motors_mode(MotorMode::AUTO, states.motors, wheels.duty_L, wheels.duty_R);
 
     PositionController::init(states.position, wheels.w_L_ref, wheels.w_R_ref);
-    PositionController::set_control_mode(SPEED_REF_MANUAL, states.position, wheels.w_L_ref, wheels.w_R_ref);
+    PositionController::set_control_mode(PositionControlMode::MANUAL, states.position, wheels.w_L_ref, wheels.w_R_ref);
 
     DistanceSensors::init(
         distances.left_dist, distances.left_obst, distances.mid_dist, distances.mid_obst,

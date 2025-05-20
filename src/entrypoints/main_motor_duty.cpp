@@ -3,7 +3,7 @@
 #warning "Compilando main_motor_duty.cpp"
 
 // ====================== VARIABLES GLOBALES ======================
-volatile uint8_t motors_op = MOTOR_IDLE;
+volatile MotorMode motors_op = MotorMode::IDLE;
 volatile float dutyL = 0.0f;
 volatile float dutyR = 0.0f;
 
@@ -23,7 +23,7 @@ void setup() {
 
     // Inicializar
     MotorController::init(motors_op, dutyL, dutyR);
-    MotorController::set_motors_mode(MOTOR_ACTIVE, motors_op, dutyL, dutyR);
+    MotorController::set_motors_mode(MotorMode::ACTIVE, motors_op, dutyL, dutyR);
     delay(3000);
     Serial.println("Test: Duty Cycle Motor - Iniciando secuencia...");
 
@@ -53,7 +53,7 @@ void setup() {
     delay(5000);
 
     // Detener motores
-    MotorController::set_motors_mode(MOTOR_IDLE, motors_op, dutyL, dutyR);
+    MotorController::set_motors_mode(MotorMode::IDLE, motors_op, dutyL, dutyR);
     Serial.println("Secuencia completada. Detenido.");
 
     // MotorController::set_motors_duty(0.5f, 0.5f, dutyL, dutyR, motors_op);

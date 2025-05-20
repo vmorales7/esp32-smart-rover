@@ -7,7 +7,7 @@
 #warning "Compilando main_position_basic.cpp"
 
 // ====================== VARIABLES GLOBALES ======================
-volatile SystemStates states = {0};
+volatile SystemStates states;
 volatile WheelsData wheels = {0};
 volatile KinematicState kinem = {0};
 volatile PoseData pose = {0};
@@ -42,9 +42,9 @@ void setup() {
     PositionController::init(states.position, wheels.w_L_ref, wheels.w_R_ref);
 
     // Establecer modos
-    PositionController::set_control_mode(SPEED_REF_AUTO_ADVANCED, states.position, wheels.w_L_ref, wheels.w_R_ref);
+    PositionController::set_control_mode(PositionControlMode::MOVE_ADVANCED, states.position, wheels.w_L_ref, wheels.w_R_ref);
     EncoderReader::resume(states.encoders);
-    MotorController::set_motors_mode(MOTOR_AUTO, states.motors, wheels.duty_L, wheels.duty_R);
+    MotorController::set_motors_mode(MotorMode::AUTO, states.motors, wheels.duty_L, wheels.duty_R);
     PoseEstimator::set_state(ACTIVE, states.pose);
 
     // Asignar punto objetivo

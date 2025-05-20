@@ -8,7 +8,7 @@
 
 // ====================== VARIABLES GLOBALES ======================
 
-volatile SystemStates states = {0};
+volatile SystemStates states;
 volatile WheelsData wheels = {0};
 volatile KinematicState kinem = {0};
 volatile PoseData pose = {0};
@@ -45,11 +45,11 @@ void setup() {
 
     // Inicializar motores
     MotorController::init(states.motors, wheels.duty_L, wheels.duty_R);
-    MotorController::set_motors_mode(MOTOR_AUTO, states.motors, wheels.duty_L, wheels.duty_R);
+    MotorController::set_motors_mode(MotorMode::AUTO, states.motors, wheels.duty_L, wheels.duty_R);
 
     // Inicializar controlador de posición
     PositionController::init(states.position, wheels.w_L_ref, wheels.w_R_ref);
-    PositionController::set_control_mode(SPEED_REF_MANUAL, states.position, wheels.w_L_ref, wheels.w_R_ref);
+    PositionController::set_control_mode(PositionControlMode::MANUAL, states.position, wheels.w_L_ref, wheels.w_R_ref);
 
     // Instrucciones de inicio
     PositionController::set_wheel_speed_ref(Wref, Wref, wheels.w_L_ref, wheels.w_R_ref, states.position);

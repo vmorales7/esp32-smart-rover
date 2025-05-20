@@ -11,7 +11,7 @@ constexpr uint32_t TOGGLE_INTERVAL_MS = 10000;
 constexpr uint32_t PRINT_INTERVAL_MS = 250;
 
 // Variables globales del sistema
-volatile SystemStates states = {0};
+volatile SystemStates states;
 volatile WheelsData wheels_data = {0};
 volatile KinematicState kinematic_data = {0};
 
@@ -33,7 +33,7 @@ void Task_ToggleReference(void* pvParameters) {
     GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
     volatile float* w_L_ref = &ctx->wheels_ptr->w_L_ref;
     volatile float* w_R_ref = &ctx->wheels_ptr->w_R_ref;
-    volatile uint8_t* control_mode_ptr = &ctx->systems_ptr->position;
+    volatile PositionControlMode* control_mode_ptr = &ctx->systems_ptr->position;
 
     float currentWref = W1;
 
@@ -57,10 +57,10 @@ void setup() {
 
     // Inicialización
     MotorController::init(states.motors, wheels_data.duty_L, wheels_data.duty_R);
-    MotorController::set_motors_mode(MOTOR_AUTO, states.motors, wheels_data.duty_L, wheels_data.duty_R);
+    MotorController::set_motors_mode(MotorMode::AUTO, states.motors, wheels_data.duty_L, wheels_data.duty_R);
     EncoderReader::init(wheels_data.steps_L, wheels_data.steps_R,wheels_data.w_L, wheels_data.w_R, states.encoders);
     PositionController::init(states.position, wheels_data.w_L_ref, wheels_data.w_R_ref);
-    PositionController::set_control_mode(SPEED_REF_MANUAL, states.position, wheels_data.w_L_ref, wheels_data.w_R_ref);
+    PositionController::set_control_mode(PositionControlMode::MANUAL, states.position, wheels_data.w_L_ref, wheels_data.w_R_ref);
     EncoderReader::resume(states.encoders);
     PositionController::set_wheel_speed_ref(W1, W1, wheels_data.w_L_ref, wheels_data.w_R_ref, states.position);
 
