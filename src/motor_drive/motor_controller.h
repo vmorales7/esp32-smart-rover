@@ -122,7 +122,7 @@ namespace MotorController {
      * @param dutyR_global Referencia al duty aplicado a rueda derecha.
      */
     void init(
-        volatile uint8_t& motor_state_global,
+        volatile MotorMode& motor_state_global,
         volatile float& dutyL_global,
         volatile float& dutyR_global
     );
@@ -163,8 +163,8 @@ namespace MotorController {
      * @param dutyR_global Referencia al duty derecho.
      */
     void set_motors_mode(
-        volatile uint8_t mode_new,
-        volatile uint8_t& motor_state_global,
+        volatile MotorMode mode_new,
+        volatile MotorMode& motor_state_global,
         volatile float& dutyL_global,
         volatile float& dutyR_global
     );
@@ -180,7 +180,7 @@ namespace MotorController {
         uint8_t wheel_id,
         const DutyProfile& duty_data,
         volatile float& global_duty,
-        volatile uint8_t& motor_state
+        volatile MotorMode& motor_state
     );
             
     /**
@@ -197,7 +197,7 @@ namespace MotorController {
         volatile float duty_right,
         volatile float& dutyL_global,
         volatile float& dutyR_global,
-        volatile uint8_t& motor_state
+        volatile MotorMode& motor_state
     );
 
     /**
@@ -220,7 +220,7 @@ namespace MotorController {
         volatile float& w_L, volatile float& w_R, 
         volatile float& w_L_ref, volatile float& w_R_ref,
         volatile float& duty_L, volatile float& duty_R, 
-        volatile uint8_t& state
+        volatile MotorMode& state
     );
 
     /**

@@ -4,7 +4,7 @@
 #warning "Compilando main_encoder.cpp"
 
 // ====================== VARIABLES GLOBALES ======================
-volatile SystemStates systems = {0};
+volatile SystemStates systems;
 volatile WheelsData wheels = {0};
 GlobalContext ctx = {
     .systems_ptr     = &systems,
@@ -63,7 +63,7 @@ void setup() {
 
     // Inicializar motor
     MotorController::init(systems.motors, wheels.duty_L, wheels.duty_R);
-    MotorController::set_motors_mode(MOTOR_ACTIVE, systems.motors, wheels.duty_L, wheels.duty_R);
+    MotorController::set_motors_mode(MotorMode::ACTIVE, systems.motors, wheels.duty_L, wheels.duty_R);
 
     // Inicializar encoder
     EncoderReader::init(wheels.steps_L, wheels.steps_R, wheels.w_L, wheels.w_R, systems.encoders);

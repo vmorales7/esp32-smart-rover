@@ -39,14 +39,14 @@ namespace OS {
         auto& dis = *ctx->distance_ptr;
 
         // 🛑 Dejar motores inactivos
-        MotorController::set_motors_mode(MOTOR_IDLE, sts.motors, whl.duty_L, whl.duty_R);
+        MotorController::set_motors_mode(MotorMode::IDLE, sts.motors, whl.duty_L, whl.duty_R);
 
         // Pausar y resetear sensores de distancia
         DistanceSensors::init(dis.left_dist, dis.left_obst, dis.mid_dist, dis.mid_obst, 
             dis.right_dist, dis.right_obst, dis.obstacle_detected, sts.distance);
  
         // Detener control de posición
-        PositionController::set_control_mode(PositionControlMode::SPEED_REF_INACTIVE, sts.position, whl.w_L_ref, whl.w_R_ref);
+        PositionController::set_control_mode(PositionControlMode::INACTIVE, sts.position, whl.w_L_ref, whl.w_R_ref);
 
         // ⏸️ Pausar encoders (congelar pasos y velocidades)
         EncoderReader::pause(whl.steps_L, whl.steps_R, whl.w_L, whl.w_R, sts.encoders);
@@ -76,11 +76,11 @@ namespace OS {
         PoseEstimator::set_state(ACTIVE, sts.pose);
 
         // 🧷 Mantener control de posición en modo pasivo, con velocidad de referencia 0
-        PositionController::set_control_mode(PositionControlMode::SPEED_REF_MANUAL, sts.position, whl.w_L_ref, whl.w_R_ref);
+        PositionController::set_control_mode(PositionControlMode::MANUAL, sts.position, whl.w_L_ref, whl.w_R_ref);
         PositionController::set_wheel_speed_ref(0.0f, 0.0f, whl.w_L_ref, whl.w_R_ref, sts.position);
 
         // 🧱 Frenar vehículo
-        MotorController::set_motors_mode(MOTOR_AUTO, sts.motors, whl.duty_L, whl.duty_R);
+        MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, whl.duty_L, whl.duty_R);
 
         // 🚫 Desactivar sensores de obstáculos por completitud
         DistanceSensors::set_state(INACTIVE, sts.distance, dis.left_dist, dis.left_obst, 
@@ -103,7 +103,7 @@ namespace OS {
         }
 
         // 🟢 Activar motores en modo automático
-        MotorController::set_motors_mode(MOTOR_AUTO, sts.motors, whl.duty_L, whl.duty_R);
+        MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, whl.duty_L, whl.duty_R);
 
         // 🟢 Reanudar sensores y estimadores
         EncoderReader::resume(sts.encoders);
@@ -112,12 +112,7 @@ namespace OS {
         //DistanceSensors::set_state(ACTIVE, sts.distance);
         
         // 🟢 Activar control de posición básico (v_ref y w_ref)
-        PositionController::set_control_mode(SPEED_REF_AUTO_BASIC, sts.position, whl.w_L_ref, whl.w_R_ref);
-
-
-
-        // 🟢 Desactivar evasión (se activa solo si hay obstáculos)
-        sts.evation = INACTIVE;
+        PositionController::set_control_mode(PositionControlMode::MOVE_BASIC, sts.position, whl.w_L_ref, whl.w_R_ref);
     }
 
 
