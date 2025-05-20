@@ -15,7 +15,11 @@
 // #define USE_MAIN_DISTANCE_SENSORS       // RTOS con todos los sensores de distancia
 // #define USE_MAIN_AVANCE2                // Rutina de velocidades + detención por obstáculo + RTOS
 // #define USE_MAIN_POSITION_BASIC         // Control de posición hacia punto único
+<<<<<<< HEAD
 // #define USE_MAIN_POSITION_POINTS         // Control de posición hacia punto único
+=======
+#define USE_MAIN_POSITION_POINTS        // Múltiples posiciones + detención por obstáculo
+>>>>>>> 4e5bbfdfbd350aa634d704e68d837f6c88e15e4c
 // #define USE_MAIN_DEBUG
 
 

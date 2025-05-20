@@ -70,7 +70,6 @@ void setup() {
     xTaskCreatePinnedToCore(Task_ToggleReference, "ToggleRef", 2048, &ctx, 1, nullptr, 1);
     xTaskCreatePinnedToCore(Task_Printer, "Printer", 2048, &ctx, 1, nullptr, 0);
     // xTaskCreatePinnedToCore(Task_PrintPerformance, "PrintPerformance", 2048, &ctx, 1, nullptr, 0);
-
 }
 
 void loop() {
