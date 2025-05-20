@@ -2,17 +2,19 @@
 #define IMU_READER_H
 
 #include "project_config.h"
-#include <SPI.h>
 #include <Wire.h>
-#include <MPU9250_WE.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BNO055.h>
+#include <utility/imumaths.h>
 #define MPU9250_ADDR 0x68
 
 /* -------------------- definiciones utilizacion IMU (MPU9250) -------------------- */
+uint16_t BNO055_SAMPLERATE_DELAY_MS = 100;
 
 /**
  * @brief creacion del objeto para llamarlo y obtener datos.
  */
-MPU9250_WE IMU = MPU9250_WE(MPU9250_ADDR);
+Adafruit_BNO055 IMU = Adafruit_BNO055(55, 0x28, &Wire);
 
 
 /* -------------------- Módulo IMUSensor -------------------- */
