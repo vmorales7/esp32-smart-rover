@@ -134,45 +134,6 @@ constexpr uint16_t IMU_READ_PERIOD_MS = 20;
 
 
 /* -------------------- Estructuras con la data del sistema --------------------*/
-/**
- * @brief Representa el estado cinemático del vehículo autónomo en el plano 2D.
- *
- * Contiene la pose estimada actual, la pose deseada como objetivo, las velocidades actuales
- * del vehículo y las referencias de velocidad lineal y angular generadas por el controlador de posición.
- *
- * La data es usada por los estimadores de pose, el controlador de posición, evasión y la lógica de navegación.
- * No debe modificarse directamente fuera de los módulos responsables.
- */
-struct KinematicState {
-    /// Posición actual en el eje X [m]
-    float x;
-
-    /// Posición actual en el eje Y [m]
-    float y;
-
-    /// Orientación actual del vehículo respecto al eje X [rad].
-    /// θ = 0 indica orientación hacia el eje X positivo.
-    float theta;
-
-    /// Posición objetivo en el eje X [m].
-    /// Esta coordenada es actualizada desde Firebase o secuencia de navegación.
-    float x_d;
-
-    /// Posición objetivo en el eje Y [m].
-    float y_d;
-
-    /// Orientación del objetivo respecto a los ejes de referencia [rad].
-    float theta_d;
-
-    /// Velocidad lineal actual del vehículo [m/s].
-    /// Calculada por el estimador de pose.
-    float v;
-
-    /// Velocidad angular actual del vehículo [rad/s].
-    /// Calculada por el estimador de pose.
-    float w;
-};
-
 
 /**
  * @brief Indica el estado de activación de los distintos subsistemas del vehículo autónomo.
@@ -219,7 +180,6 @@ struct SystemStates {
     {}
 };
 
-
 /**
  * @brief Almacena la información de velocidad y control para cada rueda del vehículo.
  *
@@ -265,6 +225,44 @@ struct WheelsData {
     float duty_R;
 };
 
+/**
+ * @brief Representa el estado cinemático del vehículo autónomo en el plano 2D.
+ *
+ * Contiene la pose estimada actual, la pose deseada como objetivo, las velocidades actuales
+ * del vehículo y las referencias de velocidad lineal y angular generadas por el controlador de posición.
+ *
+ * La data es usada por los estimadores de pose, el controlador de posición, evasión y la lógica de navegación.
+ * No debe modificarse directamente fuera de los módulos responsables.
+ */
+struct KinematicState {
+    /// Posición actual en el eje X [m]
+    float x;
+
+    /// Posición actual en el eje Y [m]
+    float y;
+
+    /// Orientación actual del vehículo respecto al eje X [rad].
+    /// θ = 0 indica orientación hacia el eje X positivo.
+    float theta;
+
+    /// Posición objetivo en el eje X [m].
+    /// Esta coordenada es actualizada desde Firebase o secuencia de navegación.
+    float x_d;
+
+    /// Posición objetivo en el eje Y [m].
+    float y_d;
+
+    /// Orientación del objetivo respecto a los ejes de referencia [rad].
+    float theta_d;
+
+    /// Velocidad lineal actual del vehículo [m/s].
+    /// Calculada por el estimador de pose.
+    float v;
+
+    /// Velocidad angular actual del vehículo [rad/s].
+    /// Calculada por el estimador de pose.
+    float w;
+};
 
 /**
  * @brief Estructura que almacena el estado consolidado de sensores ultrasónicos frontales.
@@ -286,7 +284,6 @@ struct DistanceSensorData {
     bool right_obst;        ///< true si el sensor derecho detecta obstáculo
 };
 
-
 /**
  * @brief Estructura que almacena el estado consolidado del IMU.
  *
@@ -303,7 +300,6 @@ struct IMUSensorData{
     float w_gyro; ///< velocidad angular con respecto al eje z
     float mag_angle; ///< ángulo rotación respecto al norte magnetico de output total (orientacion absoluta)
 };
-
 
 /**
  * @brief Contiene la información de alto nivel relacionada con la operación del vehículo autónomo.
@@ -323,8 +319,8 @@ struct OperationData {
     uint8_t total_targets;                           ///< Número de puntos cargados en trayectoria
     TargetPoint trajectory[MAX_TRAJECTORY_POINTS];   ///< Lista de puntos objetivo a seguir
     RemoteCommand last_command;               ///< Última instrucción remota recibida (ej. START, STOP)
+    bool target_reached;                     ///< Indica si el objetivo fue alcanzado
 };
-
 
 /**
  * @brief Estructura global de contexto que agrupa punteros a las principales estructuras de estado del sistema.
