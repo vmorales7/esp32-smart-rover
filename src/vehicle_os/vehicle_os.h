@@ -21,6 +21,10 @@
 // Comunicación (a futuro)
 // #include "communication/firebase_comm.h" // Solo si empiezas a usar Firebase
 
+/* ------------------------ Constantes ------------------------*/
+
+constexpr float NULL_WAYPOINT_XY = 99.9f;
+
 
 /* ------------------------ Funciones ------------------------*/
 

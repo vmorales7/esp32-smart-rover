@@ -88,10 +88,15 @@ constexpr float RAD_PER_PULSE = (2.0f * PI) / ENCODER_PPR;
 enum class PositionControlMode : uint8_t {
     INACTIVE = 0U,
     MANUAL,
-    MOVE_BASIC,   
-    TURN_BASIC,  
-    MOVE_ADVANCED,  
-    TURN_ADVANCED
+    MOVE_PID,   
+    TURN_PID,  
+    MOVE_BACKS,  
+    TURN_BACKS
+};
+
+enum class ControlType : uint8_t {
+    PID = 0U,
+    BACKS
 };
 
 
@@ -126,53 +131,14 @@ enum class RemoteCommand : uint8_t {
 
 constexpr uint16_t WHEEL_CONTROL_PERIOD_MS = 10;
 constexpr uint16_t ENCODER_READ_PERIOD_MS = 10;
-constexpr uint16_t US_SENSOR_READ_PERIOD_MS = 250;
-constexpr uint16_t OBSTACLE_CHECK_PERIOD_MS = 100;
-constexpr uint16_t POSE_ESTIMATOR_PERIOD_MS = 200; 
-constexpr uint16_t POSITION_CONTROL_PERIOD_MS = 200;
 constexpr uint16_t IMU_READ_PERIOD_MS = 20;
+constexpr uint16_t OBSTACLE_CHECK_PERIOD_MS = 250;
+constexpr uint16_t POSE_ESTIMATOR_PERIOD_MS = 100; 
+constexpr uint16_t POSITION_CONTROL_PERIOD_MS = 200;
+constexpr uint16_t OS_UPDATE_PERIOD_MS = 50; 
 
 
 /* -------------------- Estructuras con la data del sistema --------------------*/
-/**
- * @brief Representa el estado cinemático del vehículo autónomo en el plano 2D.
- *
- * Contiene la pose estimada actual, la pose deseada como objetivo, las velocidades actuales
- * del vehículo y las referencias de velocidad lineal y angular generadas por el controlador de posición.
- *
- * La data es usada por los estimadores de pose, el controlador de posición, evasión y la lógica de navegación.
- * No debe modificarse directamente fuera de los módulos responsables.
- */
-struct KinematicState {
-    /// Posición actual en el eje X [m]
-    float x;
-
-    /// Posición actual en el eje Y [m]
-    float y;
-
-    /// Orientación actual del vehículo respecto al eje X [rad].
-    /// θ = 0 indica orientación hacia el eje X positivo.
-    float theta;
-
-    /// Posición objetivo en el eje X [m].
-    /// Esta coordenada es actualizada desde Firebase o secuencia de navegación.
-    float x_d;
-
-    /// Posición objetivo en el eje Y [m].
-    float y_d;
-
-    /// Orientación del objetivo respecto a los ejes de referencia [rad].
-    float theta_d;
-
-    /// Velocidad lineal actual del vehículo [m/s].
-    /// Calculada por el estimador de pose.
-    float v;
-
-    /// Velocidad angular actual del vehículo [rad/s].
-    /// Calculada por el estimador de pose.
-    float w;
-};
-
 
 /**
  * @brief Indica el estado de activación de los distintos subsistemas del vehículo autónomo.
@@ -219,7 +185,6 @@ struct SystemStates {
     {}
 };
 
-
 /**
  * @brief Almacena la información de velocidad y control para cada rueda del vehículo.
  *
@@ -265,6 +230,47 @@ struct WheelsData {
     float duty_R;
 };
 
+/**
+ * @brief Representa el estado cinemático del vehículo autónomo en el plano 2D.
+ *
+ * Contiene la pose estimada actual, la pose deseada como objetivo, las velocidades actuales
+ * del vehículo y las referencias de velocidad lineal y angular generadas por el controlador de posición.
+ *
+ * La data es usada por los estimadores de pose, el controlador de posición, evasión y la lógica de navegación.
+ * No debe modificarse directamente fuera de los módulos responsables.
+ */
+struct KinematicState {
+    /// Posición actual en el eje X [m]
+    float x;
+
+    /// Posición actual en el eje Y [m]
+    float y;
+
+    /// Orientación actual del vehículo respecto al eje X [rad].
+    /// θ = 0 indica orientación hacia el eje X positivo.
+    float theta;
+
+    /// Posición objetivo en el eje X [m].
+    /// Esta coordenada es actualizada desde Firebase o secuencia de navegación.
+    float x_d;
+
+    /// Posición objetivo en el eje Y [m].
+    float y_d;
+
+    /// Orientación del objetivo respecto a los ejes de referencia [rad].
+    float theta_d;
+
+    /// Velocidad lineal actual del vehículo [m/s].
+    /// Calculada por el estimador de pose.
+    float v;
+
+    /// Velocidad angular actual del vehículo [rad/s].
+    /// Calculada por el estimador de pose.
+    float w;
+
+    /// Flag que indica si el objetivo fue alcanzado.
+    bool target_reached;
+};
 
 /**
  * @brief Estructura que almacena el estado consolidado de sensores ultrasónicos frontales.
@@ -286,7 +292,6 @@ struct DistanceSensorData {
     bool right_obst;        ///< true si el sensor derecho detecta obstáculo
 };
 
-
 /**
  * @brief Estructura que almacena el estado consolidado del IMU.
  *
@@ -304,7 +309,6 @@ struct IMUSensorData{
     float mag_angle; ///< ángulo rotación respecto al norte magnetico de output total (orientacion absoluta)
 };
 
-
 /**
  * @brief Contiene la información de alto nivel relacionada con la operación del vehículo autónomo.
  *
@@ -319,12 +323,13 @@ struct IMUSensorData{
  * - last_remote_command: Última instrucción recibida por interfaz remota (START, STOP, etc.)
  */
 struct OperationData {
-    OS_State state;                          ///< Estado actual de la máquina de estados
-    uint8_t total_targets;                           ///< Número de puntos cargados en trayectoria
-    TargetPoint trajectory[MAX_TRAJECTORY_POINTS];   ///< Lista de puntos objetivo a seguir
-    RemoteCommand last_command;               ///< Última instrucción remota recibida (ej. START, STOP)
+    OS_State state;                                ///< Estado actual de la máquina de estados
+    uint8_t total_targets;                         ///< Número de puntos cargados en trayectoria
+    TargetPoint trajectory[MAX_TRAJECTORY_POINTS]; ///< Lista de puntos objetivo a seguir
+    RemoteCommand last_command;                    ///< Última instrucción remota recibida (ej. START, STOP)
+    bool waypoint_reached;                         ///< Flag que indica si se alcanzó el wayoint indicado
+    ControlType control_type;                      ///< Tipo de control activo (PID o BACKS)
 };
-
 
 /**
  * @brief Estructura global de contexto que agrupa punteros a las principales estructuras de estado del sistema.
