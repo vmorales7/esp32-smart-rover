@@ -128,10 +128,10 @@ namespace IMUSensor{
     
         // Punteros a las variables necesarias
         volatile uint8_t* imu_state_ptr = &ctx_ptr->systems_ptr->imu;
-        volatile float* imu_xaccel_ptr  = &ctx_ptr->imu_ptr->x_accel;
-        volatile float* imu_yaccel_ptr  = &ctx_ptr->imu_ptr->y_accel;
-        volatile float* imu_xspeed_ptr  = &ctx_ptr->imu_ptr->x_speed;
-        volatile float* imu_yspeed_ptr  = &ctx_ptr->imu_ptr->y_speed;
+        volatile float* imu_xaccel_ptr  = &ctx_ptr->imu_ptr->ax;
+        volatile float* imu_yaccel_ptr  = &ctx_ptr->imu_ptr->ay;
+        volatile float* imu_xspeed_ptr  = &ctx_ptr->imu_ptr->vx;
+        volatile float* imu_yspeed_ptr  = &ctx_ptr->imu_ptr->vy;
         volatile float* imu_wgyro_ptr    = &ctx_ptr->imu_ptr->w_gyro;
         volatile float* imu_magangle_ptr = &ctx_ptr->imu_ptr->mag_angle;
     
