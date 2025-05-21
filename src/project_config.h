@@ -88,10 +88,15 @@ constexpr float RAD_PER_PULSE = (2.0f * PI) / ENCODER_PPR;
 enum class PositionControlMode : uint8_t {
     INACTIVE = 0U,
     MANUAL,
-    MOVE_BASIC,   
-    TURN_BASIC,  
-    MOVE_ADVANCED,  
-    TURN_ADVANCED
+    MOVE_PID,   
+    TURN_PID,  
+    MOVE_BACKS,  
+    TURN_BACKS
+};
+
+enum class ControlType : uint8_t {
+    PID = 0U,
+    BACKS
 };
 
 
@@ -126,11 +131,11 @@ enum class RemoteCommand : uint8_t {
 
 constexpr uint16_t WHEEL_CONTROL_PERIOD_MS = 10;
 constexpr uint16_t ENCODER_READ_PERIOD_MS = 10;
-constexpr uint16_t US_SENSOR_READ_PERIOD_MS = 250;
-constexpr uint16_t OBSTACLE_CHECK_PERIOD_MS = 100;
-constexpr uint16_t POSE_ESTIMATOR_PERIOD_MS = 200; 
-constexpr uint16_t POSITION_CONTROL_PERIOD_MS = 200;
 constexpr uint16_t IMU_READ_PERIOD_MS = 20;
+constexpr uint16_t OBSTACLE_CHECK_PERIOD_MS = 250;
+constexpr uint16_t POSE_ESTIMATOR_PERIOD_MS = 100; 
+constexpr uint16_t POSITION_CONTROL_PERIOD_MS = 200;
+constexpr uint16_t OS_UPDATE_PERIOD_MS = 50; 
 
 
 /* -------------------- Estructuras con la data del sistema --------------------*/
@@ -262,6 +267,9 @@ struct KinematicState {
     /// Velocidad angular actual del vehículo [rad/s].
     /// Calculada por el estimador de pose.
     float w;
+
+    /// Flag que indica si el objetivo fue alcanzado.
+    bool target_reached;
 };
 
 /**
@@ -315,11 +323,12 @@ struct IMUSensorData{
  * - last_remote_command: Última instrucción recibida por interfaz remota (START, STOP, etc.)
  */
 struct OperationData {
-    OS_State state;                          ///< Estado actual de la máquina de estados
-    uint8_t total_targets;                           ///< Número de puntos cargados en trayectoria
-    TargetPoint trajectory[MAX_TRAJECTORY_POINTS];   ///< Lista de puntos objetivo a seguir
-    RemoteCommand last_command;               ///< Última instrucción remota recibida (ej. START, STOP)
-    bool target_reached;                     ///< Indica si el objetivo fue alcanzado
+    OS_State state;                                ///< Estado actual de la máquina de estados
+    uint8_t total_targets;                         ///< Número de puntos cargados en trayectoria
+    TargetPoint trajectory[MAX_TRAJECTORY_POINTS]; ///< Lista de puntos objetivo a seguir
+    RemoteCommand last_command;                    ///< Última instrucción remota recibida (ej. START, STOP)
+    bool waypoint_reached;                         ///< Flag que indica si se alcanzó el wayoint indicado
+    ControlType control_type;                      ///< Tipo de control activo (PID o BACKS)
 };
 
 /**

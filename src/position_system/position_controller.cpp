@@ -1,22 +1,8 @@
 #include "position_controller.h"
 
-float normalize_angle(float a) {
-    // fuerza a ∈ (−π, π]
-    while (a >  PI) a -= 2.0f * PI;
-    while (a <= -PI) a += 2.0f * PI;
-    return a;
-}
-
-float saturate(float v, float limit) {
-    if      (v >  limit) return  limit;
-    else if (v < -limit) return -limit;
-    else                 return  v;
-}
-
-
 namespace PositionController {
 
-    // estado interno del PID
+    // Estado interno del PID
     static float integral_alpha = 0.0f;
     static float last_alpha = 0.0f;
     static float integral_rho = 0.0f; 
@@ -40,12 +26,18 @@ namespace PositionController {
         // Si se entrega el mismo modo, no se hace nada
         if (new_mode == control_mode) return;
 
-        // Siempre se reincian las referencias
+        // Modificación del modo de operación
         control_mode = new_mode;
         w_L_ref = 0.0f;
         w_R_ref = 0.0f;
 
         // Acá irían los condicionales según caso
+        if (new_mode != PositionControlMode::INACTIVE && new_mode != PositionControlMode::MANUAL) {
+            // Resetear los integradores de PID al pasar a AUTO
+            integral_alpha = 0.0f;
+            integral_rho = 0.0f;
+            last_alpha = 0.0f;
+        }
     }
 
 
@@ -86,17 +78,17 @@ namespace PositionController {
         bool move = false;
 
         // 2) Condicional de operación -> define alpha, rho, y los criterios de convergencia
-        const float angle_tolerance = (control_mode == PositionControlMode::MOVE_BASIC) 
+        const float angle_tolerance = (control_mode == PositionControlMode::MOVE_PID) 
                                         ? ANGLE_NAVIGATION_TOLERANCE : ANGLE_ROTATION_TOLERANCE;
-        if (control_mode == PositionControlMode::MOVE_BASIC) { // Caso de control de movimiento
+        if (control_mode == PositionControlMode::MOVE_PID) { // Caso de control de movimiento
             const float dx = x_d - x;
             const float dy = y_d - y;
             rho = sqrtf(dx*dx + dy*dy);
-            alpha = normalize_angle(atan2f(dy, dx) - theta); // Error respecto al ángulo del punto objetivo
+            alpha = wrap_to_pi(atan2f(dy, dx) - theta); // Error respecto al ángulo del punto objetivo
             move = (rho > DISTANCE_TOLERANCE);
-        } else if (control_mode == PositionControlMode::TURN_BASIC) { // Caso de rotación pura
+        } else if (control_mode == PositionControlMode::TURN_PID) { // Caso de rotación pura
             // rho no se usa y se deja en cero
-            alpha = normalize_angle(theta_d - theta); // Error respecto al ángulo objetivo
+            alpha = wrap_to_pi(theta_d - theta); // Error respecto al ángulo objetivo
             move = (fabsf(alpha) > angle_tolerance);
         }
 
@@ -156,7 +148,7 @@ namespace PositionController {
 
     //     float e1 =  cosf(theta)*dx + sinf(theta)*dy;
     //     float e2 = -sinf(theta)*dx + cosf(theta)*dy;
-    //     float e3 = normalize_angle(atan2f(dy, dx) - theta);
+    //     float e3 = wrap_to_pi(atan2f(dy, dx) - theta);
 
     //     float rho = sqrtf(e1*e1 + e2*e2);
     //     bool stop = (rho <= DISTANCE_TOLERANCE); 
@@ -205,19 +197,19 @@ namespace PositionController {
         float e3 = 0.0f;
 
         // 2) Condiciones de control y referencias crudas
-        const float angle_tolerance = (control_mode == PositionControlMode::MOVE_BASIC) 
+        const float angle_tolerance = (control_mode == PositionControlMode::MOVE_PID) 
                                         ? ANGLE_NAVIGATION_TOLERANCE : ANGLE_ROTATION_TOLERANCE;
-        if (control_mode == PositionControlMode::TURN_ADVANCED) { // Giro puro → solo se usa control angular
-            e3 = normalize_angle(theta_d - theta); 
+        if (control_mode == PositionControlMode::TURN_BACKS) { // Giro puro → solo se usa control angular
+            e3 = wrap_to_pi(theta_d - theta); 
             stop = (fabs(e3) <= angle_tolerance);
             if (!stop) {
                 w_ref = K2*e2 + K3*e1*e2*e3;
             }
         } 
-        else if (control_mode == PositionControlMode::MOVE_ADVANCED) { // Movimiento normal
+        else if (control_mode == PositionControlMode::MOVE_BACKS) { // Movimiento normal
             stop = (rho <= DISTANCE_TOLERANCE);
             if (!stop) {
-                e3 = normalize_angle(atan2f(dy, dx) - theta);
+                e3 = wrap_to_pi(atan2f(dy, dx) - theta);
                 if (fabs(e3) <= angle_tolerance) v_ref = K1*e1;
                 w_ref = K2*e2 + K3*e1*e2*e3;
             }
@@ -235,9 +227,9 @@ namespace PositionController {
         volatile float& wL_ref, volatile float& wR_ref,
         volatile PositionControlMode& control_mode
     ) {
-        if (control_mode == PositionControlMode::MOVE_BASIC || control_mode == PositionControlMode::TURN_BASIC) {
+        if (control_mode == PositionControlMode::MOVE_PID || control_mode == PositionControlMode::TURN_PID) {
             return update_control_pid(x, y, theta, x_d, y_d, theta_d, wL_ref, wR_ref, control_mode);
-        } else if (control_mode == PositionControlMode::MOVE_ADVANCED || control_mode == PositionControlMode::TURN_ADVANCED) {
+        } else if (control_mode == PositionControlMode::MOVE_BACKS || control_mode == PositionControlMode::TURN_BACKS) {
             return update_control_backstepping(x, y, theta, x_d, y_d, theta_d, wL_ref, wR_ref, control_mode);
         }
     }
@@ -289,7 +281,7 @@ namespace PositionController {
         for (;;) {
             vTaskDelayUntil(&xLastWakeTime, period);
             PositionControlMode mode = sys->position;
-            update_control(
+            kin->target_reached = update_control(
                 kin->x, kin->y, kin->theta, 
                 kin->x_d, kin->y_d, kin->theta_d,
                 whl->w_L_ref, whl->w_R_ref, mode
@@ -297,4 +289,24 @@ namespace PositionController {
         }
     }
 
+
+    static float wrap_to_pi(float angle) {
+        angle = fmodf(angle + PI, 2.0f * PI);
+        if (angle < 0.0f) angle += 2.0f * PI;
+        return angle - PI;
+    }
+
 }
+
+// float normalize_angle(float a) {
+//     // fuerza a ∈ (−π, π]
+//     while (a >  PI) a -= 2.0f * PI;
+//     while (a <= -PI) a += 2.0f * PI;
+//     return a;
+// }
+
+// float saturate(float v, float limit) {
+//     if      (v >  limit) return  limit;
+//     else if (v < -limit) return -limit;
+//     else                 return  v;
+// }

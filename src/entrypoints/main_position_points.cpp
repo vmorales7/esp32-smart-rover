@@ -109,7 +109,7 @@ void setup() {
         distance_data.obstacle_detected
     );
     MotorController::set_motors_mode(MotorMode::AUTO, states.motors, wheels.duty_L, wheels.duty_R);
-    PositionController::set_control_mode(PositionControlMode::MOVE_BASIC, states.position, wheels.w_L_ref, wheels.w_R_ref);
+    PositionController::set_control_mode(PositionControlMode::MOVE_PID, states.position, wheels.w_L_ref, wheels.w_R_ref);
 
     // Tareas de sistema
     xTaskCreatePinnedToCore(EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2048, &ctx, 1, nullptr, 1);

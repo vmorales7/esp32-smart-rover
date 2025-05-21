@@ -42,7 +42,7 @@ void setup() {
     PositionController::init(states.position, wheels.w_L_ref, wheels.w_R_ref);
 
     // Establecer modos
-    PositionController::set_control_mode(PositionControlMode::MOVE_BASIC, states.position, wheels.w_L_ref, wheels.w_R_ref);
+    PositionController::set_control_mode(PositionControlMode::MOVE_PID, states.position, wheels.w_L_ref, wheels.w_R_ref);
     EncoderReader::resume(states.encoders);
     MotorController::set_motors_mode(MotorMode::AUTO, states.motors, wheels.duty_L, wheels.duty_R);
     PoseEstimator::set_state(ACTIVE, states.pose);
