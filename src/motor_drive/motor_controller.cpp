@@ -102,7 +102,7 @@ static WheelSpeedPID pidRight(KP_WHEEL, KI_WHEEL, KW_WHEEL); // Instancia PID mo
 namespace MotorController {
 
     void init(
-        volatile uint8_t& motor_state_global,
+        volatile MotorMode& motor_state_global,
         volatile float& dutyL_global, volatile float& dutyR_global
     ) {
         // Configurar pines de control de L298N
@@ -120,7 +120,7 @@ namespace MotorController {
         ledcAttachPin(MOTOR_RIGHT_PWM_PIN, PWM_CHANNEL_RIGHT);
 
         // Los motores se dejan libres
-        motor_state_global = MOTOR_IDLE; 
+        motor_state_global = MotorMode::IDLE; 
         set_motor_idle(WHEEL_LEFT);
         set_motor_idle(WHEEL_RIGHT);
         dutyL_global = 0.0;
@@ -169,7 +169,7 @@ namespace MotorController {
     }
 
     void set_motors_mode(
-        volatile uint8_t mode_new, volatile uint8_t& motor_state_global,
+        volatile MotorMode mode_new, volatile MotorMode& motor_state_global,
         volatile float& dutyL_global, volatile float& dutyR_global
     ) {
         // Si se entrega el mismo modo, no se hace nada
@@ -181,10 +181,10 @@ namespace MotorController {
         dutyR_global = 0.0;
 
         // Clasificación según cambio
-        if (mode_new == MOTOR_AUTO) { // Resetear los integradores de PID al pasar a AUTO
+        if (mode_new == MotorMode::AUTO) { // Resetear los integradores de PID al pasar a AUTO
             pidLeft.reset();
             pidRight.reset();
-        } else if (mode_new == MOTOR_BREAK) {
+        } else if (mode_new == MotorMode::BREAK) {
             set_motor_break(WHEEL_LEFT);
             set_motor_break(WHEEL_RIGHT);
 
@@ -198,10 +198,10 @@ namespace MotorController {
         const uint8_t wheel_id,
         const DutyProfile& duty_data,
         volatile float& global_duty,
-        volatile uint8_t& motor_state
+        volatile MotorMode& motor_state
     ) {
         // Verificar que el sistema esté en un modo válido
-        if (motor_state != MOTOR_ACTIVE && motor_state != MOTOR_AUTO) return;
+        if (motor_state != MotorMode::ACTIVE && motor_state != MotorMode::AUTO) return;
 
         // Caso especial: aplicar freno
         if (duty_data.break_flag) {
@@ -218,9 +218,9 @@ namespace MotorController {
     void set_motors_duty(
         volatile float duty_left, volatile float duty_right, 
         volatile float& dutyL_global, volatile float& dutyR_global,
-        volatile uint8_t& motor_state
+        volatile MotorMode& motor_state
     ) {
-        if (motor_state != MOTOR_ACTIVE && motor_state != MOTOR_AUTO) return;
+        if (motor_state != MotorMode::ACTIVE && motor_state != MotorMode::AUTO) return;
 
         DutyProfile dutyL_data = init_duty_profile(duty_left);
         DutyProfile dutyR_data = init_duty_profile(duty_right);
@@ -239,9 +239,9 @@ namespace MotorController {
         volatile float& w_L, volatile float& w_R, 
         volatile float& w_L_ref, volatile float& w_R_ref,
         volatile float& duty_L, volatile float& duty_R, 
-        volatile uint8_t& state
+        volatile MotorMode& state
     ) {
-        if (state != MOTOR_AUTO) return; // Se opera solo en modo auto
+        if (state != MotorMode::AUTO) return; // Se opera solo en modo auto
         // Cálculo del PI
         DutyProfile dutyL = pidLeft.compute(w_L_ref, w_L);
         DutyProfile dutyR = pidRight.compute(w_R_ref, w_R);
@@ -261,18 +261,15 @@ namespace MotorController {
 
         // Punteros a las variables necesarias
         volatile WheelsData* whl_ptr = ctx_ptr->wheels_ptr;
-        volatile uint8_t* state_ptr  = &ctx_ptr->systems_ptr->motors;
+        volatile MotorMode* state_ptr  = &ctx_ptr->systems_ptr->motors;
 
         // Llamar periódicamente a la función
         for (;;) {
             vTaskDelayUntil(&xLastWakeTime, period);
             update_motors_control(
-                whl_ptr->w_L,
-                whl_ptr->w_R,
-                whl_ptr->w_L_ref,
-                whl_ptr->w_R_ref,
-                whl_ptr->duty_L,
-                whl_ptr->duty_R,
+                whl_ptr->w_L, whl_ptr->w_R,
+                whl_ptr->w_L_ref, whl_ptr->w_R_ref,
+                whl_ptr->duty_L, whl_ptr->duty_R,
                 *state_ptr
             );
         }

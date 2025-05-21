@@ -5,7 +5,7 @@
 #warning "Compilando main_avance1.cpp"
 
 // ====================== VARIABLES GLOBALES ======================
-volatile SystemStates systems = {0};
+volatile SystemStates systems;
 volatile WheelsData wheels = {0};
 volatile DistanceSensorData distances = {0};
 constexpr uint16_t PRINT_PERIOD_MS = 500;
@@ -83,7 +83,7 @@ void setup() {
 
     // Inicialización de motor y encoder
     MotorController::init(systems.motors, wheels.duty_L, wheels.duty_R);
-    MotorController::set_motors_mode(MOTOR_ACTIVE, systems.motors, wheels.duty_L, wheels.duty_R);
+    MotorController::set_motors_mode(MotorMode::ACTIVE, systems.motors, wheels.duty_L, wheels.duty_R);
     DistanceSensors::init(
         distances.left_dist, distances.left_obst, distances.mid_dist, distances.mid_obst, 
         distances.right_dist, distances.right_obst, distances.obstacle_detected, systems.distance);
@@ -104,7 +104,7 @@ void setup() {
     ejecutar_fase_con_obstaculo("Avanzando recto (50%)", 0.5f, 0.5f, 5000);
     delay(1000);
     Serial.println("Secuencia completada. Motores en IDLE.");
-    MotorController::set_motors_mode(MOTOR_IDLE, systems.motors, wheels.duty_L, wheels.duty_R);
+    MotorController::set_motors_mode(MotorMode::IDLE, systems.motors, wheels.duty_L, wheels.duty_R);
 }
 
 void loop() {

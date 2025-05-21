@@ -50,18 +50,19 @@ constexpr uint16_t RPM_NOM = 215U;            // rpm nominales bajo carga (son 2
 constexpr float WM_NOM = RPM_NOM * 2*PI/60.0; // rad/s nominales bajo carga = 22.51 (29.3 sin carga)
 
 // Auxiliares
-constexpr uint8_t ACTIVE   = 1U;
-constexpr uint8_t INACTIVE = 0U;
 constexpr uint8_t WHEEL_LEFT  = 0U;
 constexpr uint8_t WHEEL_RIGHT = 1U;
 constexpr float MS_TO_S = 0.001f;
 
+constexpr uint8_t ACTIVE   = 1U;
+constexpr uint8_t INACTIVE = 0U;
+
 // Motor modes
-enum MotorMode : uint8_t {
-    MOTOR_IDLE = 0U,    // Se dejan libres los motores, alta impedancia entre los bornes del motor
-    MOTOR_ACTIVE = 1U,  // Se controla la velocidad con el duty y los pines de control
-    MOTOR_AUTO = 2U,    // Modo de control automático
-    MOTOR_BREAK = 3U    // Motores bloqueados, frena el motor
+enum class MotorMode : uint8_t {
+    IDLE = 0U,    // Se dejan libres los motores, alta impedancia entre los bornes del motor
+    ACTIVE = 1U,  // Se controla la velocidad con el duty y los pines de control
+    AUTO = 2U,    // Modo de control automático
+    BREAK = 3U    // Motores bloqueados, frena el motor
 };
 
 // Según tipo de configuración de encoder
@@ -84,11 +85,13 @@ constexpr float ENCODER_PPR = RAW_ENCODER_PPR * get_encoder_multiplier(ENCODER_M
 constexpr float RAD_PER_PULSE = (2.0f * PI) / ENCODER_PPR;
 
 // Opciones de control de posición
-enum PositionControlMode : uint8_t {
-    SPEED_REF_INACTIVE = 0U,
-    SPEED_REF_MANUAL = 1U,
-    SPEED_REF_AUTO_BASIC = 2U,   
-    SPEED_REF_AUTO_ADVANCED = 3U
+enum class PositionControlMode : uint8_t {
+    INACTIVE = 0U,
+    MANUAL,
+    MOVE_BASIC,   
+    TURN_BASIC,  
+    MOVE_ADVANCED,  
+    TURN_ADVANCED
 };
 
 
@@ -182,7 +185,7 @@ struct KinematicState {
 struct SystemStates {
     /// Estado del subsistema de motores (MOTOR_IDLE, MOTOR_ACTIVE, etc.).
     /// Define el comportamiento general del controlador de motores y PWM.
-    uint8_t motors;
+    MotorMode motors;
 
     /// Estado del lector de encoders (ACTIVE o INACTIVE).
     /// Si está inactivo, los encoders se pausan y la velocidad se congela en 0.
@@ -202,11 +205,18 @@ struct SystemStates {
 
     /// Estado del controlador de posición (ACTIVE o INACTIVE).
     /// Define si se está generando v_ref/w_ref activamente.
-    uint8_t position;
+    PositionControlMode position;
 
-    /// Estado del controlador de evasión de obstáculos (ACTIVE o INACTIVE).
-    /// Si está activo, el vehículo ignora la referencia normal y ejecuta maniobras evasivas.
-    uint8_t evation;
+    // /// Estado del controlador de evasión de obstáculos (ACTIVE o INACTIVE).
+    // /// Si está activo, el vehículo ignora la referencia normal y ejecuta maniobras evasivas.
+    // uint8_t evation;
+
+    // Constructor por defecto (C++11+)
+    SystemStates() :
+        motors(MotorMode::IDLE), 
+        encoders(INACTIVE), imu(INACTIVE), distance(INACTIVE), pose(INACTIVE),
+        position(PositionControlMode::INACTIVE)
+    {}
 };
 
 

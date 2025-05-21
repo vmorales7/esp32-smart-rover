@@ -3,7 +3,7 @@
 #warning "Compilando main_distance_sensors.cpp"
 
 // ====================== VARIABLES GLOBALES ======================
-volatile SystemStates states = {0};
+volatile SystemStates states;
 volatile DistanceSensorData distances = {0};
 GlobalContext ctx = {
     .systems_ptr     = &states,

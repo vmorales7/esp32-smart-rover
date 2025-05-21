@@ -9,7 +9,7 @@
 
 
 // ====================== VARIABLES GLOBALES ======================
-volatile SystemStates states = {0};
+volatile SystemStates states;
 volatile WheelsData wheels = {0};
 volatile KinematicState kinem = {0};
 volatile DistanceSensorData distance_data = {0};
@@ -49,7 +49,7 @@ void Task_ControlPorPuntos(void* pvParameters) {
 
         // Si ya completó todos los puntos
         if (punto_actual >= NUM_PUNTOS) {
-            MotorController::set_motors_mode(MOTOR_IDLE, states.motors, wheels.duty_L, wheels.duty_R);
+            MotorController::set_motors_mode(MotorMode::IDLE, states.motors, wheels.duty_L, wheels.duty_R);
             PositionController::set_wheel_speed_ref(0.0f, 0.0f, wheels.w_L_ref, wheels.w_R_ref, states.position);
             vTaskSuspend(nullptr);
         }
@@ -109,8 +109,8 @@ void setup() {
         distance_data.right_dist, distance_data.right_obst, 
         distance_data.obstacle_detected
     );
-    MotorController::set_motors_mode(MOTOR_AUTO, states.motors, wheels.duty_L, wheels.duty_R);
-    PositionController::set_control_mode(SPEED_REF_AUTO_BASIC, states.position, wheels.w_L_ref, wheels.w_R_ref);
+    MotorController::set_motors_mode(MotorMode::AUTO, states.motors, wheels.duty_L, wheels.duty_R);
+    PositionController::set_control_mode(PositionControlMode::MOVE_BASIC, states.position, wheels.w_L_ref, wheels.w_R_ref);
 
     // Tareas de sistema
     xTaskCreatePinnedToCore(EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2048, &ctx, 1, nullptr, 1);
