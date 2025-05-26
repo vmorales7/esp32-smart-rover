@@ -69,9 +69,9 @@ WheelSpeedPID::WheelSpeedPID(float kp, float ki, float kw)
         // Control PI
         float error = setpoint - measured;
         float rawDuty = Kp * error + Ki * integral;
-        DutyProfile duty_data = init_duty_profile(rawDuty);
 
         // Se limita el duty según límites prácticos y técnicos por velocidad
+        DutyProfile duty_data = init_duty_profile(rawDuty);
         check_duty_limits(duty_data);
         check_duty_speed(duty_data, measured, setpoint);
 

@@ -11,12 +11,12 @@ constexpr float DISTANCE_TOLERANCE = 0.05f; // 5 cm
 
 // Ganancias del PID de alfa
 constexpr float KP_ALPHA = 3.0f;  // Ganancia proporcional
-constexpr float KI_ALPHA = 1.0f;  // Ganancia integral
+constexpr float KI_ALPHA = 0.2f;  // Ganancia integral
 constexpr float KD_ALPHA = 0.0f;  // Ganancia derivativa
 constexpr float KW_ALPHA = 0.1f / KI_ALPHA; // Ganancia anti-windup
 
 // Ganancias de PI de rho
-constexpr float KP_RHO = 1.0f;  // Ganancia proporcional (0.7)
+constexpr float KP_RHO = 0.8f;  // Ganancia proporcional (0.7)
 constexpr float KI_RHO = 0.1f;  // Ganancia integral (0.1)
 constexpr float KW_RHO = 0.1f / KI_RHO; // Ganancia anti-windup
 

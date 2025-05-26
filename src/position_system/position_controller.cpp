@@ -95,18 +95,13 @@ namespace PositionController {
         // 3) Control
         if (move) { // Controlamos solo si estamos lejos del objetivo
             // Control PID en α
-            const float Kp_alpha = KP_ALPHA;
-            const float Ki_alpha = KI_ALPHA * dt;
-            const float Kd_alpha = KD_ALPHA / dt;
             const float derivative = (alpha - last_alpha) / dt;
-            w_ref_raw = Kp_alpha * alpha + Ki_alpha * integral_alpha + Kd_alpha * derivative;
+            w_ref_raw = KP_ALPHA * alpha + KI_ALPHA * integral_alpha + KD_ALPHA * derivative;
             last_alpha = alpha;
 
             // Control tipo PI para la distancia. Si el ángulo es muy grande, solo gira en el lugar (mantiene vref en 0)
             if (fabsf(alpha) < angle_tolerance) {
-                const float Kp_rho = KP_RHO;
-                const float Ki_rho = KI_RHO * dt;
-                v_ref_raw = Kp_rho * rho + Ki_rho * integral_rho;
+                v_ref_raw = KP_RHO * rho + KI_RHO * integral_rho;
             }
 
             // Saturar referencias de velocidad para respetar límites de vel. de rueda
