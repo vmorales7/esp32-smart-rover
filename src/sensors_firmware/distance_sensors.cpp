@@ -114,7 +114,7 @@ namespace DistanceSensors {
 
     void Task_CheckLeftObstacle(void* pvParameters) {
         vTaskDelay(pdMS_TO_TICKS(0));  // desfase inicial
-        const TickType_t period = pdMS_TO_TICKS(US_SENSOR_READ_PERIOD_MS);
+        const TickType_t period = pdMS_TO_TICKS(OBSTACLE_CHECK_PERIOD_MS);
         TickType_t xLastWakeTime = xTaskGetTickCount();
 
         GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
@@ -132,7 +132,7 @@ namespace DistanceSensors {
 
     void Task_CheckMidObstacle(void* pvParameters) {
         vTaskDelay(pdMS_TO_TICKS(50));  // desfase inicial
-        const TickType_t period = pdMS_TO_TICKS(US_SENSOR_READ_PERIOD_MS);
+        const TickType_t period = pdMS_TO_TICKS(OBSTACLE_CHECK_PERIOD_MS);
         TickType_t xLastWakeTime = xTaskGetTickCount();
 
         GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
@@ -150,7 +150,7 @@ namespace DistanceSensors {
 
     void Task_CheckRightObstacle(void* pvParameters) {
         vTaskDelay(pdMS_TO_TICKS(100));  // desfase inicial
-        const TickType_t period = pdMS_TO_TICKS(US_SENSOR_READ_PERIOD_MS);
+        const TickType_t period = pdMS_TO_TICKS(OBSTACLE_CHECK_PERIOD_MS);
         TickType_t xLastWakeTime = xTaskGetTickCount();
 
         GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);

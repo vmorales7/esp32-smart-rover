@@ -7,14 +7,18 @@
 
 constexpr float ANGLE_NAVIGATION_TOLERANCE = 30.0f * (2*PI / 180.0);
 constexpr float ANGLE_ROTATION_TOLERANCE = 5.0f * (2*PI / 180.0);
-constexpr float DISTANCE_TOLERANCE = 0.1;
+constexpr float DISTANCE_TOLERANCE = 0.05f; // 5 cm
 
-// Ganancias del PI
-constexpr float Kp_alpha = 3.0f; // Ganancia proporcional
-constexpr float Ki_alpha = 0.2f; // Ganancia integral
-constexpr float Kd_alpha = 0.0f; // Ganancia derivativa
-constexpr float Kw_alpha = 0.01f; // Ganancia anti-windup
-constexpr float Kp_rho   = 2.0f; // Ganancia proporcional (0.7)
+// Ganancias del PID de alfa
+constexpr float KP_ALPHA = 3.0f;  // Ganancia proporcional
+constexpr float KI_ALPHA = 0.2f;  // Ganancia integral
+constexpr float KD_ALPHA = 0.0f;  // Ganancia derivativa
+constexpr float KW_ALPHA = 0.1f / KI_ALPHA; // Ganancia anti-windup
+
+// Ganancias de PI de rho
+constexpr float KP_RHO = 0.8f;  // Ganancia proporcional (0.7)
+constexpr float KI_RHO = 0.1f;  // Ganancia integral (0.1)
+constexpr float KW_RHO = 0.1f / KI_RHO; // Ganancia anti-windup
 
 // Parámetros del controlador de posición
 constexpr float K1 = 2.0f; 
@@ -92,9 +96,9 @@ namespace PositionController {
      * @param wR_ref Referencia de velocidad angular para la rueda derecha [rad/s].
      * @param control_mode Modo actual del controlador (debe ser SPEED_REF_AUTO_BASIC).
      */
-    void update_position_control_pid(
+    bool update_control_pid(
         const float x, const float y, const float theta,
-        const float x_d, const float y_d,
+        const float x_d, const float y_d, const float theta_d,
         volatile float& wL_ref, volatile float& wR_ref,
         volatile PositionControlMode& control_mode
     );
@@ -111,14 +115,10 @@ namespace PositionController {
      * @param wR_ref Referencia de velocidad angular para la rueda derecha [rad/s].
      * @param control_mode Modo actual del controlador (debe ser SPEED_REF_AUTO_ADVANCED).
      */
-    void update_position_control_backs(
-        const float x,
-        const float y,
-        const float theta,
-        const float x_d,
-        const float y_d,
-        volatile float& wL_ref,
-        volatile float& wR_ref,
+    bool update_control_backstepping(
+        const float x, const float y, const float theta,
+        const float x_d, const float y_d, const float theta_d,
+        volatile float& wL_ref, volatile float& wR_ref,
         volatile PositionControlMode& control_mode
     );
 
@@ -135,6 +135,26 @@ namespace PositionController {
         const float v_ref, 
         const float w_ref, 
         const uint8_t wheel_id
+    );
+
+    /**
+     * @brief Actualiza las referencias de velocidad de las ruedas a partir de la posición actual y el objetivo.
+     *        Considera el modo de control activo (básico o avanzado).
+     * 
+     * @param x Posición actual en X [m].
+     * @param y Posición actual en Y [m].
+     * @param theta Orientación actual [rad].
+     * @param x_d Coordenada X del objetivo [m].
+     * @param y_d Coordenada Y del objetivo [m].
+     * @param wL_ref Referencia de velocidad angular para la rueda izquierda [rad/s].
+     * @param wR_ref Referencia de velocidad angular para la rueda derecha [rad/s].
+     * @param control_mode Modo actual del controlador (básico o avanzado).
+     */
+    bool update_control(
+        const float x, const float y, const float theta,
+        const float x_d, const float y_d, const float theta_d,
+        volatile float& wL_ref, volatile float& wR_ref,
+        volatile PositionControlMode& control_mode
     );
 
     /**
