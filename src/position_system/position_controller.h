@@ -165,6 +165,7 @@ namespace PositionController {
         const float x_d, const float y_d, const float theta_d,
         volatile float& v, volatile float& w,
         volatile float& wL_ref, volatile float& wR_ref,
+        volatile bool& target_reached,
         volatile PositionControlMode& control_mode
     );
 

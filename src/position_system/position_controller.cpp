@@ -221,15 +221,17 @@ namespace PositionController {
         const float x_d, const float y_d, const float theta_d,
         volatile float& v, volatile float& w,
         volatile float& wL_ref, volatile float& wR_ref,
+        volatile bool& target_reached,
         volatile PositionControlMode& control_mode
     ) {
-        bool target_reached = false;
+        bool reached = false;
         if (control_mode == PositionControlMode::MOVE_PID || control_mode == PositionControlMode::TURN_PID) {
-            target_reached =  update_control_pid(x, y, theta, x_d, y_d, theta_d, wL_ref, wR_ref, control_mode);
+            reached =  update_control_pid(x, y, theta, x_d, y_d, theta_d, wL_ref, wR_ref, control_mode);
         } else if (control_mode == PositionControlMode::MOVE_BACKS || control_mode == PositionControlMode::TURN_BACKS) {
-            target_reached = update_control_backstepping(x, y, theta, x_d, y_d, theta_d, wL_ref, wR_ref, control_mode);
+            reached = update_control_backstepping(x, y, theta, x_d, y_d, theta_d, wL_ref, wR_ref, control_mode);
         }
-        return (target_reached && v <= V_STOP_THRESHOLD && w <= W_STOP_THRESHOLD);
+        target_reached = (reached && v <= V_STOP_THRESHOLD && w <= W_STOP_THRESHOLD);
+        return target_reached; // Retorna true si se alcanzó el objetivo y el vehículo está detenido
     }
 
 
@@ -293,10 +295,10 @@ namespace PositionController {
         for (;;) {
             vTaskDelayUntil(&xLastWakeTime, period);
             PositionControlMode mode = sys->position;
-            kin->target_reached = update_control(
+            update_control(
                 kin->x, kin->y, kin->theta, kin->x_d, kin->y_d, kin->theta_d,
                 kin->v, kin->w, whl->w_L_ref, whl->w_R_ref,
-                mode
+                kin->target_reached, mode
             );
         }
     }
