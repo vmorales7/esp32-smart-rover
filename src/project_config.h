@@ -57,6 +57,9 @@ constexpr float MS_TO_S = 0.001f;
 constexpr uint8_t ACTIVE   = 1U;
 constexpr uint8_t INACTIVE = 0U;
 
+constexpr bool SUCCESS   = 1U;
+constexpr bool ERROR = 0U;
+
 // Motor modes
 enum class MotorMode : uint8_t {
     IDLE = 0U,    // Se dejan libres los motores, alta impedancia entre los bornes del motor
@@ -85,6 +88,9 @@ constexpr float ENCODER_PPR = RAW_ENCODER_PPR * get_encoder_multiplier(ENCODER_M
 constexpr float RAD_PER_PULSE = (2.0f * PI) / ENCODER_PPR;
 
 // Opciones de control de posición
+constexpr float W_STOP_THRESHOLD = 2.0f * PI / 30.0f; // Threshold de velocidad para considerar stop (1 vuelta en 30 segundos)
+constexpr float V_STOP_THRESHOLD = 0.1 / 30.0f;         // Velocidad lineal mínima para considerar stop (10 cm en 30 segundos)
+
 enum class PositionControlMode : uint8_t {
     INACTIVE = 0U,
     MANUAL,
@@ -110,8 +116,6 @@ enum class OS_State : uint8_t {
     EVADE,             // Evasión de obstáculo
 };
 
-constexpr uint8_t MAX_TRAJECTORY_POINTS = 100; // Define máximo de puntos
-
 // Estructura de punto
 struct TargetPoint {
     float x;
@@ -127,6 +131,9 @@ enum class RemoteCommand : uint8_t {
 };
 
 
+constexpr uint8_t MAX_TRAJECTORY_POINTS = 100; // Define máximo de puntos
+constexpr float NULL_WAYPOINT_XY = 99.9f;
+
 /* -------------- Tiempos de poleo para tareas RTOS --------------*/
 
 constexpr uint16_t WHEEL_CONTROL_PERIOD_MS = 10;
@@ -136,6 +143,7 @@ constexpr uint16_t OBSTACLE_CHECK_PERIOD_MS = 250;
 constexpr uint16_t POSE_ESTIMATOR_PERIOD_MS = 100; 
 constexpr uint16_t POSITION_CONTROL_PERIOD_MS = 200;
 constexpr uint16_t OS_UPDATE_PERIOD_MS = 50; 
+constexpr uint16_t BASIC_STACK_SIZE = 2048; // Tamaño de stack básico para tareas RTOS
 
 
 /* -------------------- Estructuras con la data del sistema --------------------*/
@@ -228,6 +236,13 @@ struct WheelsData {
     /// Se ajusta automáticamente por el controlador de velocidad.
     /// Se ajusta automáticamente por el controlador de velocidad de rueda.
     float duty_R;
+
+    WheelsData()
+        : steps_L(0), steps_R(0),
+        w_L(0.0f), w_R(0.0f),
+        w_L_ref(0.0f), w_R_ref(0.0f),
+        duty_L(0.0f), duty_R(0.0f)
+    {}
 };
 
 /**
@@ -269,7 +284,14 @@ struct KinematicState {
     float w;
 
     /// Flag que indica si el objetivo fue alcanzado.
-    bool target_reached;
+    uint8_t moving_state;
+
+    KinematicState()
+    : x(0.0f), y(0.0f), theta(0.0f),
+      x_d(0.0f), y_d(0.0f), theta_d(0.0f),
+      v(0.0f), w(0.0f),
+      moving_state(MovingState::KIN_STOPPING) // Inicialmente detenido
+    {}
 };
 
 /**
@@ -290,6 +312,12 @@ struct DistanceSensorData {
     bool left_obst;         ///< true si el sensor izquierdo detecta obstáculo (< threshold)
     bool mid_obst;          ///< true si el sensor medio detecta obstáculo
     bool right_obst;        ///< true si el sensor derecho detecta obstáculo
+
+    DistanceSensorData()
+    : obstacle_detected(false),
+      left_dist(0), mid_dist(0), right_dist(0),
+      left_obst(false), mid_obst(false), right_obst(false)
+    {}
 };
 
 /**
@@ -307,6 +335,13 @@ struct IMUSensorData{
     float vy; ///< velocidad en el eje y
     float w_gyro; ///< velocidad angular con respecto al eje z
     float mag_angle; ///< ángulo rotación respecto al norte magnetico de output total (orientacion absoluta)
+
+    IMUSensorData()
+        : ax(0.0f), ay(0.0f),
+        vx(0.0f), vy(0.0f),
+        w_gyro(0.0f),
+        mag_angle(0.0f)
+    {}
 };
 
 /**
@@ -323,12 +358,24 @@ struct IMUSensorData{
  * - last_remote_command: Última instrucción recibida por interfaz remota (START, STOP, etc.)
  */
 struct OperationData {
-    OS_State state;                                ///< Estado actual de la máquina de estados
-    uint8_t total_targets;                         ///< Número de puntos cargados en trayectoria
-    TargetPoint trajectory[MAX_TRAJECTORY_POINTS]; ///< Lista de puntos objetivo a seguir
-    RemoteCommand last_command;                    ///< Última instrucción remota recibida (ej. START, STOP)
-    bool waypoint_reached;                         ///< Flag que indica si se alcanzó el wayoint indicado
-    ControlType control_type;                      ///< Tipo de control activo (PID o BACKS)
+    OS_State state;
+    uint8_t total_targets;
+    TargetPoint trajectory[MAX_TRAJECTORY_POINTS];
+    RemoteCommand last_command;
+    bool waypoint_reached;
+    ControlType control_type;
+
+    OperationData()
+        : state(OS_State::INIT),
+          total_targets(0),
+          last_command(RemoteCommand::NONE),
+          waypoint_reached(false),
+          control_type(ControlType::PID)
+    {
+        for (uint8_t i = 0; i < MAX_TRAJECTORY_POINTS; ++i) {
+            trajectory[i] = {NULL_WAYPOINT_XY, NULL_WAYPOINT_XY};
+        }
+    }
 };
 
 /**

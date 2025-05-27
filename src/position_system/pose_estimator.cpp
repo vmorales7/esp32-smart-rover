@@ -157,7 +157,7 @@ namespace PoseEstimator {
     }
 
     
-    static float wrap_to_pi(float angle) {
+    float wrap_to_pi(float angle) {
         angle = fmodf(angle + PI, 2.0f * PI);
         if (angle < 0.0f) angle += 2.0f * PI;
         return angle - PI;
