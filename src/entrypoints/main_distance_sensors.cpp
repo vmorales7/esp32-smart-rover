@@ -4,7 +4,7 @@
 
 // ====================== VARIABLES GLOBALES ======================
 volatile SystemStates states;
-volatile DistanceSensorData distances = {0};
+volatile DistanceSensorData distances;
 GlobalContext ctx = {
     .systems_ptr     = &states,
     .os_ptr          = nullptr,       

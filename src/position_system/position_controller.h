@@ -35,6 +35,13 @@ struct VelocityData {
 
 constexpr float MIN_POS_DT = 0.001f; // Tiempo mínimo entre actualizaciones del controlador de posición
 
+enum MovingState : uint8_t {
+    KIN_STOPPING = 0U, // Vehículo en proceso de detenerse
+    KIN_REACHED,       // Vehículo detenido
+    KIN_ALIGNING,      // Vehículo alineando hacia el objetivo
+    KIN_MOVING         // Vehículo alineando hacia el objetivo
+};
+
 
 /* ---------------- Funciones del sistema ------------------*/
 
@@ -98,7 +105,7 @@ namespace PositionController {
      * @param wR_ref Referencia de velocidad angular para la rueda derecha [rad/s].
      * @param control_mode Modo actual del controlador (debe ser SPEED_REF_AUTO_BASIC).
      */
-    bool update_control_pid(
+    uint8_t update_control_pid(
         const float x, const float y, const float theta,
         const float x_d, const float y_d, const float theta_d,
         volatile float& wL_ref, volatile float& wR_ref,
@@ -117,7 +124,7 @@ namespace PositionController {
      * @param wR_ref Referencia de velocidad angular para la rueda derecha [rad/s].
      * @param control_mode Modo actual del controlador (debe ser SPEED_REF_AUTO_ADVANCED).
      */
-    bool update_control_backstepping(
+    uint8_t update_control_backstepping(
         const float x, const float y, const float theta,
         const float x_d, const float y_d, const float theta_d,
         volatile float& wL_ref, volatile float& wR_ref,
@@ -157,15 +164,16 @@ namespace PositionController {
      * @param w             Velocidad angular estimada del vehículo [rad/s].
      * @param wL_ref        Referencia de velocidad angular para la rueda izquierda [rad/s].
      * @param wR_ref        Referencia de velocidad angular para la rueda derecha [rad/s].
+     * @param moving_state  Estado de movimiento actual del vehículo (STOPPING, REACHED, ALIGNING, MOVING).
      * @param control_mode  Modo de control activo (MOVE_PID, TURN_PID, MOVE_BACKS, TURN_BACKS, etc.).
-     * @return true si se alcanzó el objetivo y el vehículo está detenido; false en caso contrario.
+     * @return              Retorna true si se alcanzó el objetivo y el vehículo está detenido
      */
     bool update_control(
         const float x, const float y, const float theta,
         const float x_d, const float y_d, const float theta_d,
         volatile float& v, volatile float& w,
         volatile float& wL_ref, volatile float& wR_ref,
-        volatile bool& target_reached,
+        volatile uint8_t& moving_state,
         volatile PositionControlMode& control_mode
     );
 
@@ -182,12 +190,14 @@ namespace PositionController {
      * @param w              Velocidad angular estimada del vehículo [rad/s].
      * @param w_L_ref        Referencia de velocidad angular para la rueda izquierda [rad/s].
      * @param w_R_ref        Referencia de velocidad angular para la rueda derecha [rad/s].
+     * @param moving_state   Estado de movimiento actual del vehículo (se ajusta a KIN_STOPPING en la función).
      * @param control_mode   Modo actual de control de posición (se ajusta a MANUAL en la función).
      * @return true si ambas velocidades están bajo los umbrales de detención; false en caso contrario.
      */
     bool stop_movement(
         volatile float& v, volatile float& w,
         volatile float& w_L_ref, volatile float& w_R_ref,
+        volatile uint8_t& moving_state,
         volatile PositionControlMode& control_mode
     );
 
@@ -204,6 +214,18 @@ namespace PositionController {
      * @return VelocityData Estructura con los valores finales de (v, w, wL, wR) tras la saturación.
      */
     VelocityData constrain_velocity(float v_raw, float w_raw);
+
+    /**
+     * @brief Actualiza el estado de movimiento global del sistema y guarda el último estado.
+     *
+     * Esta función se encarga de modificar la variable global de estado de movimiento (por ejemplo, `KIN_MOVING`, `KIN_STOPPING`, etc.)
+     * y sincroniza además la variable estática `last_moving_state` para mantener un historial consistente. 
+     * Se debe utilizar SIEMPRE que se cambie el estado de movimiento del vehículo desde cualquier controlador.
+     *
+     * @param new_state Estado de movimiento a asignar (de tipo MovingState).
+     * @param moving_state Referencia a la variable global de estado de movimiento a actualizar.
+     */
+    void set_moving_state(const uint8_t new_state, volatile uint8_t& moving_state);
 
     /**
      * @brief Tarea RTOS que ejecuta periódicamente el controlador de posición,

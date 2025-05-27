@@ -9,9 +9,9 @@
 // ====================== VARIABLES GLOBALES ======================
 
 volatile SystemStates states;
-volatile WheelsData wheels = {0};
-volatile KinematicState kinem = {0};
-volatile PoseData pose = {0};
+volatile WheelsData wheels;
+volatile KinematicState kinem;
+volatile PoseData pose;
 GlobalContext ctx = {
     .systems_ptr     = &states,
     .os_ptr          = nullptr,

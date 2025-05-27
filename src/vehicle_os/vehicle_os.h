@@ -23,7 +23,7 @@
 
 /* ------------------------ Constantes ------------------------*/
 
-constexpr float NULL_WAYPOINT_XY = 99.9f;
+
 
 
 /* ------------------------ Funciones ------------------------*/
@@ -42,8 +42,7 @@ namespace OS {
      * @brief Actualiza el sistema operativo según el estado actual
      * 
      * Esta función implementa la máquina de estados principal del sistema operativo.
-     * Se encarga de gestionar las transiciones entre estados y ejecutar las acciones
-     * correspondientes a cada estado.
+     * Se encarga de gestionar las transiciones entre estados y ejecutar las accionescorrespondientes a cada estado.
      *
      * @param ctx_ptr Puntero al contexto global con datos del sistema
      */
@@ -73,7 +72,7 @@ namespace OS {
     /**
      * @brief Realiza las operaciones para entrar al estado IDLE
      * 
-     * Desactiva motores, sensores y controladores para minimizar consumo energético.
+     * Desactiva motores, sensores y controladores para minimizar consumo energético y permitir manipular el vehículo.
      * Reinicia la pose del vehículo a cero.
      * 
      * @param ctx Puntero al contexto global con datos del sistema
@@ -83,7 +82,8 @@ namespace OS {
     /**
      * @brief Realiza las operaciones para entrar al estado STAND_BY
      * 
-     * Activa sensores y mantiene el vehículo detenido pero con capacidad de leer su entorno.
+     * Mantiene el vehículo con referencia 0 de velocidad, pero con sensores y estimación de posición activados.
+     * Se desactivan los sensores de distancia y se limpian (forzadamente) las banderas de obstáculos.
      * 
      * @param ctx Puntero al contexto global con datos del sistema
      */
@@ -92,7 +92,7 @@ namespace OS {
     /**
      * @brief Realiza las operaciones para entrar al estado MOVE
      * 
-     * Activa todos los sensores y controladores, establece el punto objetivo
+     * Activa todos los sensores y controladores, establece el punto objetivo como el primer punto de la lista de trayectoria,
      * y configura el controlador de posición según el tipo de control seleccionado.
      * 
      * @param ctx Puntero al contexto global con datos del sistema

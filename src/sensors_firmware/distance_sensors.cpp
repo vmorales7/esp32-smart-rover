@@ -100,6 +100,28 @@ namespace DistanceSensors {
         return obstacle_flag;
     }
 
+    
+    bool check_all_sensors_obstacle(
+        volatile uint8_t& left_dist, volatile bool& left_obst, 
+        volatile uint8_t& mid_dist, volatile bool& mid_obst,
+        volatile uint8_t& right_dist, volatile bool& right_obst,
+        volatile bool& global_obstacle_flag,
+        volatile uint8_t& distance_state
+    ) {
+        if (distance_state != ACTIVE) return false;  // Solo leer si el sistema está activo
+        bool left_obstacle = check_sensor_obstacle(
+            US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN, left_dist, left_obst, global_obstacle_flag, distance_state
+        );
+        bool mid_obstacle = check_sensor_obstacle(
+            US_MID_TRIG_PIN, US_MID_ECHO_PIN, mid_dist, mid_obst, global_obstacle_flag, distance_state
+        );
+        bool right_obstacle = check_sensor_obstacle(
+            US_RIGHT_TRIG_PIN, US_RIGHT_ECHO_PIN, right_dist, right_obst, global_obstacle_flag, distance_state
+        );
+        return compute_global_obstacle_flag(left_obst, mid_obst, right_obst);
+    }
+
+
     bool compute_global_obstacle_flag(
         volatile bool& left_obst, volatile bool& mid_obst, volatile bool& right_obst
     ) {
