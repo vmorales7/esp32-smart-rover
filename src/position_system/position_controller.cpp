@@ -2,7 +2,8 @@
 
 namespace PositionController {
    
-    static uint8_t last_moving_state = MovingState::KIN_STOPPING; // Estado de movimiento anterior 
+    // Estado de movimiento anterior 
+    static uint8_t last_moving_state = MovingState::KIN_STOPPING; 
     
     // Estado interno del PID
     static float integral_alpha = 0.0f;
@@ -104,10 +105,9 @@ namespace PositionController {
             // Control tipo PI para la distancia. Si el ángulo es muy grande, solo gira en el lugar (mantiene vref en 0)
             if (fabsf(alpha) > angle_tolerance) {
                 v_ref_raw = 0.0f;
-                move_state = MovingState::KIN_ALIGNING;
+                move_state = MovingState::KIN_ALIGNING; // Cambiar el estado de movimiento a alineación
             } else {
                 v_ref_raw = KP_RHO * rho + KI_RHO * integral_rho;
-                move_state = MovingState::KIN_MOVING;
             }
 
             // Saturar referencias de velocidad para respetar límites de vel. de rueda
@@ -169,7 +169,12 @@ namespace PositionController {
             move_state = (rho < DISTANCE_TOLERANCE) ? MovingState::KIN_STOPPING : MovingState::KIN_MOVING;
             if (move_state == MovingState::KIN_MOVING) {
                 e3 = wrap_to_pi(atan2f(dy, dx) - theta);
-                if (fabs(e3) <= angle_tolerance) v_ref = K1*e1;
+                if (fabs(e3) <= angle_tolerance) {
+                    v_ref = K1*e1;
+                } else {
+                    v_ref = 0.0f; // Si el ángulo es muy grande, no avanza
+                    move_state = MovingState::KIN_ALIGNING; // Cambiar el estado de movimiento a alineación
+                }
                 w_ref = K2*e2 + K3*e1*e2*e3;
             }
         }
