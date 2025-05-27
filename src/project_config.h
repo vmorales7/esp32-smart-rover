@@ -57,6 +57,9 @@ constexpr float MS_TO_S = 0.001f;
 constexpr uint8_t ACTIVE   = 1U;
 constexpr uint8_t INACTIVE = 0U;
 
+constexpr bool SUCCESS   = 1U;
+constexpr bool ERROR = 0U;
+
 // Motor modes
 enum class MotorMode : uint8_t {
     IDLE = 0U,    // Se dejan libres los motores, alta impedancia entre los bornes del motor
@@ -85,6 +88,9 @@ constexpr float ENCODER_PPR = RAW_ENCODER_PPR * get_encoder_multiplier(ENCODER_M
 constexpr float RAD_PER_PULSE = (2.0f * PI) / ENCODER_PPR;
 
 // Opciones de control de posición
+constexpr float W_STOP_THRESHOLD = 2.0f * PI / 30.0f; // Threshold de velocidad para considerar stop (1 vuelta en 30 segundos)
+constexpr float V_STOP_THRESHOLD = 0.1 / 30.0f;         // Velocidad lineal mínima para considerar stop (10 cm en 30 segundos)
+
 enum class PositionControlMode : uint8_t {
     INACTIVE = 0U,
     MANUAL,

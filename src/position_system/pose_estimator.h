@@ -164,6 +164,12 @@ namespace PoseEstimator {
      */
     void Task_PoseEstimatorEncoder(void* pvParameters);
 
+    /**
+     * @brief Normaliza cualquier ángulo al rango (-π, π].
+     * @param angle Ángulo en radianes.
+     * @return Ángulo normalizado en (-π, π].
+     */
+    float wrap_to_pi(float angle);
 }
 
 #endif // POSE_ESTIMATOR_H
