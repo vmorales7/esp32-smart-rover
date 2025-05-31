@@ -6,8 +6,8 @@
 
 // ====================== VARIABLES GLOBALES ======================
 volatile SystemStates systems;
-volatile WheelsData wheels = {0};
-volatile DistanceSensorData distances = {0};
+volatile WheelsData wheels;
+volatile DistanceSensorData distances;
 constexpr uint16_t PRINT_PERIOD_MS = 500;
 
 // ====================== FUNCIONES AUXILIARES ======================

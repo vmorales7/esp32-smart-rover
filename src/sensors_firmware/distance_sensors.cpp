@@ -101,6 +101,28 @@ namespace DistanceSensors {
         return obstacle_flag;
     }
 
+    
+    bool check_all_sensors_obstacle(
+        volatile uint8_t& left_dist, volatile bool& left_obst, 
+        volatile uint8_t& mid_dist, volatile bool& mid_obst,
+        volatile uint8_t& right_dist, volatile bool& right_obst,
+        volatile bool& global_obstacle_flag,
+        volatile uint8_t& distance_state
+    ) {
+        if (distance_state != ACTIVE) return false;  // Solo leer si el sistema está activo
+        bool left_obstacle = check_sensor_obstacle(
+            US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN, left_dist, left_obst, global_obstacle_flag, distance_state
+        );
+        bool mid_obstacle = check_sensor_obstacle(
+            US_MID_TRIG_PIN, US_MID_ECHO_PIN, mid_dist, mid_obst, global_obstacle_flag, distance_state
+        );
+        bool right_obstacle = check_sensor_obstacle(
+            US_RIGHT_TRIG_PIN, US_RIGHT_ECHO_PIN, right_dist, right_obst, global_obstacle_flag, distance_state
+        );
+        return compute_global_obstacle_flag(left_obst, mid_obst, right_obst);
+    }
+
+
     bool compute_global_obstacle_flag(
         volatile bool& left_obst, volatile bool& mid_obst, volatile bool& right_obst
     ) {
@@ -115,7 +137,7 @@ namespace DistanceSensors {
 
     void Task_CheckLeftObstacle(void* pvParameters) {
         vTaskDelay(pdMS_TO_TICKS(0));  // desfase inicial
-        const TickType_t period = pdMS_TO_TICKS(US_SENSOR_READ_PERIOD_MS);
+        const TickType_t period = pdMS_TO_TICKS(OBSTACLE_CHECK_PERIOD_MS);
         TickType_t xLastWakeTime = xTaskGetTickCount();
 
         GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
@@ -133,7 +155,7 @@ namespace DistanceSensors {
 
     void Task_CheckMidObstacle(void* pvParameters) {
         vTaskDelay(pdMS_TO_TICKS(50));  // desfase inicial
-        const TickType_t period = pdMS_TO_TICKS(US_SENSOR_READ_PERIOD_MS);
+        const TickType_t period = pdMS_TO_TICKS(OBSTACLE_CHECK_PERIOD_MS);
         TickType_t xLastWakeTime = xTaskGetTickCount();
 
         GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
@@ -151,7 +173,7 @@ namespace DistanceSensors {
 
     void Task_CheckRightObstacle(void* pvParameters) {
         vTaskDelay(pdMS_TO_TICKS(100));  // desfase inicial
-        const TickType_t period = pdMS_TO_TICKS(US_SENSOR_READ_PERIOD_MS);
+        const TickType_t period = pdMS_TO_TICKS(OBSTACLE_CHECK_PERIOD_MS);
         TickType_t xLastWakeTime = xTaskGetTickCount();
 
         GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);

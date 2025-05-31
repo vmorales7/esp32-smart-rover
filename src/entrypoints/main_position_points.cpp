@@ -10,10 +10,10 @@
 
 // ====================== VARIABLES GLOBALES ======================
 volatile SystemStates states;
-volatile WheelsData wheels = {0};
-volatile KinematicState kinem = {0};
-volatile DistanceSensorData distance_data = {0};
-volatile PoseData pose = {0};
+volatile WheelsData wheels;
+volatile KinematicState kinem;
+volatile DistanceSensorData distance_data;
+volatile PoseData pose;
 
 GlobalContext ctx = {
     .systems_ptr     = &states,
@@ -110,7 +110,7 @@ void setup() {
         distance_data.obstacle_detected
     );
     MotorController::set_motors_mode(MotorMode::AUTO, states.motors, wheels.duty_L, wheels.duty_R);
-    PositionController::set_control_mode(PositionControlMode::MOVE_BASIC, states.position, wheels.w_L_ref, wheels.w_R_ref);
+    PositionController::set_control_mode(PositionControlMode::MOVE_PID, states.position, wheels.w_L_ref, wheels.w_R_ref);
 
     // Tareas de sistema
     xTaskCreatePinnedToCore(EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2048, &ctx, 1, nullptr, 1);

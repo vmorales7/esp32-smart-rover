@@ -6,12 +6,6 @@ namespace PoseEstimator {
     static int64_t last_steps_left = 0;
     static int64_t last_steps_right = 0;
 
-    static float wrap_to_pi(float angle) {
-        angle = fmodf(angle + PI, 2.0f * PI);
-        if (angle < 0.0f) angle += 2.0f * PI;
-        return angle - PI;
-    }
-
     PoseData compute_encoder_pose(
         float delta_phi_L, float delta_phi_R,
         float w_L, float w_R,
@@ -45,6 +39,7 @@ namespace PoseEstimator {
         return pose;
     }
 
+    
     PoseData estimate_pose_from_encoder(
         volatile float& w_L, volatile float& w_R,
         volatile int64_t& steps_L, volatile int64_t& steps_R,
@@ -76,12 +71,14 @@ namespace PoseEstimator {
         return pose;
     }
 
+
     void set_state(const uint8_t new_state, volatile uint8_t& pose_state) {
         if (new_state == pose_state) return;
         pose_state = (new_state == ACTIVE) ? ACTIVE : INACTIVE;
 
         // if (new_state == INACTIVE) reset_pose();
     }
+
 
     void reset_pose(
         volatile float& x, volatile float& y, volatile float& theta,
@@ -100,6 +97,7 @@ namespace PoseEstimator {
         last_steps_right = 0;
     }
 
+
     void init(
         volatile float& x, volatile float& y, volatile float& theta,
         volatile float& v, volatile float& w,
@@ -109,6 +107,7 @@ namespace PoseEstimator {
         reset_pose(x, y, theta, v, w, steps_L, steps_R);
         set_state(INACTIVE, pose_state);
     }
+
 
     void update_pose(
         volatile float& w_L, volatile float& w_R,
@@ -135,6 +134,7 @@ namespace PoseEstimator {
         w     = pose.w;
     }
     
+
     void Task_PoseEstimatorEncoder(void* pvParameters) {
         // Configuración del periodo de muestreo
         TickType_t xLastWakeTime = xTaskGetTickCount();
@@ -154,6 +154,13 @@ namespace PoseEstimator {
                 state.pose
             );
         }
+    }
+
+    
+    float wrap_to_pi(float angle) {
+        angle = fmodf(angle + PI, 2.0f * PI);
+        if (angle < 0.0f) angle += 2.0f * PI;
+        return angle - PI;
     }
     
 }

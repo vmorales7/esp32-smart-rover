@@ -8,9 +8,9 @@
 
 // ====================== VARIABLES GLOBALES ======================
 volatile SystemStates states;
-volatile WheelsData wheels = {0};
-volatile KinematicState kinem = {0};
-volatile PoseData pose = {0};
+volatile WheelsData wheels;
+volatile KinematicState kinem;
+volatile PoseData pose;
 
 GlobalContext ctx = {
     .systems_ptr     = &states,
@@ -42,7 +42,7 @@ void setup() {
     PositionController::init(states.position, wheels.w_L_ref, wheels.w_R_ref);
 
     // Establecer modos
-    PositionController::set_control_mode(PositionControlMode::MOVE_ADVANCED, states.position, wheels.w_L_ref, wheels.w_R_ref);
+    PositionController::set_control_mode(PositionControlMode::MOVE_PID, states.position, wheels.w_L_ref, wheels.w_R_ref);
     EncoderReader::resume(states.encoders);
     MotorController::set_motors_mode(MotorMode::AUTO, states.motors, wheels.duty_L, wheels.duty_R);
     PoseEstimator::set_state(ACTIVE, states.pose);

@@ -12,8 +12,8 @@ constexpr uint32_t PRINT_INTERVAL_MS = 250;
 
 // Variables globales del sistema
 volatile SystemStates states;
-volatile WheelsData wheels_data = {0};
-volatile KinematicState kinematic_data = {0};
+volatile WheelsData wheels_data;
+volatile KinematicState kinematic_data;
 
 GlobalContext ctx = {
     .systems_ptr     = &states,

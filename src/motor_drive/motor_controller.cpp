@@ -25,17 +25,17 @@ void check_duty_speed(DutyProfile& duty, const float w_measured, const float w_r
     // ¿Intenta invertir respecto al giro actual?
     bool break_flag = false;
     if (duty.duty_dir != sign_wm) {
-        if (abs_wm > W_INVERT_THRESHOLD) { // Demasiado rápido para invertir?
+        if (abs_wm > WHEEL_INVERT_THRESHOLD) { // Demasiado rápido para invertir?
             // Detener y evaluar frenado
             duty.duty_val = 0.0f;
             duty.abs_duty = 0.0f;
-            break_flag = (abs_wm < W_BRAKE_THRESHOLD); // Suficientemente lento para aplicar freno?
+            break_flag = (abs_wm < WHEEL_BRAKE_THRESHOLD); // Suficientemente lento para aplicar freno?
         }
     }
     duty.break_flag = break_flag;
 
     // ¿Está partiendo el vehículo desde una posición de detención? -> El duty debe ser mayor al mínimo
-    if (duty.abs_duty > ZERO_DUTY_THRESHOLD && abs_wm < W_STOP_THRESHOLD) {
+    if (duty.abs_duty > ZERO_DUTY_THRESHOLD && abs_wm < WHEEL_STOP_THRESHOLD) {
         const float new_abs =  fmaxf(duty.abs_duty, MIN_START_DUTY);
         duty.abs_duty = new_abs;
         duty.duty_val = new_abs * duty.duty_dir;
@@ -69,9 +69,9 @@ WheelSpeedPID::WheelSpeedPID(float kp, float ki, float kw)
         // Control PI
         float error = setpoint - measured;
         float rawDuty = Kp * error + Ki * integral;
-        DutyProfile duty_data = init_duty_profile(rawDuty);
 
         // Se limita el duty según límites prácticos y técnicos por velocidad
+        DutyProfile duty_data = init_duty_profile(rawDuty);
         check_duty_limits(duty_data);
         check_duty_speed(duty_data, measured, setpoint);
 

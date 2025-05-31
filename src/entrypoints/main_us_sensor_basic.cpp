@@ -5,7 +5,7 @@
 
 // ====================== VARIABLES GLOBALES ======================
 volatile uint8_t distance_state = INACTIVE;
-volatile DistanceSensorData distances = {0};
+volatile DistanceSensorData distances;
 
 // ====================== SETUP Y LOOP ======================
 void setup() {

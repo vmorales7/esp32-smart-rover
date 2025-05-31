@@ -157,6 +157,34 @@ namespace DistanceSensors {
     );
 
     /**
+     * @brief Realiza la lectura de los tres sensores ultrasónicos frontales,
+     *        actualizando las distancias y banderas de obstáculo para cada uno,
+     *        y calcula el flag global de obstáculo.
+     *
+     * Esta función debe ser llamada solo si el sistema de sensores de distancia está activo.
+     * Para cada sensor (izquierdo, medio y derecho) realiza la medición, actualiza la distancia
+     * y la bandera individual de obstáculo. Finalmente, evalúa el estado global combinando
+     * los resultados de los tres sensores.
+     *
+     * @param left_dist           Distancia medida por el sensor izquierdo [cm].
+     * @param left_obst           Flag de obstáculo detectado por el sensor izquierdo.
+     * @param mid_dist            Distancia medida por el sensor central [cm].
+     * @param mid_obst            Flag de obstáculo detectado por el sensor central.
+     * @param right_dist          Distancia medida por el sensor derecho [cm].
+     * @param right_obst          Flag de obstáculo detectado por el sensor derecho.
+     * @param global_obstacle_flag Bandera global de obstáculo, se actualiza según los tres sensores.
+     * @param distance_state      Estado de activación del sistema de sensores de distancia (debe ser ACTIVE).
+     * @return true si al menos uno de los tres sensores detecta un obstáculo, false en caso contrario.
+     */
+    bool check_all_sensors_obstacle(
+        volatile uint8_t& left_dist, volatile bool& left_obst, 
+        volatile uint8_t& mid_dist, volatile bool& mid_obst,
+        volatile uint8_t& right_dist, volatile bool& right_obst,
+        volatile bool& global_obstacle_flag,
+        volatile uint8_t& distance_state
+    );
+
+    /**
      * @brief Calcula la presencia de un obstáculo global a partir de las banderas individuales.
      *
      * Esta función retorna `true` si al menos uno de los sensores ultrasónicos

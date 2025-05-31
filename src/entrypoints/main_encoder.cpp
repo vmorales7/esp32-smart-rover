@@ -5,7 +5,7 @@
 
 // ====================== VARIABLES GLOBALES ======================
 volatile SystemStates systems;
-volatile WheelsData wheels = {0};
+volatile WheelsData wheels;
 GlobalContext ctx = {
     .systems_ptr     = &systems,
     .os_ptr          = nullptr,
