@@ -43,11 +43,8 @@ constexpr uint8_t ESP32_LED = 2;
 
 // Parámetros físicos del vehículo
 constexpr float WHEEL_RADIUS = 0.067f / 2.0f;    // en metros
-constexpr float WHEEL_DISTANCE = 0.194f / 2.0f;   // distancia entre ruedas (L)
-
-// Motor speed characteristics
-constexpr uint16_t RPM_NOM = 215U;            // rpm nominales bajo carga (son 280 sin carga)       
-constexpr float WM_NOM = RPM_NOM * 2*PI/60.0; // rad/s nominales bajo carga = 22.51 (29.3 sin carga)
+constexpr float WHEELS_SEPARATION = 0.194f;                // distancia entre ruedas (L)
+constexpr float WHEEL_TO_MID_DISTANCE = WHEELS_SEPARATION / 2.0f;   // distancia entre ruedas (L)
 
 // Auxiliares
 constexpr uint8_t WHEEL_LEFT  = 0U;
@@ -57,16 +54,23 @@ constexpr float MS_TO_S = 0.001f;
 constexpr uint8_t ACTIVE   = 1U;
 constexpr uint8_t INACTIVE = 0U;
 
-constexpr bool SUCCESS   = 1U;
-constexpr bool ERROR = 0U;
+constexpr bool SUCCESS = true;
+constexpr bool ERROR   = false;
 
-// Motor modes
+
+/* ----------------------------- Constantes motores ----------------------------*/
+
+constexpr uint16_t RPM_NOM = 215U;            // rpm nominales bajo carga (son 280 sin carga)       
+constexpr float WM_NOM = RPM_NOM * 2*PI/60.0; // rad/s nominales bajo carga = 22.51 (29.3 sin carga)
+
 enum class MotorMode : uint8_t {
     IDLE = 0U,    // Se dejan libres los motores, alta impedancia entre los bornes del motor
     ACTIVE = 1U,  // Se controla la velocidad con el duty y los pines de control
     AUTO = 2U,    // Modo de control automático
     BREAK = 3U    // Motores bloqueados, frena el motor
 };
+
+/* ----------------------------- Constantes encoders ----------------------------*/
 
 // Según tipo de configuración de encoder
 enum class EncoderMode {
@@ -79,25 +83,32 @@ constexpr float get_encoder_multiplier(EncoderMode mode) {
     return (mode == EncoderMode::SINGLE_EDGE) ? 1.0f :
            (mode == EncoderMode::HALF_QUAD)   ? 2.0f :
            (mode == EncoderMode::FULL_QUAD)   ? 4.0f :
-           1.0f;
+           2.0f;
 }
 
 // Constantes para interpretar data de los encoders
 constexpr float RAW_ENCODER_PPR = 11.0f * 21.3f; // Steps del encoder x razón de engranaje de motor
 constexpr float ENCODER_PPR = RAW_ENCODER_PPR * get_encoder_multiplier(ENCODER_MODE);
-constexpr float RAD_PER_PULSE = (2.0f * PI) / ENCODER_PPR;
+constexpr float RAD_PER_PULSE = (2.0f * M_PI) / ENCODER_PPR;
 
-// Opciones de control de posición
-constexpr float W_STOP_THRESHOLD = 2.0f * PI / 30.0f; // Threshold de velocidad para considerar stop (1 vuelta en 30 segundos)
-constexpr float V_STOP_THRESHOLD = 0.1 / 30.0f;         // Velocidad lineal mínima para considerar stop (10 cm en 30 segundos)
+
+/* ----------------------------- Constantes PoseEstimator ----------------------------*/
+
+enum class PoseEstimatorType : uint8_t {
+    ENCODER = 1U,
+    FUSION  = 2U
+};
+constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::ENCODER;
+
+
+/* ------------------------ Constantes de control de posición -----------------------*/
 
 enum class PositionControlMode : uint8_t {
     INACTIVE = 0U,
     MANUAL,
-    MOVE_PID,   
-    TURN_PID,  
-    MOVE_BACKS,  
-    TURN_BACKS
+    ALIGN,
+    MOVE,
+    ROTATE
 };
 
 enum class ControlType : uint8_t {
@@ -108,12 +119,16 @@ enum class ControlType : uint8_t {
 
 /* ------------------------ Constantes OS ------------------------*/
 
+constexpr uint8_t MAX_TRAJECTORY_POINTS = 100; // Define máximo de puntos
+constexpr float NULL_WAYPOINT_XY = 99.9f;
+
 enum class OS_State : uint8_t {
     INIT = 0,          // Estado inicial al encender
     IDLE,              // Espera sin movimiento
     STAND_BY,          // Espera sin movimiento
+    ALIGN,
     MOVE,              // Desplazamiento hacia objetivo
-    EVADE,             // Evasión de obstáculo
+    EVADE              // Evasión de obstáculo
 };
 
 // Estructura de punto
@@ -124,25 +139,22 @@ struct TargetPoint {
 
 // Instrucciones posibles desde Firebase o interfaz web
 enum class RemoteCommand : uint8_t {
-    NONE = 0,
+    STOP = 0,
     START,
-    STOP,
     IDLE
 };
 
-
-constexpr uint8_t MAX_TRAJECTORY_POINTS = 100; // Define máximo de puntos
-constexpr float NULL_WAYPOINT_XY = 99.9f;
 
 /* -------------- Tiempos de poleo para tareas RTOS --------------*/
 
 constexpr uint16_t WHEEL_CONTROL_PERIOD_MS = 10;
 constexpr uint16_t ENCODER_READ_PERIOD_MS = 10;
 constexpr uint16_t IMU_READ_PERIOD_MS = 20;
-constexpr uint16_t OBSTACLE_CHECK_PERIOD_MS = 250;
-constexpr uint16_t POSE_ESTIMATOR_PERIOD_MS = 100; 
+constexpr uint16_t OBSTACLE_CHECK_PERIOD_MS = 200;
+constexpr uint16_t POSE_ESTIMATOR_PERIOD_MS = 10; 
 constexpr uint16_t POSITION_CONTROL_PERIOD_MS = 200;
 constexpr uint16_t OS_UPDATE_PERIOD_MS = 50; 
+
 constexpr uint16_t BASIC_STACK_SIZE = 2048; // Tamaño de stack básico para tareas RTOS
 
 
@@ -181,11 +193,7 @@ struct SystemStates {
     /// Define si se está generando v_ref/w_ref activamente.
     PositionControlMode position;
 
-    // /// Estado del controlador de evasión de obstáculos (ACTIVE o INACTIVE).
-    // /// Si está activo, el vehículo ignora la referencia normal y ejecuta maniobras evasivas.
-    // uint8_t evation;
-
-    // Constructor por defecto (C++11+)
+    // Constructor por defecto
     SystemStates() :
         motors(MotorMode::IDLE), 
         encoders(INACTIVE), imu(INACTIVE), distance(INACTIVE), pose(INACTIVE),
@@ -193,68 +201,45 @@ struct SystemStates {
     {}
 };
 
-/**
- * @brief Almacena la información de velocidad y control para cada rueda del vehículo.
- *
- * La data solo debe ser modificada por funciones hechas para ello y nunca directamente.
- */
-struct WheelsData {
+
+struct SensorsData{
     /// Pasos/pulsos acumulados del encoder izquierdo.
     /// Se actualiza periódicamente por el módulo `encoder_reader`.
     /// Solo una lectura por medio del estimador de pose puede reiniciar su valor para evitar perder datos.
-    int64_t steps_L;
+    int64_t enc_stepsL;
+    int64_t enc_stepsR;
 
-    /// Pasos acumulados del encoder derecho.
-    /// Incrementado de forma sincronizada con el encoder izquierdo.
-    /// Solo una lectura por medio del estimador de pose puede reiniciar su valor para evitar perder datos.
-    int64_t steps_R;
-
-    /// Velocidad angular medida de la rueda izquierda [rad/s].
+    /// Velocidad angular medida de las ruedas [rad/s] mediante el encoder.
     /// Calculada a partir del número de pasos y el intervalo de muestreo.
-    /// Se utiliza en el controlador PI realimentar y ajustar la velocidad.
-    float w_L;
+    float enc_wL;
+    float enc_wR;
 
-    /// Velocidad angular medida de la rueda derecha [rad/s].
-    /// Calculada a partir del número de pasos y el intervalo de muestreo.
-    /// Se utiliza en el controlador PI realimentar y ajustar la velocidad.
-    float w_R;
+    uint8_t us_left_dist;      ///< Distancia medida por sensor US izquierdo [cm]
+    uint8_t us_mid_dist;       ///< Distancia medida por sensor US medio/frontal [cm]
+    uint8_t us_right_dist;     ///< Distancia medida por sensor US derecho [cm]
 
-    /// Velocidad angular de referencia para la rueda izquierda [rad/s].
-    /// Calculada desde la velocidad lineal/angular deseada. Se ajusta por el controlador de posición.
-    float w_L_ref;
+    bool us_left_obst;         ///< true si el sensor izquierdo detecta obstáculo (< threshold)
+    bool us_mid_obst;          ///< true si el sensor medio detecta obstáculo
+    bool us_right_obst;        ///< true si el sensor derecho detecta obstáculo
 
-    /// Velocidad angular de referencia para la rueda derecha [rad/s].
-    /// Calculada desde la velocidad lineal/angular deseada. Se ajusta por el controlador de posición.
-    float w_R_ref;
+    bool us_obstacle;          ///< true si cualquier sensor US detecta obstáculo (< threshold)
 
-    /// Duty aplicado al PWM del motor izquierdo (normalizado en [-1, 1]).
-    /// Su signo determina el sentido de giro de la rueda.
-    /// Se ajusta automáticamente por el controlador de velocidad de rueda.
-    float duty_L;
+    float imu_ax; ///< aceleración en el eje x
+    float imu_wz; ///< velocidad angular con respecto al eje z
+    float imu_theta; ///< ángulo rotación respecto al norte magnetico de output total (orientacion absoluta)
 
-    /// Duty aplicado al PWM del motor derecho (normalizado en [-1, 1]).
-    /// Se ajusta automáticamente por el controlador de velocidad.
-    /// Se ajusta automáticamente por el controlador de velocidad de rueda.
-    float duty_R;
-
-    WheelsData()
-        : steps_L(0), steps_R(0),
-        w_L(0.0f), w_R(0.0f),
-        w_L_ref(0.0f), w_R_ref(0.0f),
-        duty_L(0.0f), duty_R(0.0f)
+    // Constructor por defecto
+    SensorsData()
+        : enc_stepsL(0), enc_stepsR(0),
+          enc_wL(0.0f), enc_wR(0.0f),
+          us_left_dist(0), us_mid_dist(0), us_right_dist(0),
+          us_left_obst(false), us_mid_obst(false), us_right_obst(false),
+          imu_ax(0.0f), imu_wz(0.0f), imu_theta(0.0f)
     {}
 };
 
-/**
- * @brief Representa el estado cinemático del vehículo autónomo en el plano 2D.
- *
- * Contiene la pose estimada actual, la pose deseada como objetivo, las velocidades actuales
- * del vehículo y las referencias de velocidad lineal y angular generadas por el controlador de posición.
- *
- * La data es usada por los estimadores de pose, el controlador de posición, evasión y la lógica de navegación.
- * No debe modificarse directamente fuera de los módulos responsables.
- */
-struct KinematicState {
+
+struct PoseData {
     /// Posición actual en el eje X [m]
     float x;
 
@@ -265,16 +250,6 @@ struct KinematicState {
     /// θ = 0 indica orientación hacia el eje X positivo.
     float theta;
 
-    /// Posición objetivo en el eje X [m].
-    /// Esta coordenada es actualizada desde Firebase o secuencia de navegación.
-    float x_d;
-
-    /// Posición objetivo en el eje Y [m].
-    float y_d;
-
-    /// Orientación del objetivo respecto a los ejes de referencia [rad].
-    float theta_d;
-
     /// Velocidad lineal actual del vehículo [m/s].
     /// Calculada por el estimador de pose.
     float v;
@@ -283,66 +258,53 @@ struct KinematicState {
     /// Calculada por el estimador de pose.
     float w;
 
-    /// Flag que indica si el objetivo fue alcanzado.
-    uint8_t moving_state;
+    /// Velocidad de ruedas
+    float w_L;
+    float w_R;
 
-    KinematicState()
-    : x(0.0f), y(0.0f), theta(0.0f),
-      x_d(0.0f), y_d(0.0f), theta_d(0.0f),
-      v(0.0f), w(0.0f),
-      moving_state(MovingState::KIN_STOPPING) // Inicialmente detenido
+    PoseData()
+        : x(0.0f), y(0.0f), theta(0.0f),
+          v(0.0f), w(0.0f)
     {}
 };
 
-/**
- * @brief Estructura que almacena el estado consolidado de sensores ultrasónicos frontales.
- *
- * Contiene:
- * - Distancias individuales medidas por sensores US (izq, medio, der)
- * - Flags de detección de obstáculo por cada sensor
- * - Bandera general combinada para uso global del sistema
- */
-struct DistanceSensorData {
-    bool obstacle_detected;        ///< true si cualquier sensor US detecta obstáculo (< threshold)
 
-    uint8_t left_dist;      ///< Distancia medida por sensor US izquierdo [cm]
-    uint8_t mid_dist;       ///< Distancia medida por sensor US medio/frontal [cm]
-    uint8_t right_dist;     ///< Distancia medida por sensor US derecho [cm]
+struct ControllerData {
+    /// Velocidad angular de las ruedas [rad/s] calculada por el controlador de posición.
+    float w_L_ref;
+    float w_R_ref;
 
-    bool left_obst;         ///< true si el sensor izquierdo detecta obstáculo (< threshold)
-    bool mid_obst;          ///< true si el sensor medio detecta obstáculo
-    bool right_obst;        ///< true si el sensor derecho detecta obstáculo
+    /// Duty aplicado al PWM de los motores (normalizado en [-1, 1]). 
+    /// Calculado por el controlador de rueda.
+    /// Su signo determina el signo del voltaje del motor.
+    float duty_L;
+    float duty_R;
 
-    DistanceSensorData()
-    : obstacle_detected(false),
-      left_dist(0), mid_dist(0), right_dist(0),
-      left_obst(false), mid_obst(false), right_obst(false)
+    /// Posición objetivo en el eje X [m].
+    float x_d;
+
+    /// Posición objetivo en el eje Y [m].
+    float y_d;
+
+    /// Orientación del objetivo respecto a los ejes de referencia [rad].
+    float theta_d;
+
+    /// Tipo de controlador utilizado para la posición. Puede ser PID o BACKS (Backstepping).
+    ControlType controller_type;
+
+    /// Bandera que indica si alcanzó el objetivo actual
+    bool waypoint_reached;
+
+    // Constructor por defecto
+    ControllerData() 
+        : w_L_ref(0.0f), w_R_ref(0.0f),
+          duty_L(0.0f), duty_R(0.0f),
+          x_d(0.0f), y_d(0.0f), theta_d(0.0f),
+          controller_type(ControlType::PID),
+          waypoint_reached(false)
     {}
 };
 
-/**
- * @brief Estructura que almacena el estado consolidado del IMU.
- *
- * Contiene:
- * - Distancias individuales medidas por integracion en distancia (movimiento en ejes)
- * - Angulos de movimiento segun giroscopio
- * - Movimiento de angulos segun magnetometro
- */
-struct IMUSensorData{
-    float ax; ///< aceleración en el eje x
-    float ay; ///< aceleración en el eje y
-    float vx; ///< velocidad en el eje x
-    float vy; ///< velocidad en el eje y
-    float w_gyro; ///< velocidad angular con respecto al eje z
-    float mag_angle; ///< ángulo rotación respecto al norte magnetico de output total (orientacion absoluta)
-
-    IMUSensorData()
-        : ax(0.0f), ay(0.0f),
-        vx(0.0f), vy(0.0f),
-        w_gyro(0.0f),
-        mag_angle(0.0f)
-    {}
-};
 
 /**
  * @brief Contiene la información de alto nivel relacionada con la operación del vehículo autónomo.
@@ -362,15 +324,12 @@ struct OperationData {
     uint8_t total_targets;
     TargetPoint trajectory[MAX_TRAJECTORY_POINTS];
     RemoteCommand last_command;
-    bool waypoint_reached;
-    ControlType control_type;
 
-    OperationData()
-        : state(OS_State::INIT),
-          total_targets(0),
-          last_command(RemoteCommand::NONE),
-          waypoint_reached(false),
-          control_type(ControlType::PID)
+    // Constructor por defecto
+    OperationData() : 
+    state(OS_State::INIT),
+    total_targets(0),
+    last_command(RemoteCommand::STOP)
     {
         for (uint8_t i = 0; i < MAX_TRAJECTORY_POINTS; ++i) {
             trajectory[i] = {NULL_WAYPOINT_XY, NULL_WAYPOINT_XY};
@@ -378,17 +337,35 @@ struct OperationData {
     }
 };
 
+
+/**
+ * @brief Estructura que almacena los manejadores de tareas RTOS del vehículo.
+ */
+struct TaskHandlers {
+    TaskHandle_t usLeftHandle;
+    TaskHandle_t usMidHandle;
+    TaskHandle_t usRightHandle;
+
+    // Constructor por defecto
+    TaskHandlers()
+        : usLeftHandle(nullptr),
+          usMidHandle(nullptr),
+          usRightHandle(nullptr)
+    {}
+};
+
+
 /**
  * @brief Estructura global de contexto que agrupa punteros a las principales estructuras de estado del sistema.
  * Esta estructura se utiliza para facilitar el paso de datos compartidos entre diferentes tareas RTOS o módulos del sistema.
  */
 struct GlobalContext {
     volatile SystemStates* systems_ptr;
+    volatile SensorsData* sensors_ptr;
+    volatile PoseData* pose_ptr;
+    volatile ControllerData* control_ptr;
     volatile OperationData* os_ptr;
-    volatile KinematicState* kinematic_ptr;
-    volatile WheelsData* wheels_ptr;
-    volatile IMUSensorData* imu_ptr;
-    volatile DistanceSensorData* distance_ptr;
+    TaskHandlers* rtos_task_ptr;
 };
 
 #endif

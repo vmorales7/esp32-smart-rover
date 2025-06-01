@@ -24,7 +24,6 @@ constexpr float KI_WHEEL = 0.07f;
 constexpr float KW_WHEEL = 0.01f;
 
 // Speed control limits
-constexpr float MIN_PID_DT = 0.001f;  // Tiempo mínimo entre ejecuciones [s]
 constexpr float WHEEL_INVERT_THRESHOLD = 0.1 * WM_NOM;        // No invertir el signo del duty si va muy rápido [rad/s]
 constexpr float WHEEL_BRAKE_THRESHOLD  = 0.5 * WM_NOM;        // Threshold de velocidad para freno activo [rad/s]
 constexpr float WHEEL_STOP_THRESHOLD   = (2.0f * PI / 20.0f); // Threshold de velocidad para considerar stop [rad/s]
@@ -115,121 +114,121 @@ void check_duty_speed(DutyProfile& duty, float w_measured, float w_ref);
  */
 namespace MotorController {
 
-    /**
-     * @brief Inicializa el sistema de control de motores.
-     * @param motor_state_global Referencia al estado actual del motor.
-     * @param dutyL_global Referencia al duty aplicado a rueda izquierda.
-     * @param dutyR_global Referencia al duty aplicado a rueda derecha.
-     */
-    void init(
-        volatile MotorMode& motor_state_global,
-        volatile float& dutyL_global,
-        volatile float& dutyR_global
-    );
-    
-    /**
-     * @brief Configura el PWM y pines de dirección de un motor individual.
-     * @param wheel Identificador de rueda.
-     * @param abs_duty Valor absoluto del duty [0.0 – 1.0]
-     * @param forward Sentido del giro: true = adelante
-     */
-    void set_motor_pwm(uint8_t wheel, float abs_duty, bool forward);
+/**
+ * @brief Inicializa el sistema de control de motores.
+ * @param motor_state_global Referencia al estado actual del motor.
+ * @param dutyL_global Referencia al duty aplicado a rueda izquierda.
+ * @param dutyR_global Referencia al duty aplicado a rueda derecha.
+ */
+void init(
+    volatile MotorMode& motor_state_global,
+    volatile float& dutyL_global,
+    volatile float& dutyR_global
+);
 
-    /**
-     * @brief Aplica freno activo a un motor utilizando el L298N.
-     *
-     * Esta función pone ambos pines de dirección en HIGH y aplica PWM máximo
-     * para forzar el frenado eléctrico (modo `BREAK` del L298N).
-     *
-     * @param wheel Identificador del motor (`WHEEL_LEFT` o `WHEEL_RIGHT`).
-     */
-    void set_motor_break(uint8_t wheel);
+/**
+ * @brief Configura el PWM y pines de dirección de un motor individual.
+ * @param wheel Identificador de rueda.
+ * @param abs_duty Valor absoluto del duty [0.0 – 1.0]
+ * @param forward Sentido del giro: true = adelante
+ */
+void set_motor_pwm(uint8_t wheel, float abs_duty, bool forward);
 
-    /**
-     * @brief Coloca un motor en modo libre (alta impedancia).
-     *
-     * Desactiva la señal PWM y pone ambos pines de dirección en LOW, permitiendo que la rueda
-     * gire libremente sin torque aplicado (modo `IDLE` del L298N).
-     *
-     * @param wheel Identificador del motor (`WHEEL_LEFT` o `WHEEL_RIGHT`).
-     */
-    void set_motor_idle(uint8_t wheel);
+/**
+ * @brief Aplica freno activo a un motor utilizando el L298N.
+ *
+ * Esta función pone ambos pines de dirección en HIGH y aplica PWM máximo
+ * para forzar el frenado eléctrico (modo `BREAK` del L298N).
+ *
+ * @param wheel Identificador del motor (`WHEEL_LEFT` o `WHEEL_RIGHT`).
+ */
+void set_motor_break(uint8_t wheel);
 
-    /**
-     * @brief Cambia el modo global de los motores.
-     * @param mode_new Modo deseado (IDLE, ACTIVE, BREAK, AUTO).
-     * @param motor_state_global Referencia al estado global del sistema.
-     * @param dutyL_global Referencia al duty izquierdo.
-     * @param dutyR_global Referencia al duty derecho.
-     */
-    void set_motors_mode(
-        volatile MotorMode mode_new,
-        volatile MotorMode& motor_state_global,
-        volatile float& dutyL_global,
-        volatile float& dutyR_global
-    );
+/**
+ * @brief Coloca un motor en modo libre (alta impedancia).
+ *
+ * Desactiva la señal PWM y pone ambos pines de dirección en LOW, permitiendo que la rueda
+ * gire libremente sin torque aplicado (modo `IDLE` del L298N).
+ *
+ * @param wheel Identificador del motor (`WHEEL_LEFT` o `WHEEL_RIGHT`).
+ */
+void set_motor_idle(uint8_t wheel);
 
-    /**
-     * @brief Aplica directamente un perfil de duty a un motor.
-     * @param wheel_id Rueda a controlar (WHEEL_LEFT o WHEEL_RIGHT)
-     * @param duty_data Perfil de duty ya calculado y protegido.
-     * @param global_duty Referencia al duty efectivo.
-     * @param motor_state Estado actual del sistema de motor.
-     */
-    void apply_duty_profile(
-        uint8_t wheel_id,
-        const DutyProfile& duty_data,
-        volatile float& global_duty,
-        volatile MotorMode& motor_state
-    );
-            
-    /**
-     * @brief Aplica un duty al PWM y actualiza la estructura correspondiente con el duty efectivo aplicado.
-     * 
-     * @param duty_left Duty para la rueda izquierda.
-     * @param duty_right Duty para la rueda derecha.
-     * @param dutyL_global Variable global con la variable donde se almacenará el duty efectivo aplicado a la rueda izquierda.
-     * @param dutyR_global Variable global con la variable donde se almacenará el duty efectivo aplicado a la rueda derecha.
-     * @param motor_state Variable global con la variable con el estado de operación del encoder
-     */
-    void set_motors_duty(
-        volatile float duty_left,
-        volatile float duty_right,
-        volatile float& dutyL_global,
-        volatile float& dutyR_global,
-        volatile MotorMode& motor_state
-    );
+/**
+ * @brief Cambia el modo global de los motores.
+ * @param mode_new Modo deseado (IDLE, ACTIVE, BREAK, AUTO).
+ * @param motor_state_global Referencia al estado global del sistema.
+ * @param dutyL_global Referencia al duty izquierdo.
+ * @param dutyR_global Referencia al duty derecho.
+ */
+void set_motors_mode(
+    const MotorMode mode_new,
+    volatile MotorMode& motor_state_global,
+    volatile float& dutyL_global,
+    volatile float& dutyR_global
+);
 
-    /**
-     * @brief Ejecuta un paso de control para ambos motores en modo automático.
-     *
-     * Esta función calcula el duty necesario para que cada rueda alcance su velocidad angular
-     * de referencia, utilizando un controlador PI con protección contra inversión abrupta,
-     * arranques en parado y anti-windup. Si se detecta que el sentido deseado difiere del real
-     * y la velocidad aún es alta, se aplica frenado activo.
-     *
-     * @param w_L Velocidad angular medida de la rueda izquierda [rad/s].
-     * @param w_R Velocidad angular medida de la rueda derecha [rad/s].
-     * @param w_L_ref Velocidad angular de referencia para la rueda izquierda [rad/s].
-     * @param w_R_ref Velocidad angular de referencia para la rueda derecha [rad/s].
-     * @param duty_L Referencia al duty aplicado al motor izquierdo (salida) [-1.0, 1.0].
-     * @param duty_R Referencia al duty aplicado al motor derecho (salida) [-1.0, 1.0].
-     * @param state Estado del controlador de motores (debe estar en MOTOR_AUTO para ejecutar control).
-     */
-    void update_motors_control(
-        volatile float& w_L, volatile float& w_R, 
-        volatile float& w_L_ref, volatile float& w_R_ref,
-        volatile float& duty_L, volatile float& duty_R, 
-        volatile MotorMode& state
-    );
+/**
+ * @brief Aplica directamente un perfil de duty a un motor.
+ * @param wheel_id Rueda a controlar (WHEEL_LEFT o WHEEL_RIGHT)
+ * @param duty_data Perfil de duty ya calculado y protegido.
+ * @param global_duty Referencia al duty efectivo.
+ * @param motor_state Estado actual del sistema de motor.
+ */
+void apply_duty_profile(
+    uint8_t wheel_id,
+    const DutyProfile& duty_data,
+    volatile float& global_duty,
+    volatile MotorMode& motor_state
+);
+        
+/**
+ * @brief Aplica un duty al PWM y actualiza la estructura correspondiente con el duty efectivo aplicado.
+ * 
+ * @param duty_left Duty para la rueda izquierda.
+ * @param duty_right Duty para la rueda derecha.
+ * @param dutyL_global Variable global con la variable donde se almacenará el duty efectivo aplicado a la rueda izquierda.
+ * @param dutyR_global Variable global con la variable donde se almacenará el duty efectivo aplicado a la rueda derecha.
+ * @param motor_state Variable global con la variable con el estado de operación del encoder
+ */
+void set_motors_duty(
+    const float duty_left,
+    const float duty_right,
+    volatile float& dutyL_global,
+    volatile float& dutyR_global,
+    volatile MotorMode& motor_state
+);
 
-    /**
-     * @brief Tarea de FreeRTOS que ejecuta periódicamente el control de velocidad de ruedas.
-     * Usa punteros extraídos desde una estructura `GlobalContext`.
-     * 
-     * @param pvParameters Puntero a un `GlobalContext*` que contiene referencias al estado del sistema.
-     */
-    void Task_WheelControl(void* pvParameters);
+/**
+ * @brief Ejecuta un paso de control para ambos motores en modo automático.
+ *
+ * Esta función calcula el duty necesario para que cada rueda alcance su velocidad angular
+ * de referencia, utilizando un controlador PI con protección contra inversión abrupta,
+ * arranques en parado y anti-windup. Si se detecta que el sentido deseado difiere del real
+ * y la velocidad aún es alta, se aplica frenado activo.
+ *
+ * @param w_L Velocidad angular medida de la rueda izquierda [rad/s].
+ * @param w_R Velocidad angular medida de la rueda derecha [rad/s].
+ * @param w_L_ref Velocidad angular de referencia para la rueda izquierda [rad/s].
+ * @param w_R_ref Velocidad angular de referencia para la rueda derecha [rad/s].
+ * @param duty_L Referencia al duty aplicado al motor izquierdo (salida) [-1.0, 1.0].
+ * @param duty_R Referencia al duty aplicado al motor derecho (salida) [-1.0, 1.0].
+ * @param state Estado del controlador de motores (debe estar en MOTOR_AUTO para ejecutar control).
+ */
+void update_motors_control(
+    volatile float& w_L, volatile float& w_R, 
+    volatile float& w_L_ref, volatile float& w_R_ref,
+    volatile float& duty_L, volatile float& duty_R, 
+    volatile MotorMode& state
+);
+
+/**
+ * @brief Tarea de FreeRTOS que ejecuta periódicamente el control de velocidad de ruedas.
+ * Usa punteros extraídos desde una estructura `GlobalContext`.
+ * 
+ * @param pvParameters Puntero a un `GlobalContext*` que contiene referencias al estado del sistema.
+ */
+void Task_WheelControl(void* pvParameters);
 
 } // namespace MotorController
 

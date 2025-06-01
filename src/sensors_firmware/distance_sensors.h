@@ -37,6 +37,19 @@ constexpr uint8_t US_MAX_DISTANCE_CM = 100U;
  */
 constexpr uint32_t US_PULSE_TIMEOUT_US = US_MAX_DISTANCE_CM / US_CM_PER_US;
 
+/**
+ * @brief Tiempo mínimo de espera entre lecturas del sensor ultrasónico [ms].
+ */
+constexpr uint32_t US_WAIT_TIME_MS = 10U;
+
+/**
+ * @brief Tiempo de espera para liberar el obstáculo detectado [ms].
+ * 
+ * Este valor define cuánto tiempo debe pasar sin detectar un obstáculo
+ * antes de considerar que el obstáculo ha sido liberado.
+ */
+constexpr uint32_t OBSTACLE_DEBOUNCE_MS = 1000; // (1s)
+
 
 /* -------------------- Módulo DistanceSensors -------------------- */
 
@@ -153,35 +166,7 @@ namespace DistanceSensors {
         volatile uint8_t& distance,
         volatile bool& sensor_obstacle_flag,
         volatile bool& global_obstacle_flag,
-        volatile uint8_t& distance_state
-    );
-
-    /**
-     * @brief Realiza la lectura de los tres sensores ultrasónicos frontales,
-     *        actualizando las distancias y banderas de obstáculo para cada uno,
-     *        y calcula el flag global de obstáculo.
-     *
-     * Esta función debe ser llamada solo si el sistema de sensores de distancia está activo.
-     * Para cada sensor (izquierdo, medio y derecho) realiza la medición, actualiza la distancia
-     * y la bandera individual de obstáculo. Finalmente, evalúa el estado global combinando
-     * los resultados de los tres sensores.
-     *
-     * @param left_dist           Distancia medida por el sensor izquierdo [cm].
-     * @param left_obst           Flag de obstáculo detectado por el sensor izquierdo.
-     * @param mid_dist            Distancia medida por el sensor central [cm].
-     * @param mid_obst            Flag de obstáculo detectado por el sensor central.
-     * @param right_dist          Distancia medida por el sensor derecho [cm].
-     * @param right_obst          Flag de obstáculo detectado por el sensor derecho.
-     * @param global_obstacle_flag Bandera global de obstáculo, se actualiza según los tres sensores.
-     * @param distance_state      Estado de activación del sistema de sensores de distancia (debe ser ACTIVE).
-     * @return true si al menos uno de los tres sensores detecta un obstáculo, false en caso contrario.
-     */
-    bool check_all_sensors_obstacle(
-        volatile uint8_t& left_dist, volatile bool& left_obst, 
-        volatile uint8_t& mid_dist, volatile bool& mid_obst,
-        volatile uint8_t& right_dist, volatile bool& right_obst,
-        volatile bool& global_obstacle_flag,
-        volatile uint8_t& distance_state
+        const uint8_t distance_state
     );
 
     /**
@@ -196,9 +181,9 @@ namespace DistanceSensors {
      * @return `true` si hay al menos un obstáculo detectado por alguno de los sensores.
      */
     bool compute_global_obstacle_flag(
-        volatile bool& left_obst,
-        volatile bool& mid_obst,
-        volatile bool& right_obst
+        const bool left_obst,
+        const bool mid_obst,
+        const bool right_obst
     );
 
     /**
@@ -211,11 +196,12 @@ namespace DistanceSensors {
      * @param mid_obst Referencia al flag de obstáculo detectado por el sensor central.
      * @param right_obst Referencia al flag de obstáculo detectado por el sensor derecho.
      * @param obstacle Referencia al flag global de obstáculo, que se actualiza como salida de la función.
+     * @return `true` si se detectó un obstáculo, `false` si no.
      */
-    void update_global_obstacle_flag(
-        volatile bool& left_obst,
-        volatile bool& mid_obst,
-        volatile bool& right_obst,
+    bool update_global_obstacle_flag(
+        const bool left_obst,
+        const bool mid_obst,
+        const bool right_obst,
         volatile bool& obstacle
     );
 
@@ -245,6 +231,8 @@ namespace DistanceSensors {
      * @param pvParameters Puntero al contexto global (cast a `GlobalContext*`).
      */
     void Task_CheckRightObstacle(void* pvParameters);
+
+    bool force_check_all_sensors(GlobalContext* ctx);
 
 }
 

@@ -8,22 +8,23 @@
 
 // ====================== VARIABLES GLOBALES ======================
 
-volatile SystemStates states;
-volatile WheelsData wheels;
-volatile KinematicState kinem;
+volatile SystemStates sts;
+volatile SensorsData sens;
+volatile ControllerData ctrl;
 volatile PoseData pose;
+
 GlobalContext ctx = {
-    .systems_ptr     = &states,
-    .os_ptr          = nullptr,
-    .kinematic_ptr   = &kinem,
-    .wheels_ptr      = &wheels,
-    .imu_ptr         = nullptr,
-    .distance_ptr    = nullptr
+    .systems_ptr     = &sts,
+    .sensors_ptr     = &sens,
+    .pose_ptr        = &pose,
+    .control_ptr     = &ctrl,
+    .os_ptr          = nullptr, 
+    .rtos_task_ptr   = nullptr,
 };
 
 constexpr float Wref = 9.0f;
 
-// ====================== Tarea auxiliar ======================
+// ====================== Tareas auxiliares ======================
 
 void Task_PrintPose(void* pvParameters);
 void Task_PrintXY(void* pvParameters);
@@ -38,23 +39,25 @@ void setup() {
     delay(1000);
 
     // Inicializar encoder
-    EncoderReader::init(wheels.steps_L, wheels.steps_R, wheels.w_L, wheels.w_R, states.encoders);
+    EncoderReader::init(sens.enc_stepsL, sens.enc_stepsR, sens.enc_wL, sens.enc_wR, sts.encoders);
 
     // Inicializar estimador de pose
-    PoseEstimator::init(kinem.x, kinem.y, kinem.theta, kinem.v, kinem.w, wheels.steps_L, wheels.steps_R, states.pose);
+    PoseEstimator::init(pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R, 
+        sens.enc_stepsL, sens.enc_stepsR, sts.pose);
 
     // Inicializar motores
-    MotorController::init(states.motors, wheels.duty_L, wheels.duty_R);
-    MotorController::set_motors_mode(MotorMode::AUTO, states.motors, wheels.duty_L, wheels.duty_R);
+    MotorController::init(sts.motors, ctrl.duty_L, ctrl.duty_R);
+    MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
 
     // Inicializar controlador de posición
-    PositionController::init(states.position, wheels.w_L_ref, wheels.w_R_ref);
-    PositionController::set_control_mode(PositionControlMode::MANUAL, states.position, wheels.w_L_ref, wheels.w_R_ref);
+    PositionController::init(sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
+    PositionController::set_control_mode(
+        PositionControlMode::MANUAL, sts.position, ctrl.w_L_ref, ctrl.w_R_ref, pose.moving_state);
 
     // Instrucciones de inicio
-    PositionController::set_wheel_speed_ref(Wref, Wref, wheels.w_L_ref, wheels.w_R_ref, states.position);
-    PoseEstimator::set_state(ACTIVE, states.pose);
-    EncoderReader::resume(states.encoders);
+    PositionController::set_wheel_speed_ref(Wref, Wref, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
+    PoseEstimator::set_state(ACTIVE, sts.pose);
+    EncoderReader::resume(sts.encoders);
 
     // Crear tareas RTOS
     xTaskCreatePinnedToCore(EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2048, &ctx, 1, nullptr, 1);
@@ -77,26 +80,28 @@ void loop() {
 // ====================== Para print ======================
 
 void Task_PrintPose(void* pvParameters) {
-    auto& k = *static_cast<GlobalContext*>(pvParameters)->kinematic_ptr;
-
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t period = pdMS_TO_TICKS(500);
+
+    GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
+    volatile PoseData& pose = *ctx->pose_ptr;
 
     for (;;) {
         vTaskDelayUntil(&xLastWakeTime, period);
         Serial.printf("Pose => x: %.2f | y: %.2f | θ: %.2f || Vel => v: %.2f | w: %.2f\n",
-                        k.x, k.y, k.theta, k.v, k.w);
+                        pose.x, pose.y, pose.theta, pose.v, pose.w);
     }
 }
 
 void Task_PrintXY(void* pvParameters) {
-    auto& k = *static_cast<GlobalContext*>(pvParameters)->kinematic_ptr;
-
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t period = pdMS_TO_TICKS(250);
 
+    GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
+    volatile PoseData& pose = *ctx->pose_ptr;
+
     for (;;) {
         vTaskDelayUntil(&xLastWakeTime, period);
-        Serial.printf("%.2f %.2f\n", k.x, k.y);
+        Serial.printf("%.2f %.2f\n", pose.x, pose.y);
     }
 }

@@ -57,7 +57,7 @@ namespace EncoderReader {
     void update_encoder_data(
         volatile int64_t& steps_L, volatile int64_t& steps_R, 
         volatile float& w_L, volatile float& w_R, 
-        volatile uint8_t& encoder_state
+        const uint8_t encoder_state
     );
 
     /**
