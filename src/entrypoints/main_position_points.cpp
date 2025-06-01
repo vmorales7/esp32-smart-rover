@@ -9,73 +9,101 @@
 
 
 // ====================== VARIABLES GLOBALES ======================
-volatile SystemStates states;
-volatile WheelsData wheels;
-volatile KinematicState kinem;
-volatile DistanceSensorData distance_data;
+volatile SystemStates sts;
+volatile SensorsData sens;
+volatile ControllerData ctrl;
 volatile PoseData pose;
 
 GlobalContext ctx = {
-    .systems_ptr     = &states,
-    .os_ptr          = nullptr,
-    .kinematic_ptr   = &kinem,
-    .wheels_ptr      = &wheels,
-    .imu_ptr         = nullptr,
-    .distance_ptr    = &distance_data
+    .systems_ptr     = &sts,
+    .sensors_ptr     = &sens,
+    .pose_ptr        = &pose,
+    .control_ptr     = &ctrl,
+    .os_ptr          = nullptr, 
+    .rtos_task_ptr   = nullptr,
+    .evade_ptr       = nullptr
 };
+
+// Memoria para retomar post-obstáculo
+PositionControlMode last_control_mode = PositionControlMode::INACTIVE; 
+bool en_pausa_por_obstaculo = false; // Indica si se pausó por un obstáculo
 
 
 // ====================== CONFIGURACIÓN PUNTOS ======================
-struct Punto {
+
+ControlType controller_type = ControlType::PID; // Tipo de controlador a utilizar
+struct Waypoint {
     float x;
     float y;
 };
 constexpr uint8_t NUM_PUNTOS = 3;
-Punto trayectoria[NUM_PUNTOS] = {
+Waypoint trayectoria[NUM_PUNTOS] = {
     {1.0f, 1.0f},
     {2.0f, 1.0f},
     {2.0f, 2.0f}
 };
-volatile uint8_t punto_actual = 0;
+uint8_t punto_actual = 0;
 
 
 // ====================== TAREA PRINCIPAL ======================
 void Task_ControlPorPuntos(void* pvParameters) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
-    const TickType_t period = pdMS_TO_TICKS(100);
+    const TickType_t period = pdMS_TO_TICKS(200);
+
+    volatile GlobalContext& ctx = *static_cast<GlobalContext*>(pvParameters);
+    volatile PoseData& pose = *ctx.pose_ptr;
+    volatile SystemStates& sts = *ctx.systems_ptr;
+    volatile ControllerData& ctrl = *ctx.control_ptr;
+    volatile OperationData& os = *ctx.os_ptr;
 
     for (;;) {
         vTaskDelayUntil(&xLastWakeTime, period);
-
-        // Si ya completó todos los puntos
-        if (punto_actual >= NUM_PUNTOS) {
-            MotorController::set_motors_mode(MotorMode::IDLE, states.motors, wheels.duty_L, wheels.duty_R);
-            PositionController::set_wheel_speed_ref(0.0f, 0.0f, wheels.w_L_ref, wheels.w_R_ref, states.position);
-            vTaskSuspend(nullptr);
-        }
-
-        // Si hay obstáculo, detenemos motores (solo referencia)
-        DistanceSensors::update_global_obstacle_flag(
-            distance_data.left_obst, distance_data.mid_obst, distance_data.right_obst, distance_data.obstacle_detected);
-        if (distance_data.obstacle_detected) {
-            PositionController::set_wheel_speed_ref(0.0f, 0.0f, wheels.w_L_ref, wheels.w_R_ref, states.position);
-            continue;
-        }
-
-        // Actualizar punto objetivo
-        kinem.x_d = trayectoria[punto_actual].x;
-        kinem.y_d = trayectoria[punto_actual].y;
-
         // Verificar si ya llegó
-        float dx = kinem.x_d - kinem.x;
-        float dy = kinem.y_d - kinem.y;
-        float dist = sqrtf(dx * dx + dy * dy);
-      
-        if (dist > DISTANCE_TOLERANCE) {
-            Serial.printf("Punto %d no alcanzado (x=%.2f, y=%.2f)\n", punto_actual, kinem.x, kinem.y);
-        } else {
-            Serial.printf("Punto %d alcanzado (x=%.2f, y=%.2f)\n", punto_actual, kinem.x, kinem.y);
+        if (!ctrl.waypoint_reached) {
+            Serial.printf("Posición actual: (x=%.2f, y=%.2f)\n", pose.x, pose.y);
+            // Detención por obstáculo si está avanzando
+            if (sens.us_obstacle && sts.position == PositionControlMode::MOVE) {
+                Serial.println("Obstáculo detectado, deteniendo motores.");
+                PositionController::set_control_mode(PositionControlMode::MANUAL, sts.position, 
+                    ctrl.w_L_ref, ctrl.w_R_ref);
+                PositionController::set_wheel_speed_ref(0.0f, 0.0f, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
+                en_pausa_por_obstaculo = true;
+            } 
+            else if (!sens.us_obstacle && en_pausa_por_obstaculo) {
+                Serial.printf("Obstáculo despejado, reanudando movimiento hacia el punto (x=%.2f, y=%.2f)\n", 
+                    ctrl.x_d, ctrl.y_d);
+                PositionController::set_control_mode(last_control_mode, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
+                en_pausa_por_obstaculo = false;
+            }
+            DistanceSensors::update_global_obstacle_flag(
+                sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
+        } 
+        else if (sts.position == PositionControlMode::ALIGN) {
+            Serial.printf("Punto %d alineado. Punto actual (x=%.2f, y=%.2f)\n", punto_actual, pose.x, pose.y);
+            Serial.println("Iniciando movimiento hacia el punto objetivo...");
+            PositionController::set_control_mode(PositionControlMode::MOVE, sts.position, 
+                ctrl.w_L_ref, ctrl.w_R_ref);
+            last_control_mode = PositionControlMode::MOVE;
+        } 
+        else if (sts.position == PositionControlMode::MOVE) {
+            Serial.printf("Punto %d alcanzado.\n", punto_actual);
             punto_actual++;
+            if (punto_actual < NUM_PUNTOS) {
+                PositionController::set_control_mode(PositionControlMode::ALIGN, sts.position, 
+                    ctrl.w_L_ref, ctrl.w_R_ref);
+                last_control_mode = PositionControlMode::ALIGN;
+                PositionController::set_waypoint(trayectoria[punto_actual].x, trayectoria[punto_actual].y, 0.0f,
+                    ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, sts.position);
+                Serial.printf("Nuevo punto objetivo: (x=%.2f, y=%.2f)\n", ctrl.x_d, ctrl.y_d);
+                Serial.println("Alineando hacia el nuevo punto...");
+            }
+            else {
+                Serial.println("Todos los puntos alcanzados. Deteniendo motores.");
+                ctrl.waypoint_reached = false; // Reiniciar flag para evitar reacciones inesperadas
+                PositionController::set_control_mode(PositionControlMode::INACTIVE, sts.position, 
+                    ctrl.w_L_ref, ctrl.w_R_ref);
+                vTaskSuspend(nullptr); // Suspender tarea si se completaron todos los puntos
+            }
         }
     }
 }
@@ -88,43 +116,36 @@ void setup() {
     Serial.println("Inicio: Seguimiento de puntos");
 
     // Inicialización de sistemas
-    EncoderReader::init(wheels.steps_L, wheels.steps_R, wheels.w_L, wheels.w_R, states.encoders);
-    PoseEstimator::init(kinem.x, kinem.y, kinem.theta, kinem.v, kinem.w, wheels.steps_L, wheels.steps_R, states.pose);
-    MotorController::init(states.motors, wheels.duty_L, wheels.duty_R);
-    DistanceSensors::init(
-        distance_data.left_dist, distance_data.left_obst, 
-        distance_data.mid_dist, distance_data.mid_obst,
-        distance_data.right_dist, distance_data.right_obst, 
-        distance_data.obstacle_detected, states.distance
-    );
-    PositionController::init(states.position, wheels.w_L_ref, wheels.w_R_ref);
+    EncoderReader::init(sens.enc_stepsL, sens.enc_stepsR, sens.enc_wL, sens.enc_wR, sts.encoders);
+    PoseEstimator::init(pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R, 
+        sens.enc_stepsL, sens.enc_stepsR, sts.pose);
+    MotorController::init(sts.motors, ctrl.duty_L, ctrl.duty_R);
+    DistanceSensors::init(sens.us_left_dist, sens.us_left_obst, sens.us_mid_dist, sens.us_mid_obst, 
+        sens.us_right_dist, sens.us_right_obst, sens.us_obstacle, sts.distance);
+    PositionController::init(sts.position, ctrl.x_d, ctrl.y_d, ctrl.theta_d, 
+        ctrl.waypoint_reached, ctrl.w_L_ref, ctrl.w_R_ref);
 
     // Puesta en marcha de todo
-    EncoderReader::resume(states.encoders);
-    PoseEstimator::set_state(ACTIVE, states.pose);
-    DistanceSensors::set_state(
-        ACTIVE, states.distance,
-        distance_data.left_dist, distance_data.left_obst, 
-        distance_data.mid_dist, distance_data.mid_obst,
-        distance_data.right_dist, distance_data.right_obst, 
-        distance_data.obstacle_detected
-    );
-    MotorController::set_motors_mode(MotorMode::AUTO, states.motors, wheels.duty_L, wheels.duty_R);
-    PositionController::set_control_mode(PositionControlMode::MOVE_PID, states.position, wheels.w_L_ref, wheels.w_R_ref);
+    EncoderReader::resume(sts.encoders);
+    // IMUReader::resume(sts.imu); // A futuro
+    PoseEstimator::set_state(ACTIVE, sts.pose);
+    DistanceSensors::set_state(ACTIVE, sts.distance, 
+        sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
+    PositionController::set_controller_type(controller_type, ctrl.controller_type);
+    PositionController::set_control_mode(PositionControlMode::ALIGN, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
+    MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
 
-    // Tareas de sistema
+    // Tareas de sistema (core 1)
     xTaskCreatePinnedToCore(EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2048, &ctx, 1, nullptr, 1);
     xTaskCreatePinnedToCore(MotorController::Task_WheelControl, "WheelControl", 2048, &ctx, 1, nullptr, 1);
     xTaskCreatePinnedToCore(PoseEstimator::Task_PoseEstimatorEncoder, "PoseEstimator", 2048, &ctx, 1, nullptr, 1);
     xTaskCreatePinnedToCore(PositionController::Task_PositionControl, "PositionControl", 2048, &ctx, 1, nullptr, 1);
 
     // Sensores de distancia (core 0)
-    xTaskCreatePinnedToCore(DistanceSensors::Task_CheckLeftObstacle, "US_Left", 2048, &ctx, 1, nullptr, 0);
-    xTaskCreatePinnedToCore(DistanceSensors::Task_CheckMidObstacle, "US_Mid", 2048, &ctx, 1, nullptr, 0);
-    xTaskCreatePinnedToCore(DistanceSensors::Task_CheckRightObstacle, "US_Right", 2048, &ctx, 1, nullptr, 0);
+    xTaskCreatePinnedToCore(DistanceSensors::Task_CheckObstacle, "CheckObstacles", 2048, &ctx, 1, nullptr, 0);
 
-    // Tarea principal de control por puntos
-    xTaskCreatePinnedToCore(Task_ControlPorPuntos, "ControlPorPuntos", 2048, nullptr, 2, nullptr, 0);
+    // Tarea principal de control por puntos (core 0)
+    xTaskCreatePinnedToCore(Task_ControlPorPuntos, "ControlPorPuntos", 2048, &ctx, 2, nullptr, 0);
 }
 
 void loop() {
