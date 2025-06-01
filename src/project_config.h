@@ -44,7 +44,7 @@ constexpr uint8_t ESP32_LED = 2;
 // Parámetros físicos del vehículo
 constexpr float WHEEL_RADIUS = 0.067f / 2.0f;    // en metros
 constexpr float WHEELS_SEPARATION = 0.194f;                // distancia entre ruedas (L)
-constexpr float WHEEL_TO_MID_DISTANCE = WHEELS_SEPARATION / 2.0f;   // distancia entre ruedas (L)
+constexpr float WHEEL_TO_MID_DISTANCE = WHEELS_SEPARATION / 2.0f;   // media distancia entre ruedas (L/2)
 
 // Auxiliares
 constexpr uint8_t WHEEL_LEFT  = 0U;
@@ -144,6 +144,19 @@ enum class RemoteCommand : uint8_t {
     IDLE
 };
 
+// ------------- Estados internos de la evasión -------------
+
+enum class EvadeState : uint8_t {
+    IDLE = 0,
+    SELECT_DIR,
+    ALIGN_TO_FREE_PATH,
+    CHECK_SPACE,
+    ADVANCE,
+    RESTORE_PATH,
+    FAIL,
+    FINISHED
+};
+
 
 /* -------------- Tiempos de poleo para tareas RTOS --------------*/
 
@@ -201,7 +214,6 @@ struct SystemStates {
     {}
 };
 
-
 struct SensorsData{
     /// Pasos/pulsos acumulados del encoder izquierdo.
     /// Se actualiza periódicamente por el módulo `encoder_reader`.
@@ -238,7 +250,6 @@ struct SensorsData{
     {}
 };
 
-
 struct PoseData {
     /// Posición actual en el eje X [m]
     float x;
@@ -267,7 +278,6 @@ struct PoseData {
           v(0.0f), w(0.0f)
     {}
 };
-
 
 struct ControllerData {
     /// Velocidad angular de las ruedas [rad/s] calculada por el controlador de posición.
@@ -305,7 +315,6 @@ struct ControllerData {
     {}
 };
 
-
 /**
  * @brief Contiene la información de alto nivel relacionada con la operación del vehículo autónomo.
  *
@@ -324,6 +333,7 @@ struct OperationData {
     uint8_t total_targets;
     TargetPoint trajectory[MAX_TRAJECTORY_POINTS];
     RemoteCommand last_command;
+    char last_log[64];  // <-- Aquí el log de transición
 
     // Constructor por defecto
     OperationData() : 
@@ -334,26 +344,52 @@ struct OperationData {
         for (uint8_t i = 0; i < MAX_TRAJECTORY_POINTS; ++i) {
             trajectory[i] = {NULL_WAYPOINT_XY, NULL_WAYPOINT_XY};
         }
+        last_log[0] = '\0'; // String vacío al inicio
     }
 };
-
 
 /**
  * @brief Estructura que almacena los manejadores de tareas RTOS del vehículo.
  */
 struct TaskHandlers {
-    TaskHandle_t usLeftHandle;
-    TaskHandle_t usMidHandle;
-    TaskHandle_t usRightHandle;
+    TaskHandle_t wheels_handle;
+    TaskHandle_t obstacle_handle;  ///< Manejador de la tarea de chequeo de obstáculos
+    TaskHandle_t encoder_handle;   ///< Manejador de la tarea de lectura de encoders
+    TaskHandle_t imu_handle;       ///< Manejador de la tarea de lectura de IMU
+    TaskHandle_t pose_handle;      ///< Manejador de la tarea de estimación de pose
+    TaskHandle_t position_handle;  ///< Manejador de la tarea de control de posición
+    TaskHandle_t os_handle;        ///< Manejador de la tarea de operación del sistema
 
     // Constructor por defecto
     TaskHandlers()
-        : usLeftHandle(nullptr),
-          usMidHandle(nullptr),
-          usRightHandle(nullptr)
+        : wheels_handle(nullptr),
+          obstacle_handle(nullptr),
+          encoder_handle(nullptr),
+          imu_handle(nullptr),
+          pose_handle(nullptr),
+          position_handle(nullptr),
+          os_handle(nullptr)
     {}
 };
 
+/**
+ * @brief Contexto de evasión del vehículo autónomo.
+ *
+ * Esta estructura mantiene el estado y parámetros necesarios para realizar maniobras de evasión
+ * cuando se detecta un obstáculo. Permite al vehículo intentar esquivar obstáculos a ambos lados
+ * y retomar su trayectoria original si es posible.
+ */
+struct EvadeContext {
+    EvadeState state = EvadeState::IDLE;
+    int8_t direction = 0;         // 1: izquierda, -1: derecha
+    float current_angle = 0.0f;   // Ángulo acumulado en rad
+    bool tried_both_sides = false;
+    float start_theta = 0.0f;     // Orientación al comenzar evasión
+    uint8_t last_side_tried = 0;  // 0: no, 1: izq, 2: der, 3: ambos
+    TargetPoint saved_waypoint = {0.0f, 0.0f};
+    bool waypoint_active = false; // ¿Hay waypoint temporal en evasión?
+    bool evade_failed = false;    // ¿No pudo evadir en ningún sentido?
+};
 
 /**
  * @brief Estructura global de contexto que agrupa punteros a las principales estructuras de estado del sistema.
@@ -366,6 +402,7 @@ struct GlobalContext {
     volatile ControllerData* control_ptr;
     volatile OperationData* os_ptr;
     TaskHandlers* rtos_task_ptr;
+    EvadeContext* evade_ptr;
 };
 
 #endif

@@ -30,14 +30,18 @@ void init(
 
 bool set_control_mode(
     const PositionControlMode new_mode,
-    volatile PositionControlMode& control_mode
+    volatile PositionControlMode& control_mode,
+    volatile float& wL_ref, volatile float& wR_ref
 ) {
     // Si se entrega el mismo modo, no se hace nada
     if (new_mode == control_mode) return SUCCESS;
-
-    // Modificación del modo de operación -> se deja en cero las referencias de velocidad
     control_mode = new_mode;
     reset_pid_state(); // Reiniciar el estado del PID
+    if (new_mode == PositionControlMode::INACTIVE) {
+        // Si se pone en modo inactivo, se dejan las referencias de velocidad en cero
+        wL_ref = 0.0f;
+        wR_ref = 0.0f;
+    }
     return SUCCESS; // Indicar que se cambió el modo correctamente
 }
 
@@ -302,7 +306,7 @@ bool stop_movement(
     volatile PositionControlMode& control_mode
 ) {
     // Fijar duty a cero
-    set_control_mode(PositionControlMode::MANUAL, control_mode);
+    set_control_mode(PositionControlMode::MANUAL, control_mode, w_L_ref, w_R_ref);
     set_wheel_speed_ref(0.0f, 0.0f, w_L_ref, w_R_ref, control_mode);
 
     // Verificar detención de motores
@@ -375,61 +379,3 @@ float wrap_to_pi(float angle) {
 }
 
 } // namespace PositionController
-
-
-    // bool update_control_backstepping(
-    //     const float x, const float y, const float theta,
-    //     const float x_d, const float y_d, const float theta_d,
-    //     volatile float& wL_ref, volatile float& wR_ref,
-    //     volatile PositionControlMode& control_mode
-    // ) {
-
-    //     // 1) errores en marco vehículo
-    //     float dx = x_d - x;
-    //     float dy = y_d - y;
-
-    //     float e1 =  cosf(theta)*dx + sinf(theta)*dy;
-    //     float e2 = -sinf(theta)*dx + cosf(theta)*dy;
-    //     float e3 = wrap_to_pi(atan2f(dy, dx) - theta);
-
-    //     float rho = sqrtf(e1*e1 + e2*e2);
-    //     bool stop = (rho <= DISTANCE_TOLERANCE); 
-
-    //     // 2) Control
-    //     float v_des = 0.0f;
-    //     float w_des = 0.0f;
-    //     if (stop) {
-    //         v_des = 0.0f;
-    //         w_des = 0.0f;
-    //     } else if (fabsf(e3) > ANGLE_NAVIGATION_TOLERANCE) {
-    //         v_des = 0.0f;
-    //         w_des = KP_ALPHA * e3;
-    //     } else {
-    //         v_des = K1 * e1;
-    //         w_des = K2 * e2 + K3 * e1 * e2 * e3;
-    //     }
-
-    //     // 3) saturar
-    //     v_des = saturate(v_des, 0.5f);
-    //     w_des = saturate(w_des, 1.0f);
-
-    //     // 4) convertir a ruedas
-    //     wL_ref = compute_wheel_speed(v_des, w_des, WHEEL_LEFT);
-    //     wR_ref = compute_wheel_speed(v_des, w_des, WHEEL_RIGHT);
-
-    //     return stop; // Retorna si se está controlando o si se alcanzó el objetivo
-    // }
-
-
-// float normalize_angle(float a) {
-//     // fuerza a ∈ (−π, π]
-//     while (a >  PI) a -= 2.0f * PI;
-//     while (a <= -PI) a += 2.0f * PI;
-//     return a;
-// }
-
-// float saturate(float v, float limit) {
-//     if      (v >  limit) return  limit;
-//     else if (v < -limit) return -limit;
-//     else                 return  v;
-// }

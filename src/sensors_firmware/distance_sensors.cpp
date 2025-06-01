@@ -46,6 +46,16 @@ void reset_system(
 }
 
 
+void clear_flags(
+    volatile bool& left_obst, volatile bool& mid_obst, volatile bool& right_obst, volatile bool& obstacle
+) {
+    obstacle   = false;
+    left_obst  = false;
+    mid_obst   = false;
+    right_obst = false;
+}
+
+
 void init(
     volatile uint8_t& left_dist, volatile bool& left_obst,
     volatile uint8_t& mid_dist, volatile bool& mid_obst,
@@ -64,15 +74,13 @@ void init(
 
 void set_state(
     const uint8_t new_mode, volatile uint8_t& distance_state,
-    volatile uint8_t& left_dist, volatile bool& left_obst,
-    volatile uint8_t& mid_dist, volatile bool& mid_obst,
-    volatile uint8_t& right_dist, volatile bool& right_obst,
+    volatile bool& left_obst, volatile bool& mid_obst, volatile bool& right_obst,
     volatile bool& obstacle
 ) {
     if (new_mode == distance_state) return;
     distance_state = (new_mode == ACTIVE) ? ACTIVE : INACTIVE;
     if (distance_state == INACTIVE) {
-        reset_system(left_dist, left_obst, mid_dist, mid_obst, right_dist, right_obst, obstacle);
+        clear_flags(left_obst, mid_obst, right_obst, obstacle);
     }
 }
 
@@ -95,7 +103,10 @@ bool check_sensor_obstacle(
         delay(US_WAIT_TIME_MS); // Necesitamos un delay mínimo para que funcione bien la segunda lectura
         d = read_distance(trig_pin, echo_pin);
         obstacle_flag = (d < OBSTACLE_THRESHOLD_CM);
-        if (obstacle_flag) global_obstacle_flag = true;
+        if (obstacle_flag) {
+            global_obstacle_flag = true;
+            last_obstacle_time = millis();
+        }
     }
     sensor_obstacle_flag = obstacle_flag;
     distance = d;
@@ -114,11 +125,8 @@ bool update_global_obstacle_flag(
     const bool left_obst, const bool mid_obst, const bool right_obst, volatile bool& obstacle
 ) { 
     const bool found = compute_global_obstacle_flag(left_obst, mid_obst, right_obst);
-    uint32_t now = millis();
-    if (found) {
-        obstacle = true;
-        last_obstacle_time = now; // Actualizar el tiempo del último obstáculo
-    } else {
+    const uint32_t now = millis();
+    if (!found) {
         // Solo permitir liberar la bandera si pasó suficiente tiempo sin obstáculo
         if (obstacle && (now - last_obstacle_time > OBSTACLE_DEBOUNCE_MS)) {
             obstacle = false;
@@ -128,56 +136,36 @@ bool update_global_obstacle_flag(
 }
 
 
-void Task_CheckLeftObstacle(void* pvParameters) {
-
-    vTaskDelay(pdMS_TO_TICKS(0));  // desfase inicial
+void Task_CheckObstacle(void* pvParameters) {
+    // Configuración inicial de la tarea
+    vTaskDelay(pdMS_TO_TICKS(7));  // desfase inicial
     const TickType_t period = pdMS_TO_TICKS(OBSTACLE_CHECK_PERIOD_MS);
     TickType_t xLastWakeTime = xTaskGetTickCount();
 
+    // Obtener el contexto global
     GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
     volatile SystemStates& sts = *ctx->systems_ptr;
     volatile SensorsData& sens = *ctx->sensors_ptr;
 
     for (;;) {
-        vTaskDelayUntil(&xLastWakeTime, period);
+        vTaskDelayUntil(&xLastWakeTime, period); // Sincroniza el ciclo completo
+        // Sensor IZQUIERDO
         check_sensor_obstacle(
-            US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN, sens.us_left_dist, sens.us_left_obst, sens.us_obstacle, sts.distance);            
-    }
-}
-
-
-void Task_CheckMidObstacle(void* pvParameters) {
-
-    vTaskDelay(pdMS_TO_TICKS(0));  // desfase inicial
-    const TickType_t period = pdMS_TO_TICKS(OBSTACLE_CHECK_PERIOD_MS);
-    TickType_t xLastWakeTime = xTaskGetTickCount();
-
-    GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
-    volatile SystemStates& sts = *ctx->systems_ptr;
-    volatile SensorsData& sens = *ctx->sensors_ptr;
-
-    for (;;) {
-        vTaskDelayUntil(&xLastWakeTime, period);
+            US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN,
+            sens.us_left_dist, sens.us_left_obst, sens.us_obstacle, sts.distance
+        );
+        vTaskDelay(pdMS_TO_TICKS(US_WAIT_TIME_MS)); // Pequeña pausa entre sensores
+        // Sensor CENTRAL
         check_sensor_obstacle(
-            US_MID_TRIG_PIN, US_MID_ECHO_PIN, sens.us_mid_dist, sens.us_mid_obst, sens.us_obstacle, sts.distance);            
-    }
-}
-
-
-void Task_CheckRightObstacle(void* pvParameters) {
-
-    vTaskDelay(pdMS_TO_TICKS(100));  // desfase inicial
-    const TickType_t period = pdMS_TO_TICKS(OBSTACLE_CHECK_PERIOD_MS);
-    TickType_t xLastWakeTime = xTaskGetTickCount();
-
-    GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
-    volatile SystemStates& sts = *ctx->systems_ptr;
-    volatile SensorsData& sens = *ctx->sensors_ptr;
-
-    for (;;) {
-        vTaskDelayUntil(&xLastWakeTime, period);
+            US_MID_TRIG_PIN, US_MID_ECHO_PIN,
+            sens.us_mid_dist, sens.us_mid_obst, sens.us_obstacle, sts.distance
+        );
+        vTaskDelay(pdMS_TO_TICKS(US_WAIT_TIME_MS)); // Pequeña pausa entre sensores
+        // Sensor DERECHO
         check_sensor_obstacle(
-            US_RIGHT_TRIG_PIN, US_RIGHT_ECHO_PIN, sens.us_right_dist, sens.us_right_obst, sens.us_obstacle, sts.distance);
+            US_RIGHT_TRIG_PIN, US_RIGHT_ECHO_PIN,
+            sens.us_right_dist, sens.us_right_obst, sens.us_obstacle, sts.distance
+        );
     }
 }
 
@@ -187,113 +175,45 @@ bool force_check_all_sensors(GlobalContext* ctx) {
     volatile SensorsData& sens = *ctx->sensors_ptr;
     volatile TaskHandlers& handlers = *ctx->rtos_task_ptr;
 
-    // Se suspenden las tareas para evitar que más de una use el mismo pin 
-    vTaskSuspend(handlers.usLeftHandle);
-    vTaskSuspend(handlers.usMidHandle);
-    vTaskSuspend(handlers.usRightHandle);
+    // 1. Suspender tareas de sensores (para acceso exclusivo a pines) 
+    vTaskSuspend(handlers.obstacle_handle);
 
-    // Espera para permitir que los sensores se estabilicen
-    vTaskDelay(pdMS_TO_TICKS(US_WAIT_TIME_MS + US_PULSE_TIMEOUT_US / 1000.0f)); 
+    // 2. Espera para estabilizar hardware
+    vTaskDelay(pdMS_TO_TICKS(US_WAIT_TIME_MS + US_PULSE_TIMEOUT_US / 1000.0f));
 
-    // Permite limpiar la flag global
+    // 3. Guardar el estado previo de los sensores
+    const uint8_t prev_state = sts.distance;
+
+    // 4. Habilitar temporalmente si estaba desactivado
+    set_state(ACTIVE, sts.distance, sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
+
+    // 5. Limpiar bandera global si corresponde (puede quedar en true por debounce)
     update_global_obstacle_flag(
         sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
 
-    // Se revisan los sensores, si alguno detecta obstáculo la flag global de obstáculo es true
+    // 6. Se revisan los sensores, si alguno detecta obstáculo la flag global de obstáculo es true
     check_sensor_obstacle(
-        US_MID_TRIG_PIN, US_MID_ECHO_PIN, sens.us_mid_dist, sens.us_mid_obst, sens.us_obstacle, sts.distance);    
+        US_MID_TRIG_PIN, US_MID_ECHO_PIN, sens.us_mid_dist, sens.us_mid_obst, sens.us_obstacle, sts.distance);
+    vTaskDelay(pdMS_TO_TICKS(US_WAIT_TIME_MS)); 
     check_sensor_obstacle(
         US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN, sens.us_left_dist, sens.us_left_obst, sens.us_obstacle, sts.distance);
+    vTaskDelay(pdMS_TO_TICKS(US_WAIT_TIME_MS)); 
     check_sensor_obstacle(
         US_RIGHT_TRIG_PIN, US_RIGHT_ECHO_PIN, sens.us_right_dist, sens.us_right_obst, sens.us_obstacle, sts.distance);
-    
-    // Resumir la operación normal
-    vTaskResume(handlers.usLeftHandle);
-    vTaskResume(handlers.usMidHandle);
-    vTaskResume(handlers.usRightHandle);
+    vTaskDelay(pdMS_TO_TICKS(US_WAIT_TIME_MS)); 
 
-    return sens.us_obstacle;
+    // 7. Bandera global actualizada
+    const bool obstaculo = sens.us_obstacle;
+
+    // 8. Volver al estado original si era INACTIVE
+    if (prev_state == INACTIVE) {
+        set_state(INACTIVE, sts.distance, sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
+    }
+
+    // 9. Reanudar tareas periódicas
+    vTaskResume(handlers.obstacle_handle);
+
+    return obstaculo;
 }
 
 } // namespace DistanceSensors
-
-
-// void Task_CheckLeftObstacle(void* pvParameters) {
-//     vTaskDelay(pdMS_TO_TICKS(0));  // desfase inicial
-//     const TickType_t period = pdMS_TO_TICKS(OBSTACLE_CHECK_PERIOD_MS);
-//     TickType_t xLastWakeTime = xTaskGetTickCount();
-
-//     GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
-//     for (;;) {
-//         vTaskDelayUntil(&xLastWakeTime, period);
-//         check_sensor_obstacle(
-//             US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN,
-//             ctx->distance_ptr->left_dist,
-//             ctx->distance_ptr->left_obst,
-//             ctx->distance_ptr->obstacle_detected,
-//             ctx->systems_ptr->distance
-//         );            
-//     }
-// }
-
-// void Task_CheckMidObstacle(void* pvParameters) {
-//     vTaskDelay(pdMS_TO_TICKS(50));  // desfase inicial
-//     const TickType_t period = pdMS_TO_TICKS(OBSTACLE_CHECK_PERIOD_MS);
-//     TickType_t xLastWakeTime = xTaskGetTickCount();
-
-//     GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
-//     for (;;) {
-//         vTaskDelayUntil(&xLastWakeTime, period);
-//         check_sensor_obstacle(
-//             US_MID_TRIG_PIN, US_MID_ECHO_PIN,
-//             ctx->distance_ptr->mid_dist,
-//             ctx->distance_ptr->mid_obst,
-//             ctx->distance_ptr->obstacle_detected,
-//             ctx->systems_ptr->distance
-//         );
-//     }
-// }
-
-// void Task_CheckRightObstacle(void* pvParameters) {
-//     vTaskDelay(pdMS_TO_TICKS(100));  // desfase inicial
-//     const TickType_t period = pdMS_TO_TICKS(OBSTACLE_CHECK_PERIOD_MS);
-//     TickType_t xLastWakeTime = xTaskGetTickCount();
-
-//     GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
-//     for (;;) {
-//         vTaskDelayUntil(&xLastWakeTime, period);
-//         check_sensor_obstacle(
-//             US_RIGHT_TRIG_PIN, US_RIGHT_ECHO_PIN,
-//             ctx->distance_ptr->right_dist,
-//             ctx->distance_ptr->right_obst,
-//             ctx->distance_ptr->obstacle_detected,
-//             ctx->systems_ptr->distance
-//         );            
-//     }
-// }
-
-// bool force_check_all_sensors(GlobalContext* ctx) {
-//     auto& handlers = *ctx->task_handlers_ptr;
-//     auto& dist = *ctx->distance_ptr;
-//     auto& sts = *ctx->systems_ptr;
-
-//     vTaskSuspend(handlers.usLeftHandle);
-//     vTaskSuspend(handlers.usMidHandle);
-//     vTaskSuspend(handlers.usRightHandle);
-
-//     vTaskDelay(pdMS_TO_TICKS(US_WAIT_TIME_MS + US_PULSE_TIMEOUT_US / 1000.0f)); // Espera para permitir que los sensores se estabilicen
-
-//     check_sensor_obstacle(
-//         US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN, dist.left_dist, dist.left_obst, dist.obstacle_detected, sts.distance);
-//     check_sensor_obstacle(
-//         US_MID_TRIG_PIN, US_MID_ECHO_PIN, dist.mid_dist, dist.mid_obst, dist.obstacle_detected, sts.distance);
-//     check_sensor_obstacle(
-//         US_RIGHT_TRIG_PIN, US_RIGHT_ECHO_PIN, dist.right_dist, dist.right_obst, dist.obstacle_detected, sts.distance);
-//     update_global_obstacle_flag(dist.left_obst, dist.mid_obst, dist.right_obst, dist.obstacle_detected);
-
-//     vTaskResume(handlers.usLeftHandle);
-//     vTaskResume(handlers.usMidHandle);
-//     vTaskResume(handlers.usRightHandle);
-
-//     return dist.obstacle_detected;
-// }

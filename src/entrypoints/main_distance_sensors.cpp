@@ -11,7 +11,8 @@ GlobalContext ctx = {
     .sensors_ptr   = &sens,
     .control_ptr   = nullptr,
     .os_ptr        = nullptr,
-    .rtos_task_ptr = nullptr
+    .rtos_task_ptr = nullptr,
+    .evade_ptr     = nullptr
 };
 
 // ====================== TAREA: Manejo de eventos por obstáculo ======================
@@ -57,13 +58,11 @@ void setup() {
     // Inicializar el sistema
     DistanceSensors::init(sens.us_left_dist, sens.us_left_obst, sens.us_mid_dist, sens.us_mid_obst,
         sens.us_right_dist, sens.us_right_obst, sens.us_obstacle, states.distance);    
-    DistanceSensors::set_state(ACTIVE, states.distance, sens.us_left_dist, sens.us_left_obst,
-        sens.us_mid_dist, sens.us_mid_obst, sens.us_right_dist, sens.us_right_obst, sens.us_obstacle);
+    DistanceSensors::set_state(ACTIVE, states.distance, 
+        sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
 
     // Crear tareas para cada sensor ultrasónico
-    xTaskCreatePinnedToCore(DistanceSensors::Task_CheckLeftObstacle, "US_Left", 2048, &ctx, 2, nullptr, 0);
-    xTaskCreatePinnedToCore(DistanceSensors::Task_CheckMidObstacle, "US_Mid", 2048, &ctx, 2, nullptr, 0);
-    xTaskCreatePinnedToCore(DistanceSensors::Task_CheckRightObstacle, "US_Right", 2048, &ctx, 2, nullptr, 0);
+    xTaskCreatePinnedToCore(DistanceSensors::Task_CheckObstacle, "US_Check", 2048, &ctx, 1, nullptr, 0);
 
     // Crear tarea de respuesta a eventos de obstáculo -> Prioridad mayor
     xTaskCreatePinnedToCore(Task_ObstacleResponse,"ObstacleResponse",2048, &ctx, 2, nullptr, 0);

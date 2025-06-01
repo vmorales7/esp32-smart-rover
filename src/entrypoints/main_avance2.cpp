@@ -19,6 +19,7 @@ GlobalContext ctx = {
     .control_ptr     = &ctrl,
     .os_ptr          = nullptr, 
     .rtos_task_ptr   = nullptr,
+    .evade_ptr = nullptr
 };
 
 const uint16_t TASK_CONTROL_PERIOD_MS = 100;
@@ -163,18 +164,14 @@ void setup() {
     MotorController::init(sts.motors, ctrl.duty_L, ctrl.duty_R);
     MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
 
-    PositionController::init(sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
-    PositionController::set_control_mode(
-        PositionControlMode::MANUAL, sts.position, ctrl.w_L_ref, ctrl.w_R_ref, pose.moving_state);
+    PositionController::init(sts.position, ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, 
+        ctrl.w_L_ref, ctrl.w_R_ref);
+    PositionController::set_control_mode(PositionControlMode::MANUAL, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
 
     DistanceSensors::init(sens.us_left_dist, sens.us_left_obst, sens.us_mid_dist, sens.us_mid_obst,
         sens.us_right_dist, sens.us_right_obst, sens.us_obstacle, sts.distance);
-    DistanceSensors::set_state(
-        ACTIVE, sts.distance,
-        sens.us_left_dist, sens.us_left_obst,
-        sens.us_mid_dist, sens.us_mid_obst,
-        sens.us_right_dist, sens.us_right_obst, sens.us_obstacle
-    );
+    DistanceSensors::set_state(ACTIVE, sts.distance,
+        sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
 
     EncoderReader::init(sens.enc_stepsL, sens.enc_stepsR, pose.w_L, pose.w_R, sts.encoders);
     EncoderReader::resume(sts.encoders);
@@ -185,9 +182,7 @@ void setup() {
     xTaskCreatePinnedToCore(Task_FaseManager, "FaseManager", 2048, nullptr, 2, nullptr, 1);
 
     // Tareas secundaria (núcleo 0)
-    xTaskCreatePinnedToCore(DistanceSensors::Task_CheckLeftObstacle, "US_Left", 2048, &ctx, 1, nullptr, 0);
-    xTaskCreatePinnedToCore(DistanceSensors::Task_CheckMidObstacle, "US_Mid", 2048, &ctx, 1, nullptr, 0);
-    xTaskCreatePinnedToCore(DistanceSensors::Task_CheckRightObstacle, "US_Right", 2048, &ctx, 1, nullptr, 0);
+    xTaskCreatePinnedToCore(DistanceSensors::Task_CheckObstacle, "ObstacleCheck", 2048, &ctx, 1, nullptr, 0);
     xTaskCreatePinnedToCore(Task_Printer, "Printer", 2048, nullptr, 1, nullptr, 0);
 }
 

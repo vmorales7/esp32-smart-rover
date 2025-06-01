@@ -5,7 +5,7 @@
 
 /* ---------------- Constantes y variables sistema ------------------*/
 
-// Toleranciaspara control de posición: evitar oscilaciones
+// Tolerancias para control de posición: evitar oscilaciones
 constexpr float NAVIGATION_ANGLE_TOLERANCE = 30.0f * (2*PI / 180.0);
 constexpr float ROTATION_ANGLE_TOLERANCE = 3.0f * (2*PI / 180.0);
 constexpr float DISTANCE_TOLERANCE = 0.05f; 
@@ -80,12 +80,14 @@ void init(
  *
  * @param new_mode Nuevo modo deseado (SPEED_REF_INACTIVE, SPEED_REF_MANUAL, SPEED_REF_AUTO)
  * @param control_mode Variable con estado del controlador de posición
- * @param moving_state Variable con estado de movimiento del vehículo
+ * @param wL_ref Variable con referencia de velocidad angular para la rueda izquierda [rad/s]
+ * @param wR_ref Variable con referencia de velocidad angular para la rueda derecha [rad/s]
  * @return true si se cambió el modo correctamente, false si ya estaba en ese modo.
  */
 bool set_control_mode(
     const PositionControlMode new_mode,
-    volatile PositionControlMode& control_mode
+    volatile PositionControlMode& control_mode,
+    volatile float& wL_ref, volatile float& wR_ref
 );
 
 /**

@@ -23,6 +23,7 @@ GlobalContext ctx = {
     .control_ptr     = &ctrl,
     .os_ptr          = nullptr, 
     .rtos_task_ptr   = nullptr,
+    .evade_ptr       = nullptr
 };
 
 
@@ -59,9 +60,9 @@ void setup() {
     MotorController::init(sts.motors, ctrl.duty_L, ctrl.duty_R);
     MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
     EncoderReader::init(sens.enc_stepsL, sens.enc_stepsR, sens.enc_wL, sens.enc_wR, sts.encoders);
-    PositionController::init(sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
-    PositionController::set_control_mode(
-        PositionControlMode::MANUAL, sts.position, ctrl.w_L_ref, ctrl.w_R_ref, pose.moving_state);
+    PositionController::init(sts.position, ctrl.x_d, ctrl.y_d, ctrl.theta_d, 
+        ctrl.waypoint_reached, ctrl.w_L_ref, ctrl.w_R_ref);
+    PositionController::set_control_mode(PositionControlMode::MANUAL, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
     EncoderReader::resume(sts.encoders);
     PositionController::set_wheel_speed_ref(W1, W1, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
 

@@ -20,7 +20,9 @@ void update(GlobalContext* ctx_ptr) {
         }
         case OS_State::IDLE: {
             // Por ahora no se hace nada en IDLE, pero luego se hará lectura de Firebase
-            enter_stand_by(ctx_ptr);
+            if (os.total_targets > 0) {
+                enter_stand_by(ctx_ptr);
+            }
             break;
         }
         case OS_State::STAND_BY: {            
@@ -94,6 +96,7 @@ void update(GlobalContext* ctx_ptr) {
                     }
                 }
             }
+            break;
         }
         case OS_State::EVADE: {
             if (os.last_command == RemoteCommand::STOP) {
@@ -103,8 +106,7 @@ void update(GlobalContext* ctx_ptr) {
                 if (stop_flag) {
                     enter_stand_by(ctx_ptr);
                 }
-            } 
-            else {
+            } else {
                 // Aquí se puede implementar la lógica de evasión
                 // Por ahora solo se actualiza la flag de obstáculos hasta que se libera
                 DistanceSensors::update_global_obstacle_flag(
@@ -166,17 +168,12 @@ bool enter_init(GlobalContext* ctx_ptr) {
         MotorController::Task_WheelControl, "WheelControl", 2*BASIC_STACK_SIZE, ctx_ptr, 2, nullptr, 1);
     xTaskCreatePinnedToCore(
         PositionController::Task_PositionControl, "PositionControl", 3*BASIC_STACK_SIZE, ctx_ptr, 1, nullptr, 1);
-
-
+        
     // 3. Lanzar tareas RTOS núcleo 0
     xTaskCreatePinnedToCore(
         OS::Task_VehicleOS, "VehicleOS", 2*BASIC_STACK_SIZE, ctx_ptr, 1, nullptr, 0);
     xTaskCreatePinnedToCore(
-        DistanceSensors::Task_CheckLeftObstacle, "USLeft", BASIC_STACK_SIZE, ctx_ptr, 2, &(task_handlers.usLeftHandle), 0);
-    xTaskCreatePinnedToCore(
-        DistanceSensors::Task_CheckMidObstacle,  "USMid",  BASIC_STACK_SIZE, ctx_ptr, 2, &(task_handlers.usMidHandle), 0);
-    xTaskCreatePinnedToCore(
-        DistanceSensors::Task_CheckRightObstacle, "USRight", BASIC_STACK_SIZE, ctx_ptr, 2, &(task_handlers.usRightHandle), 0);
+        DistanceSensors::Task_CheckObstacle, "CheckObstacles", 2*BASIC_STACK_SIZE, ctx_ptr, 2, &(task_handlers.obstacle_handle), 0);
 
     return SUCCESS; // Estado INIT alcanzado
 }
@@ -189,15 +186,10 @@ bool enter_idle(GlobalContext* ctx_ptr) {
     volatile ControllerData& ctrl = *(ctx_ptr->control_ptr);
     volatile OperationData& os = *(ctx_ptr->os_ptr);
 
-    // Actualizar el estado del sistema a IDLE
-    os.state = OS_State::IDLE;
-
     // Detener control de posición y dejar motores inactivos (libres)
     PositionController::set_waypoint(0.0f, 0.0f, 0.0f, ctrl.x_d, ctrl.y_d, ctrl.theta_d, 
         ctrl.waypoint_reached, sts.position);
-    PositionController::set_control_mode(PositionControlMode::MANUAL, sts.position);
-    PositionController::set_wheel_speed_ref(0.0f, 0.0f, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
-    PositionController::set_control_mode(PositionControlMode::INACTIVE, sts.position);
+    PositionController::set_control_mode(PositionControlMode::INACTIVE, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
     MotorController::set_motors_mode(MotorMode::IDLE, sts.motors, ctrl.duty_L, ctrl.duty_R);
 
     // ⏸️ Pausar encoders, IMU, y estimación de pose -> resetar posición y orientación a cero
@@ -208,11 +200,17 @@ bool enter_idle(GlobalContext* ctx_ptr) {
         sens.enc_stepsL, sens.enc_stepsR);
 
     // 🚫 Desactivar sensores de obstáculos -> se fuerza la limpieza de las flag de obstáculo
-    DistanceSensors::set_state(INACTIVE, sts.distance, sens.us_left_dist, sens.us_left_obst, 
-        sens.us_mid_dist, sens.us_mid_obst, sens.us_right_dist, sens.us_right_obst, sens.us_obstacle);
+    DistanceSensors::set_state(INACTIVE, sts.distance, 
+        sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
+    DistanceSensors::reset_system(sens.us_left_dist, sens.us_left_obst, sens.us_mid_dist, sens.us_mid_obst, 
+        sens.us_right_dist, sens.us_right_obst, sens.us_obstacle);
 
     // Limpiar la trayectoria
     clear_trajectory_with_null(os);
+
+    // Actualizar el estado del sistema a IDLE
+    os.state = OS_State::IDLE;
+    set_operation_log(os, "Ingreso a estado IDLE");
 
     return SUCCESS; // Estado IDLE alcanzado
 }
@@ -225,22 +223,25 @@ bool enter_stand_by(GlobalContext* ctx_ptr) {
     volatile ControllerData& ctrl = *(ctx_ptr->control_ptr);
     volatile OperationData& os = *(ctx_ptr->os_ptr);
 
-    // Actualizar el estado del sistema a STAND_BY
-    os.state = OS_State::STAND_BY;
-
     // 🧭 Activar lectura de sensores y estimador de pose (para no perder seguimiento del vehículo)
     EncoderReader::resume(sts.encoders);
     // IMUReader::resume(...);
     PoseEstimator::set_state(ACTIVE, sts.pose);
 
     // 🧷 Mantener control de posición en modo pasivo, con velocidad de referencia 0
-    PositionController::set_control_mode(PositionControlMode::MANUAL, sts.position);
+    PositionController::set_control_mode(PositionControlMode::MANUAL, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
     PositionController::set_wheel_speed_ref(0.0f, 0.0f, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
     MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
 
     // 🚫 Desactivar sensores de obstáculos -> se fuerza la limpieza de las flag de obstáculo
-    DistanceSensors::set_state(INACTIVE, sts.distance, sens.us_left_dist, sens.us_left_obst, 
-        sens.us_mid_dist, sens.us_mid_obst, sens.us_right_dist, sens.us_right_obst, sens.us_obstacle);
+    DistanceSensors::set_state(INACTIVE, sts.distance, 
+        sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
+    DistanceSensors::reset_system(sens.us_left_dist, sens.us_left_obst, sens.us_mid_dist, sens.us_mid_obst, 
+        sens.us_right_dist, sens.us_right_obst, sens.us_obstacle);
+
+    // Actualizar el estado del sistema a STAND_BY
+    os.state = OS_State::STAND_BY;
+    set_operation_log(os, "Ingreso a estado STAND_BY");
     
     return SUCCESS; 
 }
@@ -254,9 +255,6 @@ bool enter_align(GlobalContext* ctx_ptr) {
     volatile OperationData& os = *(ctx_ptr->os_ptr);
     bool ok = true;
 
-    // Actualizar el estado del sistema a ALIGN
-    os.state = OS_State::ALIGN;
-
     // 🟢 Reanudar sensores y estimador de posición
     EncoderReader::resume(sts.encoders);
     // IMUReader::resume(...);
@@ -264,12 +262,21 @@ bool enter_align(GlobalContext* ctx_ptr) {
 
     // 🟢 Activar control de posición (v_ref y w_ref)
     // PositionController::set_controller_type();
-    PositionController::set_control_mode(PositionControlMode::ALIGN, sts.position);
+    PositionController::set_control_mode(PositionControlMode::ALIGN, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
     MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
 
     // 🚫 Mantener desactivada la detección de obstáculos
-    DistanceSensors::set_state(INACTIVE, sts.distance, sens.us_left_dist, sens.us_left_obst, 
-        sens.us_mid_dist, sens.us_mid_obst, sens.us_right_dist, sens.us_right_obst, sens.us_obstacle);
+    DistanceSensors::set_state(INACTIVE, sts.distance, 
+        sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
+    DistanceSensors::reset_system(sens.us_left_dist, sens.us_left_obst, sens.us_mid_dist, sens.us_mid_obst, 
+        sens.us_right_dist, sens.us_right_obst, sens.us_obstacle);
+    
+    // Actualizar el estado del sistema a ALIGN
+    os.state = OS_State::ALIGN;
+    char log_msg[64];
+    snprintf(log_msg, sizeof(log_msg), "Ingreso a estado ALIGN hacia el punto (x=%.2f, y=%.2f)", 
+        os.trajectory[0].x, os.trajectory[0].y);
+    set_operation_log(os, log_msg);
 
     return ok;
 }
@@ -283,9 +290,6 @@ bool enter_move(GlobalContext* ctx_ptr) {
     volatile OperationData& os = *(ctx_ptr->os_ptr);
     bool ok = true;
 
-    // Actualizar el estado del sistema a MOVE
-    os.state = OS_State::MOVE;
-
     // 🟢 Reanudar sensores y estimador de posición
     EncoderReader::resume(sts.encoders);
     // IMUReader::resume(...);
@@ -293,13 +297,20 @@ bool enter_move(GlobalContext* ctx_ptr) {
 
     // 🟢 Activar control de posición (v_ref y w_ref)
     // PositionController::set_controller_type();
-    PositionController::set_control_mode(PositionControlMode::MOVE, sts.position);
+    PositionController::set_control_mode(PositionControlMode::MOVE, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
     MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
 
     // 🟢 Activar sensores de distancia y realizar una primera lectura forzada para estar bien actualizados
-    DistanceSensors::set_state(ACTIVE, sts.distance, sens.us_left_dist, sens.us_left_obst, 
-        sens.us_mid_dist, sens.us_mid_obst, sens.us_right_dist, sens.us_right_obst, sens.us_obstacle);
+    DistanceSensors::set_state(ACTIVE, sts.distance, 
+        sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
     DistanceSensors::force_check_all_sensors(ctx_ptr);
+
+    // Actualizar el estado del sistema a MOVE
+    os.state = OS_State::MOVE;
+    char log_msg[64];
+    snprintf(log_msg, sizeof(log_msg), "Ingreso a estado MOVE hacia el punto (x=%.2f, y=%.2f)", 
+        os.trajectory[0].x, os.trajectory[0].y);
+    set_operation_log(os, log_msg);
 
     return ok;
 }
@@ -313,9 +324,6 @@ bool enter_evade(GlobalContext* ctx_ptr) {
     volatile OperationData& os = *(ctx_ptr->os_ptr);
     bool ok = true;
 
-    // Actualizar el estado del sistema a EVADE
-    os.state = OS_State::EVADE;
-
     // 🟡 Reanudar sensores y estimadores
     EncoderReader::resume(sts.encoders);
     // IMUReader::resume(...);
@@ -323,13 +331,20 @@ bool enter_evade(GlobalContext* ctx_ptr) {
 
     // Se fija la velocidad de referencia a cero
     // PositionController::set_controller_type();
-    PositionController::set_control_mode(PositionControlMode::MANUAL, sts.position);
+    PositionController::set_control_mode(PositionControlMode::MANUAL, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
     PositionController::set_wheel_speed_ref(0.0f, 0.0f, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
     MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
 
     // Se utilizarán los sensores de distancia
-    DistanceSensors::set_state(ACTIVE, sts.distance, sens.us_left_dist, sens.us_left_obst, 
-        sens.us_mid_dist, sens.us_mid_obst, sens.us_right_dist, sens.us_right_obst, sens.us_obstacle);
+    DistanceSensors::set_state(ACTIVE, sts.distance, 
+        sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
+
+    // Actualizar el estado del sistema a EVADE
+    os.state = OS_State::EVADE;
+    char log_msg[64];
+    snprintf(log_msg, sizeof(log_msg), 
+    "Ingreso a estado EVADE por obstáculo encontrado en (x=%.2f, y=%.2f, theta=%.2f)", pose.x, pose.y, pose.theta);
+    set_operation_log(os, log_msg); 
 
     return SUCCESS;
 }
@@ -378,6 +393,12 @@ void Task_VehicleOS(void* pvParameters) {
         vTaskDelayUntil(&xLastWakeTime, period);
         update(ctx_ptr);
     }
+}
+
+
+void set_operation_log(volatile OperationData& os, const char* msg) {
+    strncpy(const_cast<char*>(os.last_log), msg, sizeof(os.last_log));
+    os.last_log[sizeof(os.last_log)-1] = '\0'; // Seguridad de terminador null
 }
 
 } // namespace OS

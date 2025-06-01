@@ -15,6 +15,7 @@ GlobalContext ctx = {
     .control_ptr     = &ctrl,
     .os_ptr          = &op, 
     .rtos_task_ptr   = &tasks,
+    .evade_ptr       = nullptr
 };
 
 void setup() {

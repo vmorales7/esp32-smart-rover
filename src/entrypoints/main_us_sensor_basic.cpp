@@ -20,8 +20,7 @@ void setup() {
     Serial.println("Test: Sensor Ultrasónico Central");
     DistanceSensors::init(
         left_dist, left_obst, mid_dist, mid_obst, right_dist, right_obst, obstacle_detected, distance_state);
-    DistanceSensors::set_state(
-        ACTIVE, distance_state, left_dist, left_obst, mid_dist, mid_obst, right_dist, right_obst, obstacle_detected);
+    DistanceSensors::set_state(ACTIVE, distance_state, left_obst, mid_obst, right_obst, obstacle_detected);
 }
 
 void loop() {

@@ -13,7 +13,9 @@ GlobalContext ctx = {
     .pose_ptr = nullptr,
     .control_ptr = nullptr,
     .os_ptr = nullptr,
-    .rtos_task_ptr = nullptr};
+    .rtos_task_ptr = nullptr,
+    .evade_ptr = nullptr
+};
 
 constexpr uint16_t PRINT_PERIOD_MS = 250;
 

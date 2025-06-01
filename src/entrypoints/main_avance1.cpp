@@ -85,11 +85,9 @@ void setup() {
     MotorController::init(sts.motors, ctrl.duty_L, ctrl.duty_R);
     MotorController::set_motors_mode(MotorMode::ACTIVE, sts.motors, ctrl.duty_L, ctrl.duty_R);
     DistanceSensors::init(sens.us_left_dist, sens.us_left_obst, sens.us_mid_dist, sens.us_mid_obst, 
-        sens.us_right_dist, sens.us_right_obst, sens.us_obstacle, sts.distance
-    );  
-    DistanceSensors::set_state(ACTIVE, sts.distance, sens.us_left_dist, sens.us_left_obst, 
-        sens.us_mid_dist, sens.us_mid_obst, sens.us_right_dist, sens.us_right_obst, sens.us_obstacle
-    );  
+        sens.us_right_dist, sens.us_right_obst, sens.us_obstacle, sts.distance);  
+    DistanceSensors::set_state(ACTIVE, sts.distance, 
+        sens.us_left_obst,sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);  
     EncoderReader::init(sens.enc_stepsL, sens.enc_stepsR, sens.enc_wL, sens.enc_wR, sts.encoders);
     EncoderReader::resume(sts.encoders);
     

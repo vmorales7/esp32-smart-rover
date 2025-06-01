@@ -157,6 +157,17 @@ bool add_waypoint(const float x, const float y, volatile OperationData& os);
  */
 void Task_VehicleOS(void* pvParameters);
 
+/**
+ * @brief Establece un mensaje de log en la estructura de datos del sistema operativo
+ * 
+ * Guarda un mensaje de log en la estructura de datos del sistema operativo.
+ * Se asegura de que el mensaje esté correctamente terminado con null.
+ * 
+ * @param os Referencia a la estructura de datos del sistema operativo
+ * @param log_msg Mensaje de log a establecer
+ */
+void set_operation_log(volatile OperationData& os, const char* log_msg);
+
 } // namespace OS
 
 

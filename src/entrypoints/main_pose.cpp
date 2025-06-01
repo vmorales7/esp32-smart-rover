@@ -14,12 +14,13 @@ volatile ControllerData ctrl;
 volatile PoseData pose;
 
 GlobalContext ctx = {
-    .systems_ptr     = &sts,
-    .sensors_ptr     = &sens,
-    .pose_ptr        = &pose,
-    .control_ptr     = &ctrl,
-    .os_ptr          = nullptr, 
-    .rtos_task_ptr   = nullptr,
+    .systems_ptr   = &sts,
+    .sensors_ptr   = &sens,
+    .pose_ptr      = &pose,
+    .control_ptr   = &ctrl,
+    .os_ptr        = nullptr, 
+    .rtos_task_ptr = nullptr,
+    .evade_ptr     = nullptr
 };
 
 constexpr float Wref = 9.0f;
@@ -50,9 +51,9 @@ void setup() {
     MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
 
     // Inicializar controlador de posición
-    PositionController::init(sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
-    PositionController::set_control_mode(
-        PositionControlMode::MANUAL, sts.position, ctrl.w_L_ref, ctrl.w_R_ref, pose.moving_state);
+    PositionController::init(sts.position, ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, 
+        ctrl.w_L_ref, ctrl.w_R_ref);
+    PositionController::set_control_mode(PositionControlMode::MANUAL, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
 
     // Instrucciones de inicio
     PositionController::set_wheel_speed_ref(Wref, Wref, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);

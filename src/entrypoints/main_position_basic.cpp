@@ -19,6 +19,7 @@ GlobalContext ctx = {
     .control_ptr     = &ctrl,
     .os_ptr          = nullptr, 
     .rtos_task_ptr   = nullptr,
+    .evade_ptr       = nullptr
 };
 
 
@@ -57,7 +58,7 @@ void setup() {
     // IMUReader::resume(sts.imu); // A futuro
     PoseEstimator::set_state(ACTIVE, sts.pose);
     PositionController::set_controller_type(controller_type, ctrl.controller_type);
-    PositionController::set_control_mode(control_state, sts.position);
+    PositionController::set_control_mode(control_state, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
     MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
 
     // Asignar punto objetivo
