@@ -4,14 +4,15 @@
 
 // ====================== VARIABLES GLOBALES ======================
 volatile SystemStates states;
-volatile DistanceSensorData distances;
+volatile SensorsData sens;
+
 GlobalContext ctx = {
-    .systems_ptr     = &states,
-    .os_ptr          = nullptr,       
-    .kinematic_ptr   = nullptr,
-    .wheels_ptr      = nullptr,
-    .imu_ptr         = nullptr,      
-    .distance_ptr    = &distances
+    .systems_ptr   = &states,
+    .sensors_ptr   = &sens,
+    .control_ptr   = nullptr,
+    .os_ptr        = nullptr,
+    .rtos_task_ptr = nullptr,
+    .evade_ptr     = nullptr
 };
 
 // ====================== TAREA: Manejo de eventos por obstáculo ======================
@@ -20,30 +21,29 @@ void Task_ObstacleResponse(void* pvParameters) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
 
     GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
-    auto& d = *ctx->distance_ptr;  // Referencia directa
+    volatile SensorsData& sens = *ctx->sensors_ptr;
 
     for (;;) {
         vTaskDelayUntil(&xLastWakeTime, period);
-
-        if (d.obstacle_detected) {
+        if (sens.us_obstacle) {
             Serial.println("Obstáculo detectado. Procesando evento...");
 
             Serial.print("  Distancia izquierda: ");
-            Serial.print(d.left_dist);
+            Serial.print(sens.us_left_dist);
             Serial.println(" cm");
 
             Serial.print("  Distancia frontal: ");
-            Serial.print(d.mid_dist);
+            Serial.print(sens.us_mid_dist);
             Serial.println(" cm");
 
             Serial.print("  Distancia derecha: ");
-            Serial.print(d.right_dist);
+            Serial.print(sens.us_right_dist);
             Serial.println(" cm");
             Serial.println();
 
             // Consumir evento
             DistanceSensors::update_global_obstacle_flag(
-                d.left_obst, d.mid_obst, d.right_obst, d.obstacle_detected);
+                sens.us_left_obst,sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
         }
     }
 }
@@ -56,24 +56,13 @@ void setup() {
     delay(1000);
 
     // Inicializar el sistema
-    DistanceSensors::init(
-        distances.left_dist, distances.left_obst,
-        distances.mid_dist, distances.mid_obst,
-        distances.right_dist, distances.right_obst,
-        distances.obstacle_detected, states.distance
-    );    
-    DistanceSensors::set_state(
-        ACTIVE, states.distance,
-        distances.left_dist, distances.left_obst,
-        distances.mid_dist, distances.mid_obst,
-        distances.right_dist, distances.right_obst,
-        distances.obstacle_detected
-    );
+    DistanceSensors::init(sens.us_left_dist, sens.us_left_obst, sens.us_mid_dist, sens.us_mid_obst,
+        sens.us_right_dist, sens.us_right_obst, sens.us_obstacle, states.distance);    
+    DistanceSensors::set_state(ACTIVE, states.distance, 
+        sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
 
     // Crear tareas para cada sensor ultrasónico
-    xTaskCreatePinnedToCore(DistanceSensors::Task_CheckLeftObstacle, "US_Left", 2048, &ctx, 2, nullptr, 0);
-    xTaskCreatePinnedToCore(DistanceSensors::Task_CheckMidObstacle, "US_Mid", 2048, &ctx, 2, nullptr, 0);
-    xTaskCreatePinnedToCore(DistanceSensors::Task_CheckRightObstacle, "US_Right", 2048, &ctx, 2, nullptr, 0);
+    xTaskCreatePinnedToCore(DistanceSensors::Task_CheckObstacle, "US_Check", 2048, &ctx, 1, nullptr, 0);
 
     // Crear tarea de respuesta a eventos de obstáculo -> Prioridad mayor
     xTaskCreatePinnedToCore(Task_ObstacleResponse,"ObstacleResponse",2048, &ctx, 2, nullptr, 0);

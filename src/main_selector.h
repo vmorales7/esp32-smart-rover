@@ -15,7 +15,9 @@
 // #define USE_MAIN_DISTANCE_SENSORS       // RTOS con todos los sensores de distancia
 // #define USE_MAIN_AVANCE2                // Rutina de velocidades + detención por obstáculo + RTOS
 // #define USE_MAIN_POSITION_BASIC         // Control de posición hacia punto único
-#define USE_MAIN_POSITION_POINTS        // Múltiples posiciones + detención por obstáculo
+// #define USE_MAIN_POSITION_POINTS        // Múltiples posiciones + detención por obstáculo
+#define USE_MAIN_STATES_NO_EVADE        // Rutina de estados sin evasión de obstáculo
+// #define USE_MAIN_EVADE                  // Rutina de evasión de obstáculo
 // #define USE_MAIN_DEBUG
 
 
@@ -46,6 +48,10 @@
   #include "entrypoints/main_position_basic.cpp"
 #elif defined(USE_MAIN_POSITION_POINTS)
   #include "entrypoints/main_position_points.cpp"
+#elif defined(USE_MAIN_STATES_NO_EVADE)
+  #include "entrypoints/main_states_no_evade.cpp"
+#elif defined(USE_MAIN_EVADE)
+  #include "entrypoints/main_evade.cpp"
 #elif defined(USE_MAIN_DEBUG)
   #include "entrypoints/main_debug.cpp"
 #else

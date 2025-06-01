@@ -64,7 +64,7 @@ WheelSpeedPID::WheelSpeedPID(float kp, float ki, float kw)
         float dt = now - lastTime;
     
         // Protección: solo actualizar cada cierto tiempo
-        if (dt < MIN_PID_DT) return init_duty_profile(lastDuty);
+        if (dt < 0.001) return init_duty_profile(lastDuty);
     
         // Control PI
         float error = setpoint - measured;
@@ -101,178 +101,181 @@ static WheelSpeedPID pidRight(KP_WHEEL, KI_WHEEL, KW_WHEEL); // Instancia PID mo
 
 namespace MotorController {
 
-    void init(
-        volatile MotorMode& motor_state_global,
-        volatile float& dutyL_global, volatile float& dutyR_global
-    ) {
-        // Configurar pines de control de L298N
-        pinMode(MOTOR_LEFT_DIR_PIN1, OUTPUT);
-        pinMode(MOTOR_LEFT_DIR_PIN2, OUTPUT);
-        pinMode(MOTOR_RIGHT_DIR_PIN1, OUTPUT);
-        pinMode(MOTOR_RIGHT_DIR_PIN2, OUTPUT);
+void init(
+    volatile MotorMode& motor_state_global,
+    volatile float& dutyL_global, volatile float& dutyR_global
+) {
+    // Configurar pines de control de L298N
+    pinMode(MOTOR_LEFT_DIR_PIN1, OUTPUT);
+    pinMode(MOTOR_LEFT_DIR_PIN2, OUTPUT);
+    pinMode(MOTOR_RIGHT_DIR_PIN1, OUTPUT);
+    pinMode(MOTOR_RIGHT_DIR_PIN2, OUTPUT);
 
-        // Configurar PWM para motor izquierdo
-        ledcSetup(PWM_CHANNEL_LEFT, PWM_FREQUENCY, PWM_RES_BITS); // Canal 0
-        ledcAttachPin(MOTOR_LEFT_PWM_PIN, PWM_CHANNEL_LEFT);      // Asocia el pin físico al canal 0
+    // Configurar PWM para motor izquierdo
+    ledcSetup(PWM_CHANNEL_LEFT, PWM_FREQUENCY, PWM_RES_BITS); // Canal 0
+    ledcAttachPin(MOTOR_LEFT_PWM_PIN, PWM_CHANNEL_LEFT);      // Asocia el pin físico al canal 0
 
-        // Configurar PWM para motor derecho
-        ledcSetup(PWM_CHANNEL_RIGHT, PWM_FREQUENCY, PWM_RES_BITS);  // Canal 1
-        ledcAttachPin(MOTOR_RIGHT_PWM_PIN, PWM_CHANNEL_RIGHT);
+    // Configurar PWM para motor derecho
+    ledcSetup(PWM_CHANNEL_RIGHT, PWM_FREQUENCY, PWM_RES_BITS);  // Canal 1
+    ledcAttachPin(MOTOR_RIGHT_PWM_PIN, PWM_CHANNEL_RIGHT);
 
-        // Los motores se dejan libres
-        motor_state_global = MotorMode::IDLE; 
+    // Los motores se dejan libres
+    motor_state_global = MotorMode::IDLE; 
+    set_motor_idle(WHEEL_LEFT);
+    set_motor_idle(WHEEL_RIGHT);
+    dutyL_global = 0.0;
+    dutyR_global = 0.0;
+}
+
+
+void set_motor_pwm(const uint8_t wheel, const float abs_duty, bool forward){
+    uint32_t pwm = abs_duty * PWM_MAX + 0.5f;
+    if (wheel == WHEEL_LEFT) {
+        if constexpr (INVERT_MOTOR_LEFT) forward = !forward;     
+        digitalWrite(MOTOR_LEFT_DIR_PIN1, forward ? HIGH : LOW);
+        digitalWrite(MOTOR_LEFT_DIR_PIN2, forward ? LOW : HIGH);
+        ledcWrite(PWM_CHANNEL_LEFT, pwm);
+    } else if (wheel == WHEEL_RIGHT){
+        if constexpr (INVERT_MOTOR_RIGHT) forward = !forward;
+        digitalWrite(MOTOR_RIGHT_DIR_PIN1, forward ? HIGH : LOW);
+        digitalWrite(MOTOR_RIGHT_DIR_PIN2, forward ? LOW : HIGH);
+        ledcWrite(PWM_CHANNEL_RIGHT, pwm);
+    }
+}
+
+
+void set_motor_break(uint8_t wheel) {
+    // Los pines de control se fuerzan a HIGH para frenado            
+    if (wheel == WHEEL_LEFT) {
+        digitalWrite(MOTOR_LEFT_DIR_PIN1, HIGH);
+        digitalWrite(MOTOR_LEFT_DIR_PIN2, HIGH);
+        ledcWrite(PWM_CHANNEL_LEFT, PWM_MAX);    
+    } else if (wheel == WHEEL_RIGHT){
+        digitalWrite(MOTOR_RIGHT_DIR_PIN1, HIGH);
+        digitalWrite(MOTOR_RIGHT_DIR_PIN2, HIGH);
+        ledcWrite(PWM_CHANNEL_RIGHT, PWM_MAX); 
+    }
+}
+
+
+void set_motor_idle(uint8_t wheel) {
+    // Los pines de control se fuerzan a LOW
+    if (wheel == WHEEL_LEFT) {
+        digitalWrite(MOTOR_LEFT_DIR_PIN1, LOW);
+        digitalWrite(MOTOR_LEFT_DIR_PIN2, LOW);
+        ledcWrite(PWM_CHANNEL_LEFT, 0);    
+    } else if (wheel == WHEEL_RIGHT){
+        digitalWrite(MOTOR_RIGHT_DIR_PIN1, LOW);
+        digitalWrite(MOTOR_RIGHT_DIR_PIN2, LOW);
+        ledcWrite(PWM_CHANNEL_RIGHT, 0); 
+    }
+}
+
+
+void set_motors_mode(
+    const MotorMode mode_new, volatile MotorMode& motor_state_global,
+    volatile float& dutyL_global, volatile float& dutyR_global
+) {
+    // Si se entrega el mismo modo, no se hace nada
+    if (mode_new == motor_state_global) return;
+
+    // Modificación del modo de operación
+    motor_state_global = mode_new; 
+    dutyL_global = 0.0;
+    dutyR_global = 0.0;
+
+    // Clasificación según cambio
+    if (mode_new == MotorMode::AUTO) { // Resetear los integradores de PID al pasar a AUTO
+        pidLeft.reset();
+        pidRight.reset();
+    } else if (mode_new == MotorMode::BREAK) {
+        set_motor_break(WHEEL_LEFT);
+        set_motor_break(WHEEL_RIGHT);
+
+    } else { // Cualquier otro modo se considera IDLE (safe)
         set_motor_idle(WHEEL_LEFT);
         set_motor_idle(WHEEL_RIGHT);
-        dutyL_global = 0.0;
-        dutyR_global = 0.0;
     }
-
-    void set_motor_pwm(const uint8_t wheel, const float abs_duty, bool forward){
-        uint32_t pwm = abs_duty * PWM_MAX + 0.5f;
-        if (wheel == WHEEL_LEFT) {
-            if constexpr (INVERT_MOTOR_LEFT) forward = !forward;     
-            digitalWrite(MOTOR_LEFT_DIR_PIN1, forward ? HIGH : LOW);
-            digitalWrite(MOTOR_LEFT_DIR_PIN2, forward ? LOW : HIGH);
-            ledcWrite(PWM_CHANNEL_LEFT, pwm);
-        } else if (wheel == WHEEL_RIGHT){
-            if constexpr (INVERT_MOTOR_RIGHT) forward = !forward;
-            digitalWrite(MOTOR_RIGHT_DIR_PIN1, forward ? HIGH : LOW);
-            digitalWrite(MOTOR_RIGHT_DIR_PIN2, forward ? LOW : HIGH);
-            ledcWrite(PWM_CHANNEL_RIGHT, pwm);
-        }
-    }
-    
-    void set_motor_break(uint8_t wheel) {
-        // Los pines de control se fuerzan a HIGH para frenado            
-        if (wheel == WHEEL_LEFT) {
-            digitalWrite(MOTOR_LEFT_DIR_PIN1, HIGH);
-            digitalWrite(MOTOR_LEFT_DIR_PIN2, HIGH);
-            ledcWrite(PWM_CHANNEL_LEFT, PWM_MAX);    
-        } else if (wheel == WHEEL_RIGHT){
-            digitalWrite(MOTOR_RIGHT_DIR_PIN1, HIGH);
-            digitalWrite(MOTOR_RIGHT_DIR_PIN2, HIGH);
-            ledcWrite(PWM_CHANNEL_RIGHT, PWM_MAX); 
-        }
-    }
-    
-    void set_motor_idle(uint8_t wheel) {
-        // Los pines de control se fuerzan a LOW
-        if (wheel == WHEEL_LEFT) {
-            digitalWrite(MOTOR_LEFT_DIR_PIN1, LOW);
-            digitalWrite(MOTOR_LEFT_DIR_PIN2, LOW);
-            ledcWrite(PWM_CHANNEL_LEFT, 0);    
-        } else if (wheel == WHEEL_RIGHT){
-            digitalWrite(MOTOR_RIGHT_DIR_PIN1, LOW);
-            digitalWrite(MOTOR_RIGHT_DIR_PIN2, LOW);
-            ledcWrite(PWM_CHANNEL_RIGHT, 0); 
-        }
-    }
-
-    void set_motors_mode(
-        volatile MotorMode mode_new, volatile MotorMode& motor_state_global,
-        volatile float& dutyL_global, volatile float& dutyR_global
-    ) {
-        // Si se entrega el mismo modo, no se hace nada
-        if (mode_new == motor_state_global) return;
-
-        // Modificación del modo de operación
-        motor_state_global = mode_new; 
-        dutyL_global = 0.0;
-        dutyR_global = 0.0;
-
-        // Clasificación según cambio
-        if (mode_new == MotorMode::AUTO) { // Resetear los integradores de PID al pasar a AUTO
-            pidLeft.reset();
-            pidRight.reset();
-        } else if (mode_new == MotorMode::BREAK) {
-            set_motor_break(WHEEL_LEFT);
-            set_motor_break(WHEEL_RIGHT);
-
-        } else { // Cualquier otro modo se considera IDLE (safe)
-            set_motor_idle(WHEEL_LEFT);
-            set_motor_idle(WHEEL_RIGHT);
-        }
-    }
-
-    void apply_duty_profile(
-        const uint8_t wheel_id,
-        const DutyProfile& duty_data,
-        volatile float& global_duty,
-        volatile MotorMode& motor_state
-    ) {
-        // Verificar que el sistema esté en un modo válido
-        if (motor_state != MotorMode::ACTIVE && motor_state != MotorMode::AUTO) return;
-
-        // Caso especial: aplicar freno
-        if (duty_data.break_flag) {
-            set_motor_break(wheel_id);
-            global_duty = 0.0f;
-            return;
-        }
-
-        // Aplicar PWM: el valor debe haber sido checkeado previamente
-        set_motor_pwm(wheel_id, duty_data.abs_duty, duty_data.forward);
-        global_duty = duty_data.duty_val;
-    }
-
-    void set_motors_duty(
-        volatile float duty_left, volatile float duty_right, 
-        volatile float& dutyL_global, volatile float& dutyR_global,
-        volatile MotorMode& motor_state
-    ) {
-        if (motor_state != MotorMode::ACTIVE && motor_state != MotorMode::AUTO) return;
-
-        DutyProfile dutyL_data = init_duty_profile(duty_left);
-        DutyProfile dutyR_data = init_duty_profile(duty_right);
-
-        check_duty_limits(dutyL_data);
-        check_duty_limits(dutyR_data);
-
-        set_motor_pwm(WHEEL_LEFT, dutyL_data.abs_duty, dutyL_data.forward);
-        set_motor_pwm(WHEEL_RIGHT, dutyR_data.abs_duty, dutyR_data.forward);
-
-        dutyL_global = dutyL_data.duty_val;
-        dutyR_global = dutyR_data.duty_val;
-    }
-
-    void update_motors_control(
-        volatile float& w_L, volatile float& w_R, 
-        volatile float& w_L_ref, volatile float& w_R_ref,
-        volatile float& duty_L, volatile float& duty_R, 
-        volatile MotorMode& state
-    ) {
-        if (state != MotorMode::AUTO) return; // Se opera solo en modo auto
-        // Cálculo del PI
-        DutyProfile dutyL = pidLeft.compute(w_L_ref, w_L);
-        DutyProfile dutyR = pidRight.compute(w_R_ref, w_R);
-
-        // Aplicar
-        apply_duty_profile(WHEEL_LEFT, dutyL, duty_L, state);
-        apply_duty_profile(WHEEL_RIGHT, dutyR, duty_R, state);
-    }
-
-    void Task_WheelControl(void* pvParameters) {
-        // Datos de RTOS
-        TickType_t xLastWakeTime = xTaskGetTickCount();
-        const TickType_t period = pdMS_TO_TICKS(WHEEL_CONTROL_PERIOD_MS);
-
-        // Cast del parámetro entregado a GlobalContext
-        GlobalContext* ctx_ptr = static_cast<GlobalContext*>(pvParameters);
-
-        // Punteros a las variables necesarias
-        volatile WheelsData* whl_ptr = ctx_ptr->wheels_ptr;
-        volatile MotorMode* state_ptr  = &ctx_ptr->systems_ptr->motors;
-
-        // Llamar periódicamente a la función
-        for (;;) {
-            vTaskDelayUntil(&xLastWakeTime, period);
-            update_motors_control(
-                whl_ptr->w_L, whl_ptr->w_R,
-                whl_ptr->w_L_ref, whl_ptr->w_R_ref,
-                whl_ptr->duty_L, whl_ptr->duty_R,
-                *state_ptr
-            );
-        }
-    }
-
 }
+
+
+void apply_duty_profile(
+    const uint8_t wheel_id,
+    const DutyProfile& duty_data,
+    volatile float& global_duty,
+    volatile MotorMode& motor_state
+) {
+    // Verificar que el sistema esté en un modo válido
+    if (motor_state != MotorMode::ACTIVE && motor_state != MotorMode::AUTO) return;
+
+    // Caso especial: aplicar freno
+    if (duty_data.break_flag) {
+        set_motor_break(wheel_id);
+        global_duty = 0.0f;
+        return;
+    }
+
+    // Aplicar PWM: el valor debe haber sido checkeado previamente
+    set_motor_pwm(wheel_id, duty_data.abs_duty, duty_data.forward);
+    global_duty = duty_data.duty_val;
+}
+
+
+void set_motors_duty(
+    const float duty_left, const float duty_right, 
+    volatile float& dutyL_global, volatile float& dutyR_global,
+    volatile MotorMode& motor_state
+) {
+    if (motor_state != MotorMode::ACTIVE && motor_state != MotorMode::AUTO) return;
+
+    DutyProfile dutyL_data = init_duty_profile(duty_left);
+    DutyProfile dutyR_data = init_duty_profile(duty_right);
+
+    check_duty_limits(dutyL_data);
+    check_duty_limits(dutyR_data);
+
+    set_motor_pwm(WHEEL_LEFT, dutyL_data.abs_duty, dutyL_data.forward);
+    set_motor_pwm(WHEEL_RIGHT, dutyR_data.abs_duty, dutyR_data.forward);
+
+    dutyL_global = dutyL_data.duty_val;
+    dutyR_global = dutyR_data.duty_val;
+}
+
+
+void update_motors_control(
+    volatile float& w_L, volatile float& w_R, 
+    volatile float& w_L_ref, volatile float& w_R_ref,
+    volatile float& duty_L, volatile float& duty_R, 
+    volatile MotorMode& state
+) {
+    if (state != MotorMode::AUTO) return; // Se opera solo en modo auto
+    // Cálculo del PI
+    DutyProfile dutyL = pidLeft.compute(w_L_ref, w_L);
+    DutyProfile dutyR = pidRight.compute(w_R_ref, w_R);
+
+    // Aplicar
+    apply_duty_profile(WHEEL_LEFT, dutyL, duty_L, state);
+    apply_duty_profile(WHEEL_RIGHT, dutyR, duty_R, state);
+}
+
+
+void Task_WheelControl(void* pvParameters) {
+    // Datos de RTOS
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    const TickType_t period = pdMS_TO_TICKS(WHEEL_CONTROL_PERIOD_MS);
+
+    // Variables globales
+    GlobalContext* ctx_ptr = static_cast<GlobalContext*>(pvParameters);
+    volatile SystemStates& sts = *ctx_ptr->systems_ptr;
+    volatile PoseData& pose = *ctx_ptr->pose_ptr;
+    volatile ControllerData& ctrl = *ctx_ptr->control_ptr;
+
+    // Llamar periódicamente a la función de control de motores
+    for (;;) {
+        vTaskDelayUntil(&xLastWakeTime, period);
+        update_motors_control(
+            pose.w_L, pose.w_R, ctrl.w_L_ref, ctrl.w_R_ref, ctrl.duty_L, ctrl.duty_R, sts.motors);
+    }
+}
+
+} // namespace MotorController

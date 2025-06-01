@@ -2,355 +2,380 @@
 
 namespace PositionController {
    
-    // Estado de movimiento anterior 
-    static uint8_t last_moving_state = MovingState::KIN_STOPPING; 
-    
-    // Estado interno del PID
-    static float integral_alpha = 0.0f;
-    static float last_alpha = 0.0f;
-    static float integral_rho = 0.0f; 
-    static float last_millis = 0.0f;
+// Estado de movimiento anterior 
+static MovingState last_moving_state = MovingState::STOPPED; 
 
-    void init(
-        volatile PositionControlMode& control_mode,
-        volatile float& w_L_ref, volatile float& w_R_ref
-    ) {
-        control_mode = PositionControlMode::INACTIVE;
-        w_L_ref = 0.0f;
-        w_R_ref = 0.0f;
+// Estado interno del PID
+static float integral_alpha = 0.0f;
+static float last_alpha = 0.0f;
+static float integral_rho = 0.0f; 
+static float last_millis = 0.0f;
+
+void init(
+    volatile PositionControlMode& control_mode,
+    volatile float& x_d_global, volatile float& y_d_global, volatile float& theta_d_global,
+    volatile bool& waypoint_reached,
+    volatile float& w_L_ref, volatile float& w_R_ref
+) {
+    control_mode = PositionControlMode::INACTIVE;
+    waypoint_reached = false; 
+    reset_pid_state();
+    w_L_ref = 0.0f;
+    w_R_ref = 0.0f;
+    x_d_global = 0.0f; 
+    y_d_global = 0.0f;
+    theta_d_global = 0.0f;
+}
+
+
+bool set_control_mode(
+    const PositionControlMode new_mode,
+    volatile PositionControlMode& control_mode,
+    volatile float& wL_ref, volatile float& wR_ref
+) {
+    // Si se entrega el mismo modo, no se hace nada
+    if (new_mode == control_mode) return SUCCESS;
+    control_mode = new_mode;
+    reset_pid_state(); // Reiniciar el estado del PID
+    if (new_mode == PositionControlMode::INACTIVE) {
+        // Si se pone en modo inactivo, se dejan las referencias de velocidad en cero
+        wL_ref = 0.0f;
+        wR_ref = 0.0f;
     }
+    return SUCCESS; // Indicar que se cambió el modo correctamente
+}
 
 
-    void set_control_mode(
-        const PositionControlMode new_mode,
-        volatile PositionControlMode& control_mode,
-        volatile float& w_L_ref, volatile float& w_R_ref
-    ) {
-        // Si se entrega el mismo modo, no se hace nada
-        if (new_mode == control_mode) return;
+bool set_controller_type(
+    const ControlType new_type,
+    volatile ControlType& controller_type
+) {
+    // Si se entrega el mismo tipo o si el control está desactivado, no se hace nada
+    if (new_type == controller_type) return ERROR;
 
-        // Modificación del modo de operación
-        control_mode = new_mode;
-        w_L_ref = 0.0f;
-        w_R_ref = 0.0f;
+    // Modificación del tipo de controlador
+    controller_type = new_type;
+    reset_pid_state(); // Reiniciar el estado del PID
+    return SUCCESS; // Indicar que se cambió el tipo correctamente
+}
 
-        // Acá irían los condicionales según caso
-        if (new_mode != PositionControlMode::INACTIVE && new_mode != PositionControlMode::MANUAL) {
-            // Resetear los integradores de PID al pasar a AUTO
-            integral_alpha = 0.0f;
-            integral_rho = 0.0f;
-            last_alpha = 0.0f;
-        }
+
+bool set_waypoint(
+    const float x_d, const float y_d, const float theta_d,
+    volatile float& x_d_global, volatile float& y_d_global, volatile float& theta_d_global,
+    volatile bool& waypoint_reached,
+    volatile PositionControlMode& control_mode
+) {
+    if (control_mode == PositionControlMode::INACTIVE || control_mode == PositionControlMode::MANUAL) {
+        return ERROR; // No se actualiza si el modo es inactivo o manual
     }
+    // Actualizar las coordenadas del destino
+    x_d_global = x_d;
+    y_d_global = y_d;
+    theta_d_global = wrap_to_pi(theta_d); // Normalizar el ángulo al rango (-π, π]
+    reset_pid_state(); // Reiniciar el estado del PID
+    waypoint_reached = false; // Reiniciar la bandera de waypoint alcanzado
+    //set_control_mode(PositionControlMode::ALIGN, control_mode);
+    return SUCCESS; // Indicar que se estableció el waypoint correctamente
+}
 
 
-    void set_wheel_speed_ref(
-        const float w_L, const float w_R,
-        volatile float& w_L_ref_global, volatile float& w_R_ref_global,
-        volatile PositionControlMode& control_mode
-    ) {
-        if (control_mode == PositionControlMode::MANUAL) {
-            w_L_ref_global = constrain(w_L, -WM_NOM, WM_NOM);
-            w_R_ref_global = constrain(w_R, -WM_NOM, WM_NOM);
-
-        // El controlador internamente debe hacer el ajuste
-        } else if (control_mode != PositionControlMode::INACTIVE){ 
-            w_L_ref_global = w_L;
-            w_R_ref_global = w_R;
-        }
+bool set_diferential_waypoint(
+    const float dist, const float delta_theta,
+    volatile float& x_d_global, volatile float& y_d_global, volatile float& theta_d_global,
+    volatile bool& waypoint_reached,
+    const PositionControlMode control_mode
+) {
+    if (control_mode == PositionControlMode::INACTIVE || control_mode == PositionControlMode::MANUAL) {
+        return ERROR; // No se actualiza si el modo es inactivo o manual
     }
+    // Actualizar las coordenadas del destino
+    theta_d_global = wrap_to_pi(theta_d_global + delta_theta); 
+    x_d_global += dist * cosf(theta_d_global);
+    y_d_global += dist * sinf(theta_d_global);
+    reset_pid_state(); // Reiniciar el estado del PID
+    waypoint_reached = false; // Reiniciar la bandera de waypoint alcanzado
+    return SUCCESS;
+}
 
 
-    uint8_t update_control_pid(
-        const float x, const float y, const float theta,
-        const float x_d, const float y_d, const float theta_d,
-        volatile float& w_L_ref,  volatile float& w_R_ref,
-        volatile PositionControlMode& control_mode
-    ) {
-        // 0) Paso de tiempo
-        const float now = millis() * MS_TO_S;
-        const float dt = now - last_millis;
-        last_millis = now;
-        if (dt < MIN_POS_DT) return last_moving_state; // Protección: solo actualizar cada cierto tiempo
+void set_wheel_speed_ref(
+    const float w_L, const float w_R,
+    volatile float& w_L_ref_global, volatile float& w_R_ref_global,
+    const PositionControlMode control_mode
+) {
+    // Para el caso manual, igual se asegura que no superen el máximo
+    if (control_mode == PositionControlMode::MANUAL) {
+        w_L_ref_global = constrain(w_L, -WM_NOM, WM_NOM);
+        w_R_ref_global = constrain(w_R, -WM_NOM, WM_NOM);
 
-        // 1) Inicialización de variables
-        float v_ref = 0.0f, w_ref = 0.0f;
-        float v_ref_raw = 0.0f, w_ref_raw = 0.0f;
-        float wL = 0.0f, wR = 0.0f;
-        float rho = 0.0f, alpha = 0.0f;
-        uint8_t move_state = MovingState::KIN_STOPPING;
-
-        // 2) Condicional de operación -> define alpha, rho, y los criterios de convergencia
-        const float angle_tolerance = (control_mode == PositionControlMode::MOVE_PID) 
-                                        ? ANGLE_NAVIGATION_TOLERANCE : ANGLE_ROTATION_TOLERANCE;
-        if (control_mode == PositionControlMode::MOVE_PID) { // Caso de control de movimiento
-            const float dx = x_d - x;
-            const float dy = y_d - y;
-            rho = sqrtf(dx*dx + dy*dy);
-            alpha = wrap_to_pi(atan2f(dy, dx) - theta); // Error respecto al ángulo del punto objetivo
-            move_state = (rho < DISTANCE_TOLERANCE) ? MovingState::KIN_STOPPING : MovingState::KIN_MOVING;
-        } else if (control_mode == PositionControlMode::TURN_PID) { // Caso de rotación pura
-            // rho no se usa y se deja en cero
-            alpha = wrap_to_pi(theta_d - theta); // Error respecto al ángulo objetivo
-            move_state = (fabsf(alpha) < angle_tolerance) ? MovingState::KIN_STOPPING : MovingState::KIN_ALIGNING;
-        }
-
-        // 3) Control
-        if (move_state != MovingState::KIN_STOPPING) { // Controlamos solo si estamos lejos del objetivo
-            // Control PID en α
-            const float derivative = (alpha - last_alpha) / dt;
-            w_ref_raw = KP_ALPHA * alpha + KI_ALPHA * integral_alpha + KD_ALPHA * derivative;
-            last_alpha = alpha;
-
-            // Control tipo PI para la distancia. Si el ángulo es muy grande, solo gira en el lugar (mantiene vref en 0)
-            if (fabsf(alpha) > angle_tolerance) {
-                v_ref_raw = 0.0f;
-                move_state = MovingState::KIN_ALIGNING; // Cambiar el estado de movimiento a alineación
-            } else {
-                v_ref_raw = KP_RHO * rho + KI_RHO * integral_rho;
-            }
-
-            // Saturar referencias de velocidad para respetar límites de vel. de rueda
-            const VelocityData data = constrain_velocity(v_ref_raw, w_ref_raw);
-            v_ref = data.v;
-            w_ref = data.w;
-            wL = data.wL;
-            wR = data.wR;
-
-            // Anti-windup del integrador (por back-calculation)
-            const float anti_wp_alpha = (w_ref_raw - w_ref) * KW_ALPHA;
-            const float anti_wp_rho = (rho - v_ref) * KW_RHO;
-            integral_alpha += (alpha - anti_wp_alpha) * dt;
-            integral_rho += (rho - anti_wp_rho) * dt;
-        } 
-        else {
-            // Objetivo alcanzado: reseteo
-            integral_alpha = 0.0f;
-            integral_rho = 0.0f;
-            last_alpha = 0.0f;
-        }
-
-        // 4) Asignar velocidad de referencia
-        set_wheel_speed_ref(wL, wR, w_L_ref, w_R_ref, control_mode);
-        last_moving_state = move_state;
-        return move_state; // Retorna true si se alcanzó el objetivo
-    }
-
-
-    uint8_t update_control_backstepping(
-        const float x, const float y, const float theta,
-        const float x_d, const float y_d, const float theta_d,
-        volatile float& wL_ref, volatile float& wR_ref,
-        volatile PositionControlMode& control_mode
-    ) {
-        // 0) Inicialización de variables
-        float v_ref = 0.0f, w_ref = 0.0f;
-        uint8_t move_state = MovingState::KIN_STOPPING;
-
-        // 1) Errores cinemáticos en marco del robot
-        const float dx = x_d - x;
-        const float dy = y_d - y;
-        const float e1 = cosf(theta)*dx + sinf(theta)*dy;
-        const float e2 = -sinf(theta)*dx + cosf(theta)*dy;
-        const float rho = sqrtf(e1*e1 + e2*e2);
-        float e3 = 0.0f;
-
-        // 2) Condiciones de control y referencias crudas
-        const float angle_tolerance = (control_mode == PositionControlMode::MOVE_BACKS) 
-                                        ? ANGLE_NAVIGATION_TOLERANCE : ANGLE_ROTATION_TOLERANCE;
-        if (control_mode == PositionControlMode::TURN_BACKS) { // Giro puro → solo se usa control angular
-            e3 = wrap_to_pi(theta_d - theta); 
-            move_state = (fabs(e3) < angle_tolerance) ? MovingState::KIN_STOPPING : MovingState::KIN_ALIGNING;
-            if (move_state == MovingState::KIN_ALIGNING) {
-                w_ref = K2*e2 + K3*e1*e2*e3;
-            }
-        } 
-        else if (control_mode == PositionControlMode::MOVE_BACKS) { // Movimiento normal
-            move_state = (rho < DISTANCE_TOLERANCE) ? MovingState::KIN_STOPPING : MovingState::KIN_MOVING;
-            if (move_state == MovingState::KIN_MOVING) {
-                e3 = wrap_to_pi(atan2f(dy, dx) - theta);
-                if (fabs(e3) <= angle_tolerance) {
-                    v_ref = K1*e1;
-                } else {
-                    v_ref = 0.0f; // Si el ángulo es muy grande, no avanza
-                    move_state = MovingState::KIN_ALIGNING; // Cambiar el estado de movimiento a alineación
-                }
-                w_ref = K2*e2 + K3*e1*e2*e3;
-            }
-        }
-        // 3) Aplicar saturación y aplicar a las ruedas
-        const VelocityData data = constrain_velocity(v_ref, w_ref);
-        set_wheel_speed_ref(data.wL, data.wR, wL_ref, wR_ref, control_mode);
-        last_moving_state = move_state;
-        return move_state;
-    }
-
-    
-    bool update_control(
-        const float x, const float y, const float theta,
-        const float x_d, const float y_d, const float theta_d,
-        volatile float& v, volatile float& w,
-        volatile float& wL_ref, volatile float& wR_ref,
-        volatile uint8_t& moving_state,
-        volatile PositionControlMode& control_mode
-    ) {
-        uint8_t state = MovingState::KIN_STOPPING;
-        if (control_mode == PositionControlMode::MOVE_PID || control_mode == PositionControlMode::TURN_PID) {
-            state =  update_control_pid(x, y, theta, x_d, y_d, theta_d, wL_ref, wR_ref, control_mode);
-        } else if (control_mode == PositionControlMode::MOVE_BACKS || control_mode == PositionControlMode::TURN_BACKS) {
-            state = update_control_backstepping(x, y, theta, x_d, y_d, theta_d, wL_ref, wR_ref, control_mode);
-        }
-        if (state == MovingState::KIN_STOPPING && v < V_STOP_THRESHOLD && w < W_STOP_THRESHOLD) {
-            state = MovingState::KIN_REACHED; // Si el vehículo está detenido, se considera que se alcanzó el objetivo
-        }
-        set_moving_state(state, moving_state); // Actualizar el estado de movimiento (y el last)
-        return (state == MovingState::KIN_REACHED); // Retorna true si se alcanzó el objetivo y el vehículo está detenido
-    }
-
-
-    float compute_wheel_speed(const float v, const float w, const uint8_t wheel_id) {
-        const float rotation_term = w * WHEEL_DISTANCE / 2.0f;
-        if (wheel_id == WHEEL_LEFT)
-            return (v - rotation_term) / WHEEL_RADIUS;
-        else if (wheel_id == WHEEL_RIGHT)
-            return (v + rotation_term) / WHEEL_RADIUS;
-        else
-            return 0.0f; // default / error
-    }
-
-
-    bool stop_movement(
-        volatile float& v, volatile float& w,
-        volatile float& w_L_ref, volatile float& w_R_ref,
-        volatile uint8_t& moving_state,
-        volatile PositionControlMode& control_mode
-    ) {
-        // Fijar duty a cero
-        set_control_mode(PositionControlMode::MANUAL, control_mode, w_L_ref, w_R_ref);
-        set_wheel_speed_ref(0.0f, 0.0f, w_L_ref, w_R_ref, control_mode);
-
-        // Verificar detención de motores
-        bool stopped = (v <= V_STOP_THRESHOLD && w <= W_STOP_THRESHOLD);
-        set_moving_state(MovingState::KIN_STOPPING, moving_state); // Actualizar estado de movimiento (y el last)
-        return stopped;
-    }
-
-
-    VelocityData constrain_velocity(float v_raw, float w_raw) {
-        VelocityData data;
-        data.v = v_raw;
-        data.w = w_raw;
-
-        // Directamente el cálculo de cada rueda:
-        data.wL = (data.v - data.w * WHEEL_DISTANCE / 2.0f) / WHEEL_RADIUS;
-        data.wR = (data.v + data.w * WHEEL_DISTANCE / 2.0f) / WHEEL_RADIUS;
-
-        const float max_wheel_speed = fmaxf(fabsf(data.wL), fabsf(data.wR));
-        if (max_wheel_speed > WM_NOM) {
-            const float scale = WM_NOM / max_wheel_speed;
-            data.v *= scale;
-            data.w *= scale;
-
-            // Recalcular tras el escalado:
-            data.wL = (data.v - data.w * WHEEL_DISTANCE / 2.0f) / WHEEL_RADIUS;
-            data.wR = (data.v + data.w * WHEEL_DISTANCE / 2.0f) / WHEEL_RADIUS;
-        }
-        return data;
-    }
-
-
-    void set_moving_state(
-        const uint8_t new_state,
-        volatile uint8_t& moving_state
-    ) {
-        if (moving_state != new_state) {
-            moving_state = new_state;
-            last_moving_state = new_state;
-        }
-    }
-
-
-    void Task_PositionControl(void* pvParameters) {
-        TickType_t xLastWakeTime = xTaskGetTickCount();
-        const TickType_t period  = pdMS_TO_TICKS(POSITION_CONTROL_PERIOD_MS);
-
-        GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
-        auto* sys = ctx->systems_ptr;
-        auto* kin = ctx->kinematic_ptr;
-        auto* whl = ctx->wheels_ptr;
-
-        for (;;) {
-            vTaskDelayUntil(&xLastWakeTime, period);
-            PositionControlMode mode = sys->position;
-            update_control(
-                kin->x, kin->y, kin->theta, kin->x_d, kin->y_d, kin->theta_d,
-                kin->v, kin->w, whl->w_L_ref, whl->w_R_ref,
-                kin->moving_state, mode
-            );
-        }
-    }
-
-
-    float wrap_to_pi(float angle) {
-        angle = fmodf(angle + PI, 2.0f * PI);
-        if (angle < 0.0f) angle += 2.0f * PI;
-        return angle - PI;
+    // El controlador internamente debe hacer la saturación
+    } else if (control_mode != PositionControlMode::INACTIVE){ 
+        w_L_ref_global = w_L;
+        w_R_ref_global = w_R;
     }
 }
 
-    // bool update_control_backstepping(
-    //     const float x, const float y, const float theta,
-    //     const float x_d, const float y_d, const float theta_d,
-    //     volatile float& wL_ref, volatile float& wR_ref,
-    //     volatile PositionControlMode& control_mode
-    // ) {
 
-    //     // 1) errores en marco vehículo
-    //     float dx = x_d - x;
-    //     float dy = y_d - y;
+MovingState update_control_pid(
+    const float x, const float y, const float theta,
+    const float x_d, const float y_d, const float theta_d,
+    volatile float& wL_ref,  volatile float& wR_ref,
+    const PositionControlMode control_mode
+) {
+    // 0) Inicialización de variables
+    const float dx = x_d - x;
+    const float dy = y_d - y;
+    float rho = 0.0f, alpha = 0.0f;
+    float wL_ref_local = 0.0f, wR_ref_local = 0.0f;
+    MovingState move_state = last_moving_state;
 
-    //     float e1 =  cosf(theta)*dx + sinf(theta)*dy;
-    //     float e2 = -sinf(theta)*dx + cosf(theta)*dy;
-    //     float e3 = wrap_to_pi(atan2f(dy, dx) - theta);
+    // 1) Paso de tiempo
+    const float now = millis() * MS_TO_S;
+    const float dt = now - last_millis;
+    if (dt < 0.001) return move_state; // Protección de tiempo mínimo
+    last_millis = now;
 
-    //     float rho = sqrtf(e1*e1 + e2*e2);
-    //     bool stop = (rho <= DISTANCE_TOLERANCE); 
+    // 2) Condicional de operación: define tolerancia de ángulo, alpha, rho, y aplica criterio de convergencia
+    const float angle_tolerance = (control_mode == PositionControlMode::MOVE) 
+                                    ? NAVIGATION_ANGLE_TOLERANCE : ROTATION_ANGLE_TOLERANCE;
+    if (control_mode == PositionControlMode::MOVE) { // Caso de control de movimiento
+        rho = sqrtf(dx*dx + dy*dy);                 // Distancia al objetivo
+        alpha = wrap_to_pi(atan2f(dy, dx) - theta); // Error de orientación hacia el objetivo
+        move_state = (rho < DISTANCE_TOLERANCE) ? MovingState::STOPPING : MovingState::ADVANCING;
+    }       
+    else if (control_mode == PositionControlMode::ALIGN) { // Caso de alineación hacia el objetivo
+        // rho no se usa y se deja en cero
+        alpha = wrap_to_pi(atan2f(dy, dx) - theta); // Error de orientación hacia el objetivo
+        move_state = (fabsf(alpha) < angle_tolerance) ? MovingState::STOPPING : MovingState::ROTATING;
+    } 
+    else if (control_mode == PositionControlMode::ROTATE) { // Caso de rotación pura
+        // rho no se usa y se deja en cero
+        alpha = wrap_to_pi(theta_d - theta); // Error respecto al ángulo objetivo
+        move_state = (fabsf(alpha) < angle_tolerance) ? MovingState::STOPPING : MovingState::ROTATING;
+    }
 
-    //     // 2) Control
-    //     float v_des = 0.0f;
-    //     float w_des = 0.0f;
-    //     if (stop) {
-    //         v_des = 0.0f;
-    //         w_des = 0.0f;
-    //     } else if (fabsf(e3) > ANGLE_NAVIGATION_TOLERANCE) {
-    //         v_des = 0.0f;
-    //         w_des = KP_ALPHA * e3;
-    //     } else {
-    //         v_des = K1 * e1;
-    //         w_des = K2 * e2 + K3 * e1 * e2 * e3;
-    //     }
+    // 3) Control
+    if (move_state != MovingState::STOPPING) { // Controlamos solo si estamos lejos del objetivo
+        // Control PID en α
+        const float derivative = (alpha - last_alpha) / dt;
+        const float w_ref_raw = KP_ALPHA * alpha + KI_ALPHA * integral_alpha + KD_ALPHA * derivative;
+        last_alpha = alpha;
 
-    //     // 3) saturar
-    //     v_des = saturate(v_des, 0.5f);
-    //     w_des = saturate(w_des, 1.0f);
+        // Control tipo PI para la distancia. 
+        // Modo rotating o si el ángulo es muy grande -> solo gira en el lugar (mantiene vref en 0)
+        float v_ref_raw = 0.0f;
+        if (move_state != MovingState::ADVANCING || fabsf(alpha) > angle_tolerance) {
+            // Se deja la referencia de velocidad lineal en cero
+            move_state = MovingState::ROTATING; // El estado de movimiento será de rotación
+            integral_rho = 0.0f; // Reiniciar integral de rho
+        } else {
+            v_ref_raw = KP_RHO * rho + KI_RHO * integral_rho;
+        }
 
-    //     // 4) convertir a ruedas
-    //     wL_ref = compute_wheel_speed(v_des, w_des, WHEEL_LEFT);
-    //     wR_ref = compute_wheel_speed(v_des, w_des, WHEEL_RIGHT);
+        // Saturar referencias de velocidad para respetar límites de vel. de rueda
+        const VelocityData sat_vel = constrain_velocity(v_ref_raw, w_ref_raw);
+        const float v_ref_sat = sat_vel.v;
+        const float w_ref_sat = sat_vel.w;
+        wL_ref_local = sat_vel.wL;
+        wR_ref_local = sat_vel.wR;
 
-    //     return stop; // Retorna si se está controlando o si se alcanzó el objetivo
-    // }
+        // Anti-windup del integrador por back-calculation
+        const float anti_wp_rho = (v_ref_raw - v_ref_sat) * KW_RHO;
+        const float anti_wp_alpha = (w_ref_raw - w_ref_sat) * KW_ALPHA;
+        integral_alpha += (alpha - anti_wp_alpha) * dt;
+        integral_rho += (rho - anti_wp_rho) * dt;
+
+        // Anti-windup del integrador por clamping
+        integral_alpha = constrain(integral_alpha, -INTEGRAL_ALPHA_MAX, INTEGRAL_ALPHA_MAX);
+        integral_rho = constrain(integral_rho, -INTEGRAL_RHO_MAX, INTEGRAL_RHO_MAX);
+    } 
+    else { // Si estamos deteniendo el vehículo las referencias de velocidad se dejan en cero
+        // Además los integradores se reinician (no se usan por pasar directo la referencia de rueda)
+        integral_alpha = 0.0f;
+        integral_rho = 0.0f;
+        last_alpha = 0.0f;
+    }
+
+    // 4) Asignar velocidad de referencia
+    set_wheel_speed_ref(wL_ref_local, wR_ref_local, wL_ref, wR_ref, control_mode);
+    last_moving_state = move_state; 
+    return move_state; // Retorna true si se alcanzó el objetivo
+}
 
 
-// float normalize_angle(float a) {
-//     // fuerza a ∈ (−π, π]
-//     while (a >  PI) a -= 2.0f * PI;
-//     while (a <= -PI) a += 2.0f * PI;
-//     return a;
-// }
+void reset_pid_state() {
+    // Reiniciar el estado del PID
+    integral_alpha = 0.0f;
+    integral_rho = 0.0f;
+    last_alpha = 0.0f;
+    last_millis = millis() * MS_TO_S;
+}
 
-// float saturate(float v, float limit) {
-//     if      (v >  limit) return  limit;
-//     else if (v < -limit) return -limit;
-//     else                 return  v;
-// }
+
+MovingState update_control_backstepping(
+    const float x, const float y, const float theta,
+    const float x_d, const float y_d, const float theta_d,
+    volatile float& wL_ref, volatile float& wR_ref,
+    const PositionControlMode control_mode
+) {
+    // 0) Inicialización de variables
+    const float dx = x_d - x;
+    const float dy = y_d - y;
+    float v_ref_local = 0.0f, w_ref_local = 0.0f;
+    MovingState move_state = last_moving_state;
+
+    // 1) Errores cinemáticos en marco del robot
+    const float e1 = cosf(theta)*dx + sinf(theta)*dy;
+    const float e2 = -sinf(theta)*dx + cosf(theta)*dy;
+    const float rho = sqrtf(e1*e1 + e2*e2);
+    float e3 = 0.0f; // Se sobreescribe más adelante
+
+    // 2) Condiciones de control y referencias crudas
+    const float angle_tolerance = (control_mode == PositionControlMode::MOVE) 
+                                    ? NAVIGATION_ANGLE_TOLERANCE : ROTATION_ANGLE_TOLERANCE;
+    if (control_mode == PositionControlMode::MOVE) { // Movimiento normal
+        move_state = (rho < DISTANCE_TOLERANCE) ? MovingState::STOPPING : MovingState::ADVANCING;
+        if (move_state == MovingState::ADVANCING) {
+            e3 = wrap_to_pi(atan2f(dy, dx) - theta); // Error angular respecto al objetivo
+            if (fabs(e3) < angle_tolerance) {
+                v_ref_local = K1*e1;           // Si el ángulo es pequeño, avanzar
+            } else {
+                // Si el ángulo es grande, solo rotar y se mantiene la referencia de velocidad lineal en cero
+                move_state = MovingState::ROTATING; // Cambiar el estado de movimiento a alineación
+            }
+            w_ref_local = K2*e2 + K3*e1*e2*e3; // Siempre hay control angular
+        }
+    } 
+    else if (control_mode == PositionControlMode::ALIGN || control_mode == PositionControlMode::ROTATE) {
+        // La alineación deseada dependerá del modo de control
+        float theta_d_local = (control_mode == PositionControlMode::ALIGN) ? atan2f(dy, dx) : theta_d; 
+        e3 = wrap_to_pi(theta_d_local - theta); // Error angular respecto al objetivo
+        if (fabs(e3) < angle_tolerance) {
+            move_state = MovingState::STOPPING; // Si el error es pequeño, detener
+        } else {
+            move_state = MovingState::ROTATING; // Si no, rotar con control angular
+            w_ref_local = K2*e2 + K3*e1*e2*e3;
+        }
+    } 
+
+    // 3) Aplicar saturación y aplicar a las ruedas
+    const VelocityData sat_vel = constrain_velocity(v_ref_local, w_ref_local);
+    set_wheel_speed_ref(sat_vel.wL, sat_vel.wR, wL_ref, wR_ref, control_mode);
+    return move_state;
+}
+
+
+bool update_control(
+    const float x, const float y, const float theta,
+    const float x_d, const float y_d, const float theta_d,
+    const float v, const float w,
+    volatile float& wL_ref, volatile float& wR_ref,
+    volatile bool& waypoint_reached,
+    const ControlType controller_type,
+    const PositionControlMode control_mode
+) {
+    // Verificar si el modo de control es válido
+    if (control_mode == PositionControlMode::INACTIVE || control_mode == PositionControlMode::MANUAL) {
+        return ERROR; // No se actualiza el control si está inactivo o en modo manual
+    }
+
+    // Llamar al controlador según el modo de control
+    MovingState state = last_moving_state;
+    if (controller_type == ControlType::PID) {
+        state =  update_control_pid(x, y, theta, x_d, y_d, theta_d, wL_ref, wR_ref, control_mode);
+    } 
+    else if (controller_type == ControlType::BACKS) {
+        state = update_control_backstepping(x, y, theta, x_d, y_d, theta_d, wL_ref, wR_ref, control_mode);
+    }
+    // Verificar si se alcanzó el objetivo
+    if (state == MovingState::STOPPING && v < V_STOP_THRESHOLD && w < W_STOP_THRESHOLD) {
+        state = MovingState::STOPPED; // Si el vehículo está detenido, se considera que se alcanzó el objetivo
+        waypoint_reached = true; // Marcar que se alcanzó el waypoint
+    } else {
+        waypoint_reached = false; // Si no se detuvo, no se alcanzó el waypoint
+    }
+    last_moving_state = state; // Actualizar el estado de movimiento global
+    return waypoint_reached; // Retorna true si se alcanzó el objetivo y el vehículo está detenido
+}
+
+
+bool stop_movement(
+    const float v, const float w,
+    volatile float& w_L_ref, volatile float& w_R_ref,
+    volatile PositionControlMode& control_mode
+) {
+    // Fijar duty a cero
+    set_control_mode(PositionControlMode::MANUAL, control_mode, w_L_ref, w_R_ref);
+    set_wheel_speed_ref(0.0f, 0.0f, w_L_ref, w_R_ref, control_mode);
+
+    // Verificar detención de motores
+    const bool stopped = (v <= V_STOP_THRESHOLD && w <= W_STOP_THRESHOLD);
+    last_moving_state = (stopped) ? MovingState::STOPPED : MovingState::STOPPING;
+    return stopped;
+}
+
+
+VelocityData constrain_velocity(float v, float w) {
+    // Cálculo de velocidad de rueda según modelo cinemático
+    float wL = (v - w * WHEEL_TO_MID_DISTANCE) / WHEEL_RADIUS;
+    float wR = (v + w * WHEEL_TO_MID_DISTANCE) / WHEEL_RADIUS;
+
+    // Se revisa si alguna de las velocidades supera el límite técnico
+    const float max_wheel_speed = fmaxf(fabsf(wL), fabsf(wR));
+    if (max_wheel_speed > WM_NOM) {
+
+        // Si supera alguna, se rescalan ambas para que la mayor esté a máxima
+        // Esto permite que el vehículo tenga la velocidad angular adecuada
+        const float scale = WM_NOM / max_wheel_speed;
+        v *= scale;
+        w *= scale;
+
+        // Recalcular las velocidades de rueda considerando el escalamiento
+        const float rotation_term = w * WHEEL_TO_MID_DISTANCE;
+        wL = (v - rotation_term) / WHEEL_RADIUS;
+        wR = (v + rotation_term) / WHEEL_RADIUS;
+    }
+    VelocityData data = {v, w, wL, wR};
+    return data;
+}
+
+
+float compute_wheel_speed(const float v, const float w, const uint8_t wheel_id) {
+    const float rotation_term = w * WHEELS_SEPARATION / 2.0f;
+    if (wheel_id == WHEEL_LEFT)
+        return (v - rotation_term) / WHEEL_RADIUS;
+    else if (wheel_id == WHEEL_RIGHT)
+        return (v + rotation_term) / WHEEL_RADIUS;
+    else
+        return 0.0f; // default / error
+}
+
+
+void Task_PositionControl(void* pvParameters) {
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    const TickType_t period  = pdMS_TO_TICKS(POSITION_CONTROL_PERIOD_MS);
+
+    // Obtener el contexto global
+    GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
+    volatile SystemStates& sts = *(ctx->systems_ptr);
+    volatile PoseData& pose = *(ctx->pose_ptr); 
+    volatile ControllerData& ctrl = *(ctx->control_ptr);
+
+    for (;;) {
+        vTaskDelayUntil(&xLastWakeTime, period);
+        update_control(
+            pose.x, pose.y, pose.theta, ctrl.x_d, ctrl.y_d, ctrl.theta_d,
+            pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, 
+            ctrl.waypoint_reached, ctrl.controller_type, sts.position);
+    }
+}
+
+
+float wrap_to_pi(float angle) {
+    angle = fmodf(angle + PI, 2.0f * PI);
+    if (angle < 0.0f) angle += 2.0f * PI;
+    return angle - PI;
+}
+
+} // namespace PositionController
