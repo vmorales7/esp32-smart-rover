@@ -170,10 +170,10 @@ void Task_CheckObstacle(void* pvParameters) {
 }
 
 
-bool force_check_all_sensors(GlobalContext* ctx) {
-    volatile SystemStates& sts = *ctx->systems_ptr;
-    volatile SensorsData& sens = *ctx->sensors_ptr;
-    volatile TaskHandlers& handlers = *ctx->rtos_task_ptr;
+bool force_check_sensors(GlobalContext* ctx_ptr) {
+    volatile SystemStates& sts = *(ctx_ptr->systems_ptr);
+    volatile SensorsData& sens = *(ctx_ptr->sensors_ptr);
+    volatile TaskHandlers& handlers = *(ctx_ptr->rtos_task_ptr);
 
     // 1. Suspender tareas de sensores (para acceso exclusivo a pines) 
     vTaskSuspend(handlers.obstacle_handle);

@@ -13,13 +13,13 @@ volatile ControllerData ctrl;
 volatile PoseData pose;
 
 GlobalContext ctx = {
-    .systems_ptr     = &sts,
-    .sensors_ptr     = &sens,
-    .pose_ptr        = &pose,
-    .control_ptr     = &ctrl,
-    .os_ptr          = nullptr, 
-    .rtos_task_ptr   = nullptr,
-    .evade_ptr = nullptr
+    .systems_ptr   = &sts,
+    .sensors_ptr   = &sens,
+    .pose_ptr      = &pose,
+    .control_ptr   = &ctrl,
+    .os_ptr        = nullptr, 
+    .rtos_task_ptr = nullptr,
+    .evade_ptr     = nullptr
 };
 
 const uint16_t TASK_CONTROL_PERIOD_MS = 100;

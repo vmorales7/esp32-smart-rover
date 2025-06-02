@@ -21,8 +21,10 @@
 // Comunicación (a futuro)
 // #include "communication/firebase_comm.h" // Solo si empiezas a usar Firebase
 
-/* ------------------------ Constantes ------------------------*/
+// Control de evasión de obstáculos
+#include "vehicle_os/evade_controller.h"
 
+/* ------------------------ Constantes ------------------------*/
 
 
 
@@ -163,10 +165,11 @@ void Task_VehicleOS(void* pvParameters);
  * Guarda un mensaje de log en la estructura de datos del sistema operativo.
  * Se asegura de que el mensaje esté correctamente terminado con null.
  * 
+ * @param new_state Nuevo estado del sistema operativo
+ * @param old_state Estado anterior del sistema operativo
  * @param os Referencia a la estructura de datos del sistema operativo
- * @param log_msg Mensaje de log a establecer
  */
-void set_operation_log(volatile OperationData& os, const char* log_msg);
+void set_operation_log(const OS_State new_state, const OS_State old_state, GlobalContext* ctx_ptr);
 
 } // namespace OS
 
