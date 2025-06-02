@@ -1,4 +1,4 @@
-#include "project_config.h"
+#include "vehicle_os/general_config.h"
 #include "motor_drive/motor_controller.h"
 #include "sensors_firmware/encoder_reader.h"
 #include "position_system/pose_estimator.h"
@@ -25,7 +25,8 @@ GlobalContext ctx = {
 
 // ====================== CONFIGURACIÓN OBJETIVO ======================
 
-ControlType controller_type = ControlType::PID; // Tipo de controlador a utilizar
+constexpr ControlType CONTROLLER_TYPE = ControlType::PID;
+constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::ENCODER;
 
 // Escoger desplazamiento / alineación / rotación pura
 PositionControlMode control_state = PositionControlMode::MOVE; 
@@ -50,6 +51,7 @@ void setup() {
     EncoderReader::init(sens.enc_stepsL, sens.enc_stepsR, sens.enc_wL, sens.enc_wR, sts.encoders);
     // IMUReader::init(sens.imu_ax, sens.imu_wz, sens.imu_theta, sts.imu); // A futuro
     PoseEstimator::init(pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R, sens.enc_stepsL, sens.enc_stepsR, sts.pose);
+    pose.estimator_type = POSE_ESTIMATOR_TYPE; // Establecer tipo de estimador
     MotorController::init(sts.motors, ctrl.duty_L, ctrl.duty_R);
     PositionController::init(sts.position, ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, ctrl.w_L_ref, ctrl.w_R_ref); 
 
@@ -57,7 +59,7 @@ void setup() {
     EncoderReader::resume(sts.encoders);
     // IMUReader::resume(sts.imu); // A futuro
     PoseEstimator::set_state(ACTIVE, sts.pose);
-    PositionController::set_controller_type(controller_type, ctrl.controller_type);
+    PositionController::set_controller_type(CONTROLLER_TYPE, ctrl.controller_type);
     PositionController::set_control_mode(control_state, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
     MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
 

@@ -3,7 +3,7 @@
 
 /* ------------------------ Mis librerías ------------------------*/
 
-#include "project_config.h"
+#include "vehicle_os/general_config.h"
 
 // Máquina de estados del vehículo
 #include "vehicle_os/vehicle_os.h"

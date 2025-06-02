@@ -1,4 +1,4 @@
-#include "project_config.h"
+#include "vehicle_os/general_config.h"
 #include "motor_drive/motor_controller.h"
 #include "sensors_firmware/encoder_reader.h"
 #include "sensors_firmware/distance_sensors.h"

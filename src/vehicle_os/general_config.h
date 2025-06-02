@@ -96,7 +96,8 @@ constexpr float RAD_PER_PULSE = (2.0f * M_PI) / ENCODER_PPR;
 
 enum class PoseEstimatorType : uint8_t {
     ENCODER = 1U,
-    FUSION  = 2U
+    COMPLEMENTARY  = 2U,
+    KALMAN = 3U
 };
 
 
@@ -277,7 +278,7 @@ struct PoseData {
     float w_R;
 
     PoseData()
-        : estimator_type(PoseEstimatorType::ENCODER),
+        : estimator_type(PoseEstimatorType::COMPLEMENTARY),
           x(0.0f), y(0.0f), theta(0.0f),
           v(0.0f), w(0.0f),
           w_L(0.0f), w_R(0.0f)

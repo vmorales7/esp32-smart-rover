@@ -1,7 +1,7 @@
 #ifndef ENCODER_READER_H
 #define ENCODER_READER_H
 
-#include "project_config.h"
+#include "vehicle_os/general_config.h"
 #include <ESP32Encoder.h>
 
 /* ---------------- Constantes del sistema ------------------*/

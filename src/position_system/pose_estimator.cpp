@@ -160,7 +160,8 @@ void Task_PoseEstimatorEncoder(void* pvParameters) {
                 pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R, 
                 sts.pose
             );
-        } else if (pose.estimator_type == PoseEstimatorType::FUSION) {
+        } else if (pose.estimator_type == PoseEstimatorType::COMPLEMENTARY || 
+                   pose.estimator_type == PoseEstimatorType::KALMAN) {
             update_pose_fusion(
                 sens.enc_wL, sens.enc_wR, sens.imu_ax, sens.imu_wz, sens.imu_theta,
                 pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R,

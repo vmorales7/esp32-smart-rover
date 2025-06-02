@@ -1,4 +1,4 @@
-#include "project_config.h"
+#include "vehicle_os/general_config.h"
 #include "motor_drive/motor_controller.h"
 #include "sensors_firmware/encoder_reader.h"
 #include "position_system/position_controller.h"
@@ -25,6 +25,8 @@ GlobalContext ctx = {
     .rtos_task_ptr   = nullptr,
     .evade_ptr       = nullptr
 };
+
+constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::ENCODER;
 
 
 // ------------------------ Tareas RTOS adicionales -------------------------
@@ -60,6 +62,7 @@ void setup() {
     MotorController::init(sts.motors, ctrl.duty_L, ctrl.duty_R);
     MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
     EncoderReader::init(sens.enc_stepsL, sens.enc_stepsR, sens.enc_wL, sens.enc_wR, sts.encoders);
+    pose.estimator_type = POSE_ESTIMATOR_TYPE; // Establecer tipo de estimador de pose
     PositionController::init(sts.position, ctrl.x_d, ctrl.y_d, ctrl.theta_d, 
         ctrl.waypoint_reached, ctrl.w_L_ref, ctrl.w_R_ref);
     PositionController::set_control_mode(PositionControlMode::MANUAL, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);

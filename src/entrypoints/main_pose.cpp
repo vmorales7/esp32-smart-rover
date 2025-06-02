@@ -1,4 +1,4 @@
-#include "project_config.h"
+#include "vehicle_os/general_config.h"
 #include "motor_drive/motor_controller.h"
 #include "sensors_firmware/encoder_reader.h"
 #include "position_system/pose_estimator.h"
@@ -24,6 +24,7 @@ GlobalContext ctx = {
 };
 
 constexpr float Wref = 9.0f;
+constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::ENCODER;
 
 // ====================== Tareas auxiliares ======================
 
@@ -45,6 +46,7 @@ void setup() {
     // Inicializar estimador de pose
     PoseEstimator::init(pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R, 
         sens.enc_stepsL, sens.enc_stepsR, sts.pose);
+    pose.estimator_type = POSE_ESTIMATOR_TYPE; // Establecer tipo de estimador
 
     // Inicializar motores
     MotorController::init(sts.motors, ctrl.duty_L, ctrl.duty_R);

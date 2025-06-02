@@ -97,6 +97,7 @@ void update(GlobalContext* ctx_ptr) {
                     } else { // Si se pudo establecer el siguiente waypoint, se vuelve a ALIGN
                         // Futuro: avisar a FB que se estableció el nuevo waypoint
                         enter_align(ctx_ptr);
+                        EvadeController::reset_evade_state(ctx_ptr); // Reiniciar el estado de evasión
                         os.state = OS_State::ALIGN;
                         set_operation_log(OS_State::ALIGN, OS_State::MOVE, ctx_ptr);
                     }
@@ -118,11 +119,13 @@ void update(GlobalContext* ctx_ptr) {
                         os.state = OS_State::STAND_BY;
                         set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
                     } 
-                    else {
-                        // Si se detecta un obstáculo, se entra al estado EVADE
-                        enter_evade(ctx_ptr);
-                        os.state = OS_State::EVADE;
-                        if (evade.include_evade) EvadeController::start_evade(ctx_ptr); 
+                    else { // Si se detecta un obstáculo, se entra al estado EVADE
+                        if (evade.include_evade) {
+                            EvadeController::start_evade(ctx_ptr);
+                            enter_evade(ctx_ptr);
+                        } else {
+                            enter_wait_free_path(ctx_ptr);
+                        }
                         set_operation_log(OS_State::EVADE, OS_State::MOVE, ctx_ptr);
                     }
                 }
@@ -367,6 +370,62 @@ bool enter_evade(GlobalContext* ctx_ptr) {
         sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
 
     return SUCCESS;
+}
+
+
+bool enter_rotate(GlobalContext* ctx_ptr) {
+    volatile SystemStates& sts = *(ctx_ptr->systems_ptr);
+    volatile SensorsData& sens = *(ctx_ptr->sensors_ptr);
+    volatile PoseData& pose = *(ctx_ptr->pose_ptr);
+    volatile ControllerData& ctrl = *(ctx_ptr->control_ptr);
+    volatile OperationData& os = *(ctx_ptr->os_ptr);
+    bool ok = true;
+
+    // 🟢 Reanudar sensores y estimador de posición
+    EncoderReader::resume(sts.encoders);
+    // IMUReader::resume(...);
+    PoseEstimator::set_state(ACTIVE, sts.pose);
+
+    // 🟢 Activar control de posición (v_ref y w_ref)
+    // PositionController::set_controller_type();
+    PositionController::set_control_mode(PositionControlMode::ROTATE, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
+    MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
+
+    // 🚫 Mantener desactivada la detección de obstáculos
+    DistanceSensors::set_state(INACTIVE, sts.distance, 
+        sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
+    DistanceSensors::reset_system(sens.us_left_dist, sens.us_left_obst, sens.us_mid_dist, sens.us_mid_obst, 
+        sens.us_right_dist, sens.us_right_obst, sens.us_obstacle);
+
+    return ok;
+}
+
+
+bool enter_wait_free_path(GlobalContext* ctx_ptr) {
+    volatile SystemStates& sts = *(ctx_ptr->systems_ptr);
+    volatile SensorsData& sens = *(ctx_ptr->sensors_ptr);
+    volatile PoseData& pose = *(ctx_ptr->pose_ptr);
+    volatile ControllerData& ctrl = *(ctx_ptr->control_ptr);
+    volatile OperationData& os = *(ctx_ptr->os_ptr);
+    bool ok = true;
+
+    // 🟢 Reanudar sensores y estimador de posición
+    EncoderReader::resume(sts.encoders);
+    // IMUReader::resume(...);
+    PoseEstimator::set_state(ACTIVE, sts.pose);
+
+    // 🟢 Activar control de posición (v_ref y w_ref)
+    // PositionController::set_controller_type();
+    PositionController::set_control_mode(PositionControlMode::MANUAL, sts.position, 
+        ctrl.w_L_ref, ctrl.w_R_ref);
+    PositionController::set_wheel_speed_ref(0.0f, 0.0f, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
+    MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
+
+    // Mantener activada la detección de obstáculos
+    DistanceSensors::set_state(ACTIVE, sts.distance, 
+        sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
+
+    return ok;
 }
 
 

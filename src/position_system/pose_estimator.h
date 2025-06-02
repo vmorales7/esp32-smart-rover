@@ -1,7 +1,7 @@
 #ifndef POSE_ESTIMATOR_H
 #define POSE_ESTIMATOR_H
 
-#include "project_config.h"
+#include "vehicle_os/general_config.h"
 
 /* ---------------- Constantes y variables sistema ------------------*/
 

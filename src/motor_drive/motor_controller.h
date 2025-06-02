@@ -1,7 +1,7 @@
 #ifndef MOTOR_CONTROLLER_H
 #define MOTOR_CONTROLLER_H
 
-#include "project_config.h"
+#include "vehicle_os/general_config.h"
 
 /* ---------------- Constantes del sistema ------------------*/
 
