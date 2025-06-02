@@ -1,121 +1,87 @@
 #include "imu_reader.h"
 //nuevos cambios
 
+Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28, &Wire);
+
 namespace IMUSensor{
 
-    // Variables internas del sistema para aceleracion y velocidad.
+    // Variables internas del sistema para aceleracion.
     static unsigned long imu_accellastMillis = 0;
-    static float current_xaccel= 0;
     static float current_yaccel=0;
-    static float current_xspeed= 0;
-    static float current_yspeed= 0;
-    static float last_xaccel= 0;
-    static float last_yaccel= 0;
-    static float last_xspeed= 0;
-    static float last_yspeed= 0;
-    static float ref_tolerance= 0.09f;
+    static float ref_accel_tolerance= 0.1f;
     
     // Variables internas del sistema para obtener angulos.
-    static unsigned long imu_gyrolastMillis= 0;
     static float angle_speed= 0;
-    static float delta_magangle= 0;
-    static float current_magangle= 0;
-    static float last_magangle= 0;
+    static float delta_orientation= 0;
+    static float current_orientation= 0;
+    static float last_orientation= 0;
 
-    void init(volatile uint8_t* imu_state_ptr){
+void reset(
+        volatile float& imu_yaccel,
+        volatile float& imu_wgyro,
+        volatile float& imu_orientation
+    ){
+        imu_yaccel= 0.0f;
+        imu_wgyro= 0.0f;
+        imu_orientation= 0.0f;
+    };
+
+    void init(
+        volatile float& imu_yaccel,
+        volatile float& imu_wgyro,
+        volatile float& imu_orientation,
+        volatile uint8_t imu_state){
         // Comenzamos omunicacion I2C
         Wire.begin(IMU_SDA_PIN, IMU_SCL_PIN);
-        
-        if(!IMU.begin())
-            {
-        /* There was a problem detecting the BNO055 ... check your connections */
-              Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
-            while(100);
-            }
-        // Dejar sensores inactivos por defecto
-        *imu_state_ptr = INACTIVE;
+        // inicializamos el sensor
+        bno.begin();
+
+        reset(imu_yaccel, imu_wgyro, imu_orientation);
     };
 
-    void set_state(uint8_t imu_mode, volatile uint8_t* imu_state_ptr){
-        *imu_state_ptr = (imu_mode == ACTIVE) ? ACTIVE : INACTIVE;
+    void set_state(uint8_t imu_mode, volatile uint8_t imu_state){
+        Serial.println(imu_state);
+        if (imu_mode==ACTIVE){
+            imu_state=ACTIVE;
+        }
+        Serial.println(imu_state);
     }; 
 
-    void imu_reset(
-        volatile double* imu_xaccel_ptr,
-        volatile double* imu_yaccel_ptr,
-        volatile double* imu_xspeed_ptr,
-        volatile double* imu_yspeed_ptr,
-        volatile float* imu_wgyro_ptr,
-        volatile float* imu_magangle_ptr,
-        volatile uint8_t* imu_state_ptr
-    ){
-        if (*imu_state_ptr!=ACTIVE) return; //solo se lee si el sistema esta activo
-        *imu_xaccel_ptr= 0.0f;
-        *imu_yaccel_ptr= 0.0f;
-        *imu_xspeed_ptr= 0.0f;
-        *imu_yspeed_ptr= 0.0f;
-        *imu_wgyro_ptr= 0.0f;
-        *imu_magangle_ptr= 0.0f;
-    };
-
-    void imu_read_accel_speed(
-        volatile float* imu_xaccel_ptr,
-        volatile float* imu_yaccel_ptr,
-        volatile float* imu_xspeed_ptr,
-        volatile float* imu_yspeed_ptr,
-        volatile uint8_t* imu_state_ptr
-    ){
-        if (*imu_state_ptr!=ACTIVE) return; //solo se lee si el sistema esta activo
+    void imu_read_data(
+        volatile float& imu_yaccel,
+        volatile float& imu_wgyro,
+        volatile float& imu_orientation,
+        volatile uint8_t imu_state
+    ){  //Serial.println(imu_state);
+        if (imu_state!=ACTIVE) return; //solo se lee si el sistema esta activo
+        //Serial.println("Ahora si entramos a la funcion!");
         unsigned long imu_accelMillis = millis();
         float imudt = (imu_accelMillis - imu_accellastMillis) * MS_TO_S;  // Tiempo (s) transcurrido desde la ultima actualización
-        sensors_event_t acceldata;
-        IMU.getEvent(&acceldata, Adafruit_BNO055::VECTOR_LINEARACCEL);
+        sensors_event_t accel_data;
+        sensors_event_t gyro_data;
+        sensors_event_t orientation_data;
+        bno.getEvent(&accel_data, Adafruit_BNO055::VECTOR_LINEARACCEL);
+        bno.getEvent(&gyro_data, Adafruit_BNO055::VECTOR_GYROSCOPE);
+        bno.getEvent(&orientation_data, Adafruit_BNO055::VECTOR_EULER);
 
         // Creacion de variables temporales para obtener velocidad
-        current_xaccel= acceldata.acceleration.x;
-        current_yaccel= acceldata.acceleration.y;
+        if (accel_data.acceleration.y>ref_accel_tolerance | accel_data.acceleration.y<-ref_accel_tolerance){
+            current_yaccel= -(accel_data.acceleration.y+0.13);
+        };
+        angle_speed= gyro_data.gyro.z;
+        current_orientation= orientation_data.orientation.x; 
 
-        current_xspeed= last_xspeed+0.5*(current_xaccel+last_xaccel)*imudt;
-        current_yspeed= last_yspeed+0.5*(current_yaccel+last_yaccel)*imudt;
+        delta_orientation= (current_orientation-last_orientation);
 
-        *imu_xaccel_ptr= current_xaccel;
-        *imu_yaccel_ptr= current_yaccel;
-        *imu_xspeed_ptr= current_xspeed;
-        *imu_yspeed_ptr= current_yspeed;
+        imu_yaccel= current_yaccel;
+        imu_wgyro= angle_speed;
+        imu_orientation= delta_orientation;
 
-        last_xaccel= current_xaccel;
-        last_yaccel= current_yaccel;
-        last_xspeed= current_xspeed;
-        last_yspeed= current_yspeed;
+        Serial.print("accel: ");
+        Serial.println(current_yaccel);
+
+        last_orientation= current_orientation;
         imu_accellastMillis = imu_accelMillis;
-    };
-
-    void imu_read_angles(
-        volatile float& imu_wgyro_ptr,
-        volatile float& imu_magangle_ptr,
-        volatile uint8_t& imu_state_ptr
-    ){
-      if (imu_state_ptr!=ACTIVE) return;
-        unsigned long imu_gyroMillis = millis();
-        float imudt = (imu_gyroMillis - imu_gyrolastMillis) * MS_TO_S;  // Tiempo (s) transcurrido desde la ultima actualización
-        sensors_event_t gyrodata;
-        sensors_event_t magdata;
-        IMU.getEvent(&gyrodata, Adafruit_BNO055::VECTOR_GYROSCOPE);
-        IMU.getEvent(&magdata, Adafruit_BNO055::VECTOR_MAGNETOMETER);
-
-        float gyr = gyrodata.gyro.z;
-        float mag = magdata.orientation.z;
-
-        angle_speed= gyr;
-        current_magangle- mag;
-
-        delta_magangle= (current_magangle-last_magangle);
-
-        imu_wgyro_ptr= angle_speed;
-        imu_magangle_ptr= delta_magangle;
-
-        last_magangle= current_magangle;
-        imu_gyrolastMillis= imu_gyroMillis;
     };
 
      void Task_IMUData(void* pvParameters) {
@@ -124,27 +90,14 @@ namespace IMUSensor{
         const TickType_t period = pdMS_TO_TICKS(IMU_READ_PERIOD_MS);
     
         // Cast del parámetro entregado a GlobalContext
-        GlobalContext* ctx_ptr = static_cast<GlobalContext*>(pvParameters);
-    
-        // Punteros a las variables necesarias
-        volatile uint8_t* imu_state_ptr = &ctx_ptr->systems_ptr->imu;
-        volatile float* imu_xaccel_ptr  = &ctx_ptr->imu_ptr->ax;
-        volatile float* imu_yaccel_ptr  = &ctx_ptr->imu_ptr->ay;
-        volatile float* imu_xspeed_ptr  = &ctx_ptr->imu_ptr->vx;
-        volatile float* imu_yspeed_ptr  = &ctx_ptr->imu_ptr->vy;
-        volatile float* imu_wgyro_ptr    = &ctx_ptr->imu_ptr->w_gyro;
-        volatile float* imu_magangle_ptr = &ctx_ptr->imu_ptr->mag_angle;
-    
+        GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);
+        volatile SystemStates& sts = *ctx->systems_ptr;
+        volatile SensorsData& sens = *ctx->sensors_ptr;
+        Serial.println("setting up with RTOS");
         for (;;) {
             vTaskDelayUntil(&xLastWakeTime, period);
-            imu_read_accel_speed(imu_xaccel_ptr, imu_yaccel_ptr,
-                imu_xspeed_ptr, imu_yspeed_ptr, imu_state_ptr
-            );
-
-            imu_read_angles( imu_wgyro_ptr, imu_magangle_ptr, 
-                imu_state_ptr
-            );
+            imu_read_data(sens.imu_ay, sens.imu_wz, sens.imu_theta,
+                sts.imu);
         }
     }  
-
 };

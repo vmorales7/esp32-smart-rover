@@ -236,9 +236,9 @@ struct SensorsData{
 
     bool us_obstacle;          ///< true si cualquier sensor US detecta obstáculo (< threshold)
 
-    float imu_ax; ///< aceleración en el eje x
+    float imu_ay; ///< aceleración en el eje y
     float imu_wz; ///< velocidad angular con respecto al eje z
-    float imu_theta; ///< ángulo rotación respecto al norte magnetico de output total (orientacion absoluta)
+    float imu_theta; ///< ángulo rotación respecto al norte magnetico (fijado) de output total (orientacion absoluta)
 
     // Constructor por defecto
     SensorsData()
@@ -246,7 +246,7 @@ struct SensorsData{
           enc_wL(0.0f), enc_wR(0.0f),
           us_left_dist(0), us_mid_dist(0), us_right_dist(0),
           us_left_obst(false), us_mid_obst(false), us_right_obst(false),
-          imu_ax(0.0f), imu_wz(0.0f), imu_theta(0.0f)
+          imu_ay(0.0f), imu_wz(0.0f), imu_theta(0.0f)
     {}
 };
 

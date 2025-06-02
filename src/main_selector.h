@@ -16,9 +16,10 @@
 // #define USE_MAIN_AVANCE2                // Rutina de velocidades + detención por obstáculo + RTOS
 // #define USE_MAIN_POSITION_BASIC         // Control de posición hacia punto único
 // #define USE_MAIN_POSITION_POINTS        // Múltiples posiciones + detención por obstáculo
-#define USE_MAIN_STATES_NO_EVADE        // Rutina de estados sin evasión de obstáculo
+// #define USE_MAIN_STATES_NO_EVADE        // Rutina de estados sin evasión de obstáculo
 // #define USE_MAIN_EVADE                  // Rutina de evasión de obstáculo
 // #define USE_MAIN_DEBUG
+#define USE_MAIN_IMU_TEST                  //Rutina de prubea de iMU
 
 
 // ===================================================
@@ -54,6 +55,8 @@
   #include "entrypoints/main_evade.cpp"
 #elif defined(USE_MAIN_DEBUG)
   #include "entrypoints/main_debug.cpp"
+#elif defined(USE_MAIN_IMU_TEST)
+  #include "entrypoints/main_prueba_imu.cpp"
 #else
   #error "⚠️ No se ha definido ningún main activo en main_selector.h"
 #endif

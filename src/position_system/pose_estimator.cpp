@@ -90,7 +90,7 @@ void update_pose_encoder(
 
 void update_pose_fusion(
     const float wL_encoder, const float wR_encoder,          
-    const float ax_imu, const float wz_imu, const float theta_imu, 
+    const float acc_imu, const float wz_imu, const float theta_imu, 
     volatile float& x, volatile float& y, volatile float& theta,             
     volatile float& v, volatile float& w,                           
     volatile float& w_L, volatile float& w_R,                       
@@ -113,7 +113,7 @@ void update_pose_fusion(
     const float v_encoder = WHEEL_RADIUS * (wR_encoder + wL_encoder) / 2.0f;
     const float w_encoder = (WHEEL_RADIUS / WHEELS_SEPARATION) * (wR_encoder - wL_encoder);
     const float theta_encoder = wrap_to_pi(theta + (w + w_encoder)/2.0f * dt); // Integración simple
-    const float v_imu = v + ax_imu * dt; // Por integración simple, asume LPF aplicado en ax_imu
+    const float v_imu = v + acc_imu * dt; // Por integración simple, asume LPF aplicado en acc_imu
 
     // 3. Fusión sensorial (complementary filter)
     v_fused = v_encoder * FUSION_ALPHA_V + v_imu * (1.0f - FUSION_ALPHA_V);
@@ -160,7 +160,7 @@ void Task_PoseEstimatorEncoder(void* pvParameters) {
             );
         } else if (POSE_ESTIMATOR_TYPE == PoseEstimatorType::FUSION) {
             update_pose_fusion(
-                sens.enc_wL, sens.enc_wR, sens.imu_ax, sens.imu_wz, sens.imu_theta,
+                sens.enc_wL, sens.enc_wR, sens.imu_ay, sens.imu_wz, sens.imu_theta,
                 pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R,
                 sts.pose
             );
