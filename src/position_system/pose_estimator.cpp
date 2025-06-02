@@ -146,19 +146,21 @@ void Task_PoseEstimatorEncoder(void* pvParameters) {
     // Configuración del periodo de muestreo
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t period = pdMS_TO_TICKS(POSE_ESTIMATOR_PERIOD_MS);
+    // Recuperar variables globales
     GlobalContext* ctx_ptr = static_cast<GlobalContext*>(pvParameters);
+    volatile SystemStates& sts = *ctx_ptr->systems_ptr;
+    volatile SensorsData& sens = *ctx_ptr->sensors_ptr;
+    volatile PoseData& pose = *ctx_ptr->pose_ptr;
+    // Ejecutar tarea periodicamente
     for (;;) {
         vTaskDelayUntil(&xLastWakeTime, period);
-        volatile SystemStates& sts = *ctx_ptr->systems_ptr;
-        volatile SensorsData& sens = *ctx_ptr->sensors_ptr;
-        volatile PoseData& pose = *ctx_ptr->pose_ptr;
-        if (POSE_ESTIMATOR_TYPE == PoseEstimatorType::ENCODER) {
+        if (pose.estimator_type == PoseEstimatorType::ENCODER) {
             update_pose_encoder(
                 sens.enc_stepsL, sens.enc_stepsR, sens.enc_wL, sens.enc_wR, 
                 pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R, 
                 sts.pose
             );
-        } else if (POSE_ESTIMATOR_TYPE == PoseEstimatorType::FUSION) {
+        } else if (pose.estimator_type == PoseEstimatorType::FUSION) {
             update_pose_fusion(
                 sens.enc_wL, sens.enc_wR, sens.imu_ax, sens.imu_wz, sens.imu_theta,
                 pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R,

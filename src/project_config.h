@@ -98,7 +98,6 @@ enum class PoseEstimatorType : uint8_t {
     ENCODER = 1U,
     FUSION  = 2U
 };
-constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::ENCODER;
 
 
 /* ------------------------ Constantes de control de posición -----------------------*/
@@ -149,10 +148,10 @@ enum class RemoteCommand : uint8_t {
 enum class EvadeState : uint8_t {
     IDLE = 0,
     SELECT_DIR,
-    ALIGN_TO_FREE_PATH,
-    CHECK_SPACE,
-    ADVANCE,
-    RESTORE_PATH,
+    WAIT_ALIGN,
+    WAIT_ADVANCE,
+    WAIT_FREE_PATH,
+    WAIT_REJOIN,
     FAIL,
     FINISHED
 };
@@ -251,6 +250,10 @@ struct SensorsData{
 };
 
 struct PoseData {
+
+    // Tipo de estimador de pose utilizado
+    PoseEstimatorType estimator_type;
+
     /// Posición actual en el eje X [m]
     float x;
 
@@ -274,8 +277,10 @@ struct PoseData {
     float w_R;
 
     PoseData()
-        : x(0.0f), y(0.0f), theta(0.0f),
-          v(0.0f), w(0.0f)
+        : estimator_type(PoseEstimatorType::ENCODER),
+          x(0.0f), y(0.0f), theta(0.0f),
+          v(0.0f), w(0.0f),
+          w_L(0.0f), w_R(0.0f)
     {}
 };
 
@@ -380,15 +385,12 @@ struct TaskHandlers {
  * y retomar su trayectoria original si es posible.
  */
 struct EvadeContext {
+    bool include_evade = true; // Indica si se usa el controlador de evasión
     EvadeState state = EvadeState::IDLE;
-    int8_t direction = 0;         // 1: izquierda, -1: derecha
-    float current_angle = 0.0f;   // Ángulo acumulado en rad
-    bool tried_both_sides = false;
-    float start_theta = 0.0f;     // Orientación al comenzar evasión
-    uint8_t last_side_tried = 0;  // 0: no, 1: izq, 2: der, 3: ambos
+    int8_t direction = 0;          // +1: izquierda, -1: derecha
+    float current_angle = 0.0f;     // Ángulo de evasión actual [rad]
+    bool tried_both_sides = false; // Flag que indica si se intentó evasión a ambos lados
     TargetPoint saved_waypoint = {0.0f, 0.0f};
-    bool waypoint_active = false; // ¿Hay waypoint temporal en evasión?
-    bool evade_failed = false;    // ¿No pudo evadir en ningún sentido?
 };
 
 /**
@@ -402,7 +404,7 @@ struct GlobalContext {
     volatile ControllerData* control_ptr;
     volatile OperationData* os_ptr;
     TaskHandlers* rtos_task_ptr;
-    EvadeContext* evade_ptr;
+    volatile EvadeContext* evade_ptr;
 };
 
 #endif

@@ -154,17 +154,15 @@ void Task_EncoderUpdate(void* pvParameters) {
     GlobalContext* ctx_ptr = static_cast<GlobalContext*>(pvParameters);
     volatile SystemStates& sts = *ctx_ptr->systems_ptr;
     volatile SensorsData& sens = *ctx_ptr->sensors_ptr;
+    volatile PoseData& pose = *ctx_ptr->pose_ptr;
 
     for (;;) {
         vTaskDelayUntil(&xLastWakeTime, period);
-        if (POSE_ESTIMATOR_TYPE != PoseEstimatorType::ENCODER) { 
+        update_encoder_data(sens.enc_stepsL, sens.enc_stepsR, sens.enc_wL, sens.enc_wR, sts.encoders);
+        if (pose.estimator_type == PoseEstimatorType::ENCODER) { 
             // En caso de que no se haya implementado el sensor fusion, se pasa directo al dato de pose
-            volatile PoseData& pose = *ctx_ptr->pose_ptr;
-            update_encoder_data(sens.enc_stepsL, sens.enc_stepsR, sens.enc_wL, sens.enc_wR, sts.encoders);
             pose.w_L = sens.enc_wL;
             pose.w_R = sens.enc_wR;
-        } else {
-            update_encoder_data(sens.enc_stepsL, sens.enc_stepsR, sens.enc_wL, sens.enc_wR, sts.encoders);
         }
     }
 }

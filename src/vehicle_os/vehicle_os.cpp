@@ -9,6 +9,7 @@ void update(GlobalContext* ctx_ptr) {
     volatile PoseData& pose = *(ctx_ptr->pose_ptr);
     volatile ControllerData& ctrl = *(ctx_ptr->control_ptr);
     volatile OperationData& os = *(ctx_ptr->os_ptr);
+    volatile EvadeContext& evade = *(ctx_ptr->evade_ptr);
 
     bool ok = true; // Se usará para verificar si se pudo entrar a un estado
     os.last_command = RemoteCommand::START; // Por ahora se asume modo START (ya que no hay Firebase)
@@ -16,12 +17,17 @@ void update(GlobalContext* ctx_ptr) {
     switch (os.state) {
         case OS_State::INIT: {// Solo se ejecuta como paso hacia IDLE
             enter_idle(ctx_ptr);
+            clear_trajectory_with_null(os); // Limpiar la trayectoria
+            os.state = OS_State::IDLE;
+            set_operation_log(OS_State::IDLE, OS_State::INIT, ctx_ptr); // Log de transición
             break;
         }
         case OS_State::IDLE: {
             // Por ahora no se hace nada en IDLE, pero luego se hará lectura de Firebase
             if (os.total_targets > 0) {
                 enter_stand_by(ctx_ptr);
+                os.state = OS_State::STAND_BY;
+                set_operation_log(OS_State::STAND_BY, OS_State::IDLE, ctx_ptr);
             }
             break;
         }
@@ -32,12 +38,17 @@ void update(GlobalContext* ctx_ptr) {
                 ok = set_waypoint(ctx_ptr);
                 if (ok) { // Si hay puntos pendientes, se entra al estado ALIGN
                     enter_align(ctx_ptr); // El controlador intentará alinear el vehículo hacia el objetivo
+                    os.state = OS_State::ALIGN;
+                    set_operation_log(OS_State::ALIGN, OS_State::STAND_BY, ctx_ptr);
                     // Avisar a FB que se estableció el waypoint
                 } else { // Si no se pudo, nos quedamos en STAND_BY
                     enter_stand_by(ctx_ptr);
                 }
             } else if (os.last_command == RemoteCommand::IDLE) {                    
                 enter_idle(ctx_ptr);
+                clear_trajectory_with_null(os); // Limpiar la trayectoria
+                os.state = OS_State::IDLE; 
+                set_operation_log(OS_State::IDLE, OS_State::STAND_BY, ctx_ptr);
             }
             break;
         }
@@ -47,8 +58,12 @@ void update(GlobalContext* ctx_ptr) {
                 ok = set_waypoint(ctx_ptr); // Checkeo ante error y limpiar flag de waypoint alcanzado
                 if (ok) { // Si se pudo entrar al estado MOVE, se actualiza el estado
                     enter_move(ctx_ptr);
+                    os.state = OS_State::MOVE;
+                    set_operation_log(OS_State::MOVE, OS_State::ALIGN, ctx_ptr);
                 } else {// Si no se pudo entrar al estado MOVE, se vuelve a STAND_BY
                     enter_stand_by(ctx_ptr);
+                    os.state = OS_State::STAND_BY;
+                    set_operation_log(OS_State::STAND_BY, OS_State::ALIGN, ctx_ptr);
                 }
             } // Si se da el STOP, se frena el movimiento y se vuelve a STAND_BY cuando se detiene
             else if (os.last_command == RemoteCommand::STOP) { 
@@ -56,6 +71,8 @@ void update(GlobalContext* ctx_ptr) {
                     pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
                 if (stop_flag) {
                     enter_stand_by(ctx_ptr);
+                    os.state = OS_State::STAND_BY; 
+                    set_operation_log(OS_State::STAND_BY, OS_State::ALIGN, ctx_ptr);
                 }
             }
             break;
@@ -66,6 +83,8 @@ void update(GlobalContext* ctx_ptr) {
                 ok = complete_current_waypoint(os);
                 if (!ok) {// Si no se pudo completar el waypoint (# targets = 0), se manda todo a STAND_BY
                     enter_stand_by(ctx_ptr);
+                    os.state = OS_State::STAND_BY;
+                    set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
                 } 
                 else if (os.last_command == RemoteCommand::START) { 
                     // Se establece el siguiente waypoint solo si se está en START
@@ -73,14 +92,20 @@ void update(GlobalContext* ctx_ptr) {
                     ok = set_waypoint(ctx_ptr); 
                     if (!ok) {// Si no se pudo establecer el siguiente waypoint se vuelve a STAND_BY
                         enter_stand_by(ctx_ptr);
+                        os.state = OS_State::STAND_BY;
+                        set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
                     } else { // Si se pudo establecer el siguiente waypoint, se vuelve a ALIGN
                         // Futuro: avisar a FB que se estableció el nuevo waypoint
                         enter_align(ctx_ptr);
+                        os.state = OS_State::ALIGN;
+                        set_operation_log(OS_State::ALIGN, OS_State::MOVE, ctx_ptr);
                     }
                 } 
                 else { // Si no hay más puntos o se dio el stop, se vuelve a STAND_BY
                     // Futuro: avisar a FB que se alcanzó el waypoint
                     enter_stand_by(ctx_ptr);
+                    os.state = OS_State::STAND_BY;
+                    set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
                 }
             } 
             else if (os.last_command == RemoteCommand::STOP || sens.us_obstacle) {
@@ -88,11 +113,17 @@ void update(GlobalContext* ctx_ptr) {
                 const bool stop_flag = PositionController::stop_movement(
                     pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
                 if (stop_flag) {
-                    if (sens.us_obstacle) {
+                    if (os.last_command == RemoteCommand::STOP) { // Si no hay obstáculo, se vuelve a STAND_BY
+                        enter_stand_by(ctx_ptr);
+                        os.state = OS_State::STAND_BY;
+                        set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
+                    } 
+                    else {
                         // Si se detecta un obstáculo, se entra al estado EVADE
                         enter_evade(ctx_ptr);
-                    } else { // Si no hay obstáculo, se vuelve a STAND_BY
-                        enter_stand_by(ctx_ptr);
+                        os.state = OS_State::EVADE;
+                        if (evade.include_evade) EvadeController::start_evade(ctx_ptr); 
+                        set_operation_log(OS_State::EVADE, OS_State::MOVE, ctx_ptr);
                     }
                 }
             }
@@ -105,13 +136,31 @@ void update(GlobalContext* ctx_ptr) {
                     pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
                 if (stop_flag) {
                     enter_stand_by(ctx_ptr);
+                    os.state = OS_State::STAND_BY;
+                    set_operation_log(OS_State::STAND_BY, OS_State::EVADE, ctx_ptr);
+                }
+            } else if (evade.include_evade) {
+                EvadeController::update_evade(ctx_ptr);
+                // Si se completó la evasión, se vuelve a ALIGN
+                if (evade.state == EvadeState::FINISHED) {
+                    enter_align(ctx_ptr);
+                    os.state = OS_State::ALIGN;
+                    set_operation_log(OS_State::ALIGN, OS_State::EVADE, ctx_ptr);
+                } else if (evade.state == EvadeState::FAIL) {
+                    // Si falla la evasión, se vuelve a STAND_BY
+                    enter_stand_by(ctx_ptr);
+                    os.state = OS_State::STAND_BY;
+                    set_operation_log(OS_State::STAND_BY, OS_State::EVADE, ctx_ptr);
                 }
             } else {
-                // Aquí se puede implementar la lógica de evasión
                 // Por ahora solo se actualiza la flag de obstáculos hasta que se libera
                 DistanceSensors::update_global_obstacle_flag(
                     sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
-                if (!sens.us_obstacle) enter_stand_by(ctx_ptr);
+                if (!sens.us_obstacle) {
+                    enter_move(ctx_ptr);
+                    os.state = OS_State::MOVE;
+                    set_operation_log(OS_State::MOVE, OS_State::EVADE, ctx_ptr);
+                }
             }
             break;
         }
@@ -205,13 +254,6 @@ bool enter_idle(GlobalContext* ctx_ptr) {
     DistanceSensors::reset_system(sens.us_left_dist, sens.us_left_obst, sens.us_mid_dist, sens.us_mid_obst, 
         sens.us_right_dist, sens.us_right_obst, sens.us_obstacle);
 
-    // Limpiar la trayectoria
-    clear_trajectory_with_null(os);
-
-    // Actualizar el estado del sistema a IDLE
-    os.state = OS_State::IDLE;
-    set_operation_log(os, "Ingreso a estado IDLE");
-
     return SUCCESS; // Estado IDLE alcanzado
 }
 
@@ -239,9 +281,8 @@ bool enter_stand_by(GlobalContext* ctx_ptr) {
     DistanceSensors::reset_system(sens.us_left_dist, sens.us_left_obst, sens.us_mid_dist, sens.us_mid_obst, 
         sens.us_right_dist, sens.us_right_obst, sens.us_obstacle);
 
-    // Actualizar el estado del sistema a STAND_BY
-    os.state = OS_State::STAND_BY;
-    set_operation_log(os, "Ingreso a estado STAND_BY");
+    // Reset del estado de evasión
+    EvadeController::reset_evade_state(ctx_ptr);
     
     return SUCCESS; 
 }
@@ -270,13 +311,6 @@ bool enter_align(GlobalContext* ctx_ptr) {
         sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
     DistanceSensors::reset_system(sens.us_left_dist, sens.us_left_obst, sens.us_mid_dist, sens.us_mid_obst, 
         sens.us_right_dist, sens.us_right_obst, sens.us_obstacle);
-    
-    // Actualizar el estado del sistema a ALIGN
-    os.state = OS_State::ALIGN;
-    char log_msg[64];
-    snprintf(log_msg, sizeof(log_msg), "Ingreso a estado ALIGN hacia el punto (x=%.2f, y=%.2f)", 
-        os.trajectory[0].x, os.trajectory[0].y);
-    set_operation_log(os, log_msg);
 
     return ok;
 }
@@ -295,22 +329,15 @@ bool enter_move(GlobalContext* ctx_ptr) {
     // IMUReader::resume(...);
     PoseEstimator::set_state(ACTIVE, sts.pose);
 
+    // 🟢 Activar sensores de distancia y realizar una primera lectura forzada para estar bien actualizados
+    DistanceSensors::set_state(ACTIVE, sts.distance, 
+        sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
+    DistanceSensors::force_check_sensors(ctx_ptr);
+
     // 🟢 Activar control de posición (v_ref y w_ref)
     // PositionController::set_controller_type();
     PositionController::set_control_mode(PositionControlMode::MOVE, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
     MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
-
-    // 🟢 Activar sensores de distancia y realizar una primera lectura forzada para estar bien actualizados
-    DistanceSensors::set_state(ACTIVE, sts.distance, 
-        sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
-    DistanceSensors::force_check_all_sensors(ctx_ptr);
-
-    // Actualizar el estado del sistema a MOVE
-    os.state = OS_State::MOVE;
-    char log_msg[64];
-    snprintf(log_msg, sizeof(log_msg), "Ingreso a estado MOVE hacia el punto (x=%.2f, y=%.2f)", 
-        os.trajectory[0].x, os.trajectory[0].y);
-    set_operation_log(os, log_msg);
 
     return ok;
 }
@@ -335,16 +362,9 @@ bool enter_evade(GlobalContext* ctx_ptr) {
     PositionController::set_wheel_speed_ref(0.0f, 0.0f, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
     MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
 
-    // Se utilizarán los sensores de distancia
-    DistanceSensors::set_state(ACTIVE, sts.distance, 
+    // Sensores de distancia desactivados
+    DistanceSensors::set_state(INACTIVE, sts.distance, 
         sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
-
-    // Actualizar el estado del sistema a EVADE
-    os.state = OS_State::EVADE;
-    char log_msg[64];
-    snprintf(log_msg, sizeof(log_msg), 
-    "Ingreso a estado EVADE por obstáculo encontrado en (x=%.2f, y=%.2f, theta=%.2f)", pose.x, pose.y, pose.theta);
-    set_operation_log(os, log_msg); 
 
     return SUCCESS;
 }
@@ -396,8 +416,55 @@ void Task_VehicleOS(void* pvParameters) {
 }
 
 
-void set_operation_log(volatile OperationData& os, const char* msg) {
-    strncpy(const_cast<char*>(os.last_log), msg, sizeof(os.last_log));
+void set_operation_log(const OS_State new_state, const OS_State old_state, GlobalContext* ctx_ptr) {
+    volatile OperationData& os = *(ctx_ptr->os_ptr);
+    volatile PoseData& pose = *(ctx_ptr->pose_ptr);
+    volatile ControllerData& ctrl = *(ctx_ptr->control_ptr);
+    if (new_state == OS_State::INIT) {
+        strncpy(const_cast<char*>(os.last_log), "Entrando a estado INIT", sizeof(os.last_log));
+    } 
+    else if (new_state == OS_State::IDLE) {
+        strncpy(const_cast<char*>(os.last_log), "Entrando a estado IDLE", sizeof(os.last_log));
+    } 
+    else if (new_state == OS_State::STAND_BY) {
+        if (old_state == OS_State::ALIGN) {
+            snprintf(const_cast<char*>(os.last_log), sizeof(os.last_log), 
+                "Entrando a estado STAND-BY desde ALIGN en (x=%.2f, y=%.2f)", pose.x, pose.y);
+        } else if (old_state == OS_State::MOVE) {
+            snprintf(const_cast<char*>(os.last_log), sizeof(os.last_log), 
+                "Entrando a estado STAND-BY desde MOVE en (x=%.2f, y=%.2f)", pose.x, pose.y);
+        } else if (old_state == OS_State::EVADE) {
+            snprintf(const_cast<char*>(os.last_log), sizeof(os.last_log), 
+                "Entrando a estado STAND-BY desde EVADE en (x=%.2f, y=%.2f)", pose.x, pose.y);
+        } else {
+            strncpy(const_cast<char*>(os.last_log), "Entrando a estado STAND-BY", sizeof(os.last_log));
+        }
+    } 
+    else if (new_state == OS_State::ALIGN) {
+        if (old_state == OS_State::STAND_BY) {
+            snprintf(const_cast<char*>(os.last_log), sizeof(os.last_log), 
+                "Entrando a estado ALIGN desde STAND-BY hacia (x=%.2f, y=%.2f)", ctrl.x_d, ctrl.y_d);
+        } 
+        else if (old_state == OS_State::MOVE) {
+            snprintf(const_cast<char*>(os.last_log), sizeof(os.last_log), 
+                "Entrando a estado ALIGN desde MOVE hacia (x=%.2f, y=%.2f)", ctrl.x_d, ctrl.y_d);
+        } 
+        else if (old_state == OS_State::EVADE) {
+            snprintf(const_cast<char*>(os.last_log), sizeof(os.last_log), 
+                "Entrando a estado ALIGN desde EVADE hacia (x=%.2f, y=%.2f)", ctrl.x_d, ctrl.y_d);
+        } else {
+            snprintf(const_cast<char*>(os.last_log), sizeof(os.last_log), 
+                "Entrando a estado ALIGN hacia (x=%.2f, y=%.2f)", ctrl.x_d, ctrl.y_d);
+        }
+    } 
+    else if (new_state == OS_State::MOVE) {
+        snprintf(const_cast<char*>(os.last_log), sizeof(os.last_log), 
+            "Entrando a estado MOVE desde ALIGN hacia (x=%.2f, y=%.2f)", ctrl.x_d, ctrl.y_d);
+    } 
+    else if (new_state == OS_State::EVADE) {
+        snprintf(const_cast<char*>(os.last_log), sizeof(os.last_log), 
+            "Entrando a estado EVADE desde MOVE en (x=%.2f, y=%.2f)", pose.x, pose.y);
+    }
     os.last_log[sizeof(os.last_log)-1] = '\0'; // Seguridad de terminador null
 }
 

@@ -237,7 +237,7 @@ void Task_CheckObstacle(void* pvParameters);
  * 
  * @return `true` si se detectó algún obstáculo, `false` en caso contrario.
  */
-bool force_check_all_sensors(GlobalContext* ctx);
+bool force_check_sensors(GlobalContext* ctx);
 
 }
 
