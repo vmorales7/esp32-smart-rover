@@ -29,7 +29,7 @@ constexpr float WHEEL_BRAKE_THRESHOLD  = 0.5 * WM_NOM;        // Threshold de ve
 constexpr float WHEEL_STOP_THRESHOLD   = (2.0f * PI / 20.0f); // Threshold de velocidad para considerar stop [rad/s]
 
 // Corrección de pines
-constexpr bool INVERT_MOTOR_LEFT = false;
+constexpr bool INVERT_MOTOR_LEFT = true;
 constexpr bool INVERT_MOTOR_RIGHT = false;
 
 

@@ -11,9 +11,9 @@
 // #define USE_MAIN_US_SENSOR_BASIC        // Solo prueba de lectura de distancia
 // #define USE_MAIN_AVANCE1                // Rutina de duty + detención por obtáculo + encoder
 // #define USE_MAIN_WHEEL_SPEED            // Rutina para tuneo de controlador de rueda
-#define USE_MAIN_POSE                   // Rutina de prueba para pose_estimator
+// #define USE_MAIN_POSE                   // Rutina de prueba para pose_estimator
 // #define USE_MAIN_DISTANCE_SENSORS       // RTOS con todos los sensores de distancia
-// #define USE_MAIN_AVANCE2                // Rutina de velocidades + detención por obstáculo + RTOS
+#define USE_MAIN_AVANCE2                // Rutina de velocidades + detención por obstáculo + RTOS
 // #define USE_MAIN_IMU_CALIBRATION        // Rutina de calibración del IMU
 // #define USE_MAIN_IMU_TEST               // Rutina de prueba de iMU
 // #define USE_MAIN_POSITION_BASIC         // Control de posición hacia punto único
