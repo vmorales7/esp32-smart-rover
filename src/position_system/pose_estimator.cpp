@@ -111,23 +111,23 @@ void update_pose_imu(
     // 2. Velocidades desde IMU: integración de la velocidad y corrección de giro por sensor desalineado
     const float v_imu = v + imu_acc * dt; // Por integración simple
     const float w_imu_corr = imu_w - v_imu * IMU_CORRECTION_FACTOR;
-    const float theta_imu_corr = wrap_to_pi(theta + (imu_theta - last_imu_theta));
+    const float theta_imu = wrap_to_pi(imu_theta);
 
     // 3. Integración trapezoidal para la posición
     const float v_avg = (v + v_imu) / 2.0f;
-    const float theta_avg = (theta + theta_imu_corr) / 2.0f;
+    const float theta_avg = (theta + theta_imu) / 2.0f;
     x += v_avg * cosf(theta_avg) * dt;
     y += v_avg * sinf(theta_avg) * dt;
 
     // 4. Actualización de variables globales de velocidad
     v = v_imu; 
     w = w_imu_corr; 
-    theta = theta_imu_corr;
+    theta = theta_imu;
     w_L = (v_imu - w_imu_corr * WHEEL_TO_MID_DISTANCE) / WHEEL_RADIUS;
     w_R = (v_imu + w_imu_corr * WHEEL_TO_MID_DISTANCE) / WHEEL_RADIUS;
 
     // 5. Guardar auxiliares para el próximo ciclo
-    last_imu_theta = theta_imu_corr;
+    last_imu_theta = theta_imu;
 }   
 
 
