@@ -174,7 +174,7 @@ void setup() {
     DistanceSensors::set_state(ACTIVE, sts.distance,
         sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
     
-    EncoderReader::init(sens.enc_stepsL, sens.enc_stepsR, pose.w_L, pose.w_R, sts.encoders);
+    EncoderReader::init(sens.enc_phiL, sens.enc_phiR, pose.w_L, pose.w_R, sts.encoders);
     pose.estimator_type = POSE_ESTIMATOR_TYPE;
     EncoderReader::resume(sts.encoders);
 

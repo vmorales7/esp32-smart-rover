@@ -48,9 +48,10 @@ void setup() {
     Serial.println("Main: Position Control — Basic");
 
     // Inicialización de módulos
-    EncoderReader::init(sens.enc_stepsL, sens.enc_stepsR, sens.enc_wL, sens.enc_wR, sts.encoders);
+    EncoderReader::init(sens.enc_phiL, sens.enc_phiR, sens.enc_wL, sens.enc_wR, sts.encoders);
     // IMUReader::init(sens.imu_ax, sens.imu_wz, sens.imu_theta, sts.imu); // A futuro
-    PoseEstimator::init(pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R, sens.enc_stepsL, sens.enc_stepsR, sts.pose);
+    PoseEstimator::init(pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R,
+        sens.enc_phiL, sens.enc_phiR, sens.imu_theta, sts.pose);
     pose.estimator_type = POSE_ESTIMATOR_TYPE; // Establecer tipo de estimador
     MotorController::init(sts.motors, ctrl.duty_L, ctrl.duty_R);
     PositionController::init(sts.position, ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, ctrl.w_L_ref, ctrl.w_R_ref); 

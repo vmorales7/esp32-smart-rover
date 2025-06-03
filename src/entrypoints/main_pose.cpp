@@ -41,11 +41,11 @@ void setup() {
     delay(1000);
 
     // Inicializar encoder
-    EncoderReader::init(sens.enc_stepsL, sens.enc_stepsR, sens.enc_wL, sens.enc_wR, sts.encoders);
+    EncoderReader::init(sens.enc_phiL, sens.enc_phiR, sens.enc_wL, sens.enc_wR, sts.encoders);
 
     // Inicializar estimador de pose
-    PoseEstimator::init(pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R, 
-        sens.enc_stepsL, sens.enc_stepsR, sts.pose);
+    PoseEstimator::init(pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R,
+        sens.enc_phiL, sens.enc_phiR, sens.imu_theta, sts.pose);
     pose.estimator_type = POSE_ESTIMATOR_TYPE; // Establecer tipo de estimador
 
     // Inicializar motores
@@ -67,11 +67,9 @@ void setup() {
     xTaskCreatePinnedToCore(MotorController::Task_WheelControl, "WheelControl", 2048, &ctx, 1, nullptr, 1);
     xTaskCreatePinnedToCore(PoseEstimator::Task_PoseEstimatorEncoder, "PoseEstimator", 2048, &ctx, 1, nullptr, 1);
 
-    // Debug
-    xTaskCreatePinnedToCore(Task_PrintPose, "PrintPose", 2048, &ctx, 1, nullptr, 0);
-
     // Performance tests
-    // MotorController::set_motors_mode(MOTOR_IDLE, states.motors, wheels.duty_L, wheels.duty_R);
+    xTaskCreatePinnedToCore(Task_PrintPose, "PrintPose", 2048, &ctx, 1, nullptr, 0);
+    // MotorController::set_motors_mode(MotorMode::IDLE, sts.motors, ctrl.duty_L, ctrl.duty_R);
     // xTaskCreatePinnedToCore(Task_PrintXY, "PrintXY", 2048, &ctx, 1, nullptr, 0);
 }
 
@@ -92,7 +90,7 @@ void Task_PrintPose(void* pvParameters) {
     for (;;) {
         vTaskDelayUntil(&xLastWakeTime, period);
         Serial.printf("Pose => x: %.2f | y: %.2f | θ: %.2f || Vel => v: %.2f | w: %.2f\n",
-                        pose.x, pose.y, pose.theta, pose.v, pose.w);
+                        pose.x, pose.y, (pose.theta * 180.0f/PI), pose.v, pose.w);
     }
 }
 

@@ -199,21 +199,21 @@ bool enter_init(GlobalContext* ctx_ptr) {
     os.state = OS_State::INIT;
 
     // 1. Inicialización de módulos individuales
-    EncoderReader::init(sens.enc_stepsL, sens.enc_stepsR, sens.enc_wL, sens.enc_wR, sts.encoders);
+    IMUSensor::init(sens.imu_acc, sens.imu_w, sens.imu_theta, sts.imu);
+    EncoderReader::init(sens.enc_phiL, sens.enc_phiR, sens.enc_wL, sens.enc_wR, sts.encoders);
     PoseEstimator::init(pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R, 
-        sens.enc_stepsL, sens.enc_stepsR, sts.pose); 
+        sens.enc_phiL, sens.enc_phiR, sens.imu_theta, sts.pose); 
     MotorController::init(sts.motors, ctrl.duty_L, ctrl.duty_R);
     DistanceSensors::init(sens.us_left_dist, sens.us_left_obst, sens.us_mid_dist, sens.us_mid_obst, 
         sens.us_right_dist, sens.us_right_obst, sens.us_obstacle, sts.distance);
-    // IMUReader::init(imu_data, sts.imu); // A futuro
     PositionController::init(sts.position, ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, 
         ctrl.w_L_ref, ctrl.w_R_ref);
 
     // 2. Lanzar tareas RTOS núcleo 1
     xTaskCreatePinnedToCore(
         EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2*BASIC_STACK_SIZE, ctx_ptr, 3, nullptr, 1);
-    // xTaskCreatePinnedToCore(
-    //     PoseEstimator::Task_ImuUpdate, "UpdateIMU", 2*BASIC_STACK_SIZE, ctx_ptr, 3, nullptr, 1);
+    xTaskCreatePinnedToCore(
+        IMUSensor::Task_IMUData, "UpdateIMU", 2*BASIC_STACK_SIZE, ctx_ptr, 3, nullptr, 1);
     xTaskCreatePinnedToCore(
         PoseEstimator::Task_PoseEstimatorEncoder, "PoseEstimator", 4*BASIC_STACK_SIZE, ctx_ptr, 2, nullptr, 1);
     xTaskCreatePinnedToCore(
@@ -245,11 +245,11 @@ bool enter_idle(GlobalContext* ctx_ptr) {
     MotorController::set_motors_mode(MotorMode::IDLE, sts.motors, ctrl.duty_L, ctrl.duty_R);
 
     // ⏸️ Pausar encoders, IMU, y estimación de pose -> resetar posición y orientación a cero
-    EncoderReader::pause(sens.enc_stepsL, sens.enc_stepsR, sens.enc_wL, sens.enc_wR, sts.encoders);
-    // IMUReader::pause(sts.imu); // ← implementar luego
+    EncoderReader::pause(sens.enc_phiL, sens.enc_phiR, sens.enc_wL, sens.enc_wR, sts.encoders);
+    IMUSensor::set_state(INACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);
     PoseEstimator::set_state(INACTIVE, sts.pose);
     PoseEstimator::reset_pose(pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R, 
-        sens.enc_stepsL, sens.enc_stepsR);
+        sens.enc_phiL, sens.enc_phiR, sens.imu_theta);
 
     // 🚫 Desactivar sensores de obstáculos -> se fuerza la limpieza de las flag de obstáculo
     DistanceSensors::set_state(INACTIVE, sts.distance, 
@@ -269,8 +269,8 @@ bool enter_stand_by(GlobalContext* ctx_ptr) {
     volatile OperationData& os = *(ctx_ptr->os_ptr);
 
     // 🧭 Activar lectura de sensores y estimador de pose (para no perder seguimiento del vehículo)
+    IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);
     EncoderReader::resume(sts.encoders);
-    // IMUReader::resume(...);
     PoseEstimator::set_state(ACTIVE, sts.pose);
 
     // 🧷 Mantener control de posición en modo pasivo, con velocidad de referencia 0
@@ -300,8 +300,8 @@ bool enter_align(GlobalContext* ctx_ptr) {
     bool ok = true;
 
     // 🟢 Reanudar sensores y estimador de posición
+    IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);
     EncoderReader::resume(sts.encoders);
-    // IMUReader::resume(...);
     PoseEstimator::set_state(ACTIVE, sts.pose);
 
     // 🟢 Activar control de posición (v_ref y w_ref)
@@ -328,8 +328,8 @@ bool enter_move(GlobalContext* ctx_ptr) {
     bool ok = true;
 
     // 🟢 Reanudar sensores y estimador de posición
+    IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);
     EncoderReader::resume(sts.encoders);
-    // IMUReader::resume(...);
     PoseEstimator::set_state(ACTIVE, sts.pose);
 
     // 🟢 Activar sensores de distancia y realizar una primera lectura forzada para estar bien actualizados
@@ -355,8 +355,8 @@ bool enter_evade(GlobalContext* ctx_ptr) {
     bool ok = true;
 
     // 🟡 Reanudar sensores y estimadores
+    IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);
     EncoderReader::resume(sts.encoders);
-    // IMUReader::resume(...);
     PoseEstimator::set_state(ACTIVE, sts.pose);
 
     // Se fija la velocidad de referencia a cero
@@ -382,8 +382,8 @@ bool enter_rotate(GlobalContext* ctx_ptr) {
     bool ok = true;
 
     // 🟢 Reanudar sensores y estimador de posición
+    IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);
     EncoderReader::resume(sts.encoders);
-    // IMUReader::resume(...);
     PoseEstimator::set_state(ACTIVE, sts.pose);
 
     // 🟢 Activar control de posición (v_ref y w_ref)
@@ -410,8 +410,8 @@ bool enter_wait_free_path(GlobalContext* ctx_ptr) {
     bool ok = true;
 
     // 🟢 Reanudar sensores y estimador de posición
+    IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);
     EncoderReader::resume(sts.encoders);
-    // IMUReader::resume(...);
     PoseEstimator::set_state(ACTIVE, sts.pose);
 
     // 🟢 Activar control de posición (v_ref y w_ref)

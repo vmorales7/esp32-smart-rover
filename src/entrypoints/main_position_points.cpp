@@ -118,9 +118,9 @@ void setup() {
     Serial.println("Inicio: Seguimiento de puntos");
 
     // Inicialización de sistemas
-    EncoderReader::init(sens.enc_stepsL, sens.enc_stepsR, sens.enc_wL, sens.enc_wR, sts.encoders);
-    PoseEstimator::init(pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R, 
-        sens.enc_stepsL, sens.enc_stepsR, sts.pose);
+    EncoderReader::init(sens.enc_phiL, sens.enc_phiR, sens.enc_wL, sens.enc_wR, sts.encoders);
+    PoseEstimator::init(pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R,
+        sens.enc_phiL, sens.enc_phiR, sens.imu_theta, sts.pose);
     pose.estimator_type = POSE_ESTIMATOR_TYPE; // Establecer tipo de estimador de pose
     MotorController::init(sts.motors, ctrl.duty_L, ctrl.duty_R);
     DistanceSensors::init(sens.us_left_dist, sens.us_left_obst, sens.us_mid_dist, sens.us_mid_obst, 
