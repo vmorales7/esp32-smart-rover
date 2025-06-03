@@ -1,7 +1,7 @@
 #ifndef MOTOR_CONTROLLER_H
 #define MOTOR_CONTROLLER_H
 
-#include "project_config.h"
+#include "vehicle_os/general_config.h"
 
 /* ---------------- Constantes del sistema ------------------*/
 
@@ -30,7 +30,7 @@ constexpr float WHEEL_STOP_THRESHOLD   = (2.0f * PI / 20.0f); // Threshold de ve
 
 // Corrección de pines
 constexpr bool INVERT_MOTOR_LEFT = true;
-constexpr bool INVERT_MOTOR_RIGHT = true;
+constexpr bool INVERT_MOTOR_RIGHT = false;
 
 
 /* ---------------- Estructura de perfil de duty ------------------*/

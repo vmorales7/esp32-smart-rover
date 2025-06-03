@@ -1,88 +1,112 @@
+/**
+ * @file imu_reader.h
+ * @brief Módulo de lectura y preprocesamiento del sensor BNO055 para ESP32.
+ *
+ * Proporciona funciones para inicializar, resetear, leer y gestionar el estado de la IMU.
+ * Acumula la orientación absoluta (theta) desde el arranque, entrega velocidad angular (rad/s) 
+ * y aceleración en el eje configurado, todo listo para integrar en el estimador de pose.
+ */
+
 #ifndef IMU_READER_H
 #define IMU_READER_H
 
-#include "project_config.h"
+#include "vehicle_os/general_config.h"
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
-#include <utility/imumaths.h>
-#define MPU9250_ADDR 0x68
 
-#define BNO055_SAMPLERATE_DELAY_MS (20)
 
-/**
- * @brief creacion del objeto para llamarlo y obtener datos.
- */
+/* ----------- Constantes del sistema ------------*/
 
+enum class IMUdir : uint8_t {
+    Y = 0, 
+    X = 1,
+    Z = 2
+};
+constexpr IMUdir ACCEL_DIR = IMUdir::X;
+
+constexpr bool INVERT_SIGN = true;
+constexpr float ACCEL_TOLERANCE = 0.03f;  // Tolerancia de aceleración para considerar ruido
+constexpr float THETA_TOLERANCE = 0.001f; // Tolerancia de orientación para considerar ruido
+constexpr float MAX_DELTA_THETA = 15 * DEG_TO_RAD;
 
 /* -------------------- Módulo IMUSensor -------------------- */
 
 namespace IMUSensor {
 
-     /**
-     * @brief resetea las variables
-     * 
-     * Configura SDA como entrada de datos y SCL clk I2C.
-     * 
-     * @para variable estado global del módulo de sensores.
-     * 
-     * @param imu_yaccel Puntero a la variable donde se almacena la aceleracion medida en el eje y.
-     * @param imu_wgyro Puntero a la variable donde se almacena la aceleracion medida en el eje x.
-     * @param imu_orientation Puntero a la variable donde se almacena la aceleracion medida en el eje y.
-     */
-    void reset(
-        volatile float& imu_yaccel_ptr,
-        volatile float& imu_wgyro,
-        volatile float& imu_orientation);
+/**
+ * @brief Inicializa la IMU y define el valor inicial de orientación.
+ *
+ * Inicializa el bus I2C, activa el cristal externo y obtiene la orientación inicial
+ * para usarla como referencia acumulativa de theta.
+ * 
+ * @param global_acc Referencia a la variable global de aceleración lineal (m/s^2).
+ * @param global_w Referencia a la variable global de velocidad angular (rad/s).
+ * @param global_theta Referencia a la variable global del ángulo acumulado (rad).
+ * @param imu_state Variable global de estado de la IMU.
+ * @return true si la inicialización fue exitosa, false si hubo error de conexión.
+ */
+bool init(
+    volatile float& global_acc,
+    volatile float& global_w,
+    volatile float& global_theta,
+    volatile uint8_t& imu_state
+);
 
- 
-    /**
-     * @brief Inicializa los pines de I2C del IMU.
-     * 
-     * Configura SDA como entrada de datos y SCL clk I2C.
-     * 
-     * @param imu_state variable estado global del módulo de sensores.
-     */
-    void init(
-        volatile float& imu_yaccel_ptr,
-        volatile float& imu_wgyro,
-        volatile float& imu_orientation,
-        volatile uint8_t imu_state);
+/**
+ * @brief Cambia el estado de operación de la IMU.
+ *
+ * Permite activar/desactivar la lectura de la IMU según el estado global del sistema.
+ * Si se cambia a INACTIVE, se hace una última lectura de datos y se resetean las variables de aceleración y velocidad angular.
+ * Si se cambia a ACTIVE, se actualiza el offset de aceleración basado en la lectura actual.
+ *
+ * @param new_state Nuevo estado a asignar.
+ * @param imu_state Variable global de estado de la IMU.
+ * @param imu_acc Referencia a la variable global de aceleración lineal (m/s^2).
+ * @param imu_w Referencia a la variable global de velocidad angular (rad/s).
+ * @param imu_theta Referencia a la variable global del ángulo acumulado (rad).
+ * 
+ */
+void set_state(
+    const uint8_t new_state, volatile uint8_t& imu_state,
+    volatile float& imu_acc, volatile float& imu_w, volatile float& imu_theta
+);
 
-     /**
-     * @brief Cambia el estado activo/inactivo del módulo de sensores de distancia.
-     * 
-     * @param mode_imu Valor deseado del estado (ACTIVE o INACTIVE).
-     * @param imu_ptr Puntero al estado global del módulo.
-     */
-    void set_state(uint8_t imu_mode, volatile uint8_t imu_state);
+/**
+ * @brief Lee los datos actuales de la IMU y actualiza las variables globales.
+ *
+ * Lee aceleración lineal, velocidad angular y orientación del BNO055. 
+ * Aplica filtros de ruido y suma incrementalmente el ángulo acumulado desde el arranque.
+ * 
+ * @param global_acc Referencia a la variable global de aceleración lineal (m/s^2).
+ * @param global_w Referencia a la variable global de velocidad angular (rad/s).
+ * @param global_theta Referencia a la variable global del ángulo acumulado (rad).
+ * @param imu_state Variable global de estado de la IMU.
+ */
+void read_data(
+    volatile float& global_acc,
+    volatile float& global_w,
+    volatile float& global_theta,
+    const uint8_t imu_state
+);
 
-    /**
-     * @brief Evalúa las variables de aceleracion y velocidad de la IMU.
-     * 
-     * Si es el sistema esta en ACTIVE se actualizan los valores.
-     * 
-     * @param imu_yaccel Puntero a la variable donde se almacena la aceleracion medida en el eje y.
-     * @param imu_wgyro Puntero a la variable donde se almacena la aceleracion medida en el eje x.
-     * @param imu_orientation Puntero a la variable donde se almacena la aceleracion medida en el eje y.
-     * @param imu_state Puntero al estado global del módulo de sensores.
-     */
-    void imu_read_data(
-        volatile float& imu_yaccel_ptr,
-        volatile float& imu_wgyro,
-        volatile float& imu_orientation,
-        volatile uint8_t imu_state
-    );
+/**
+ * @brief Resincroniza el offset de aceleración basado en la lectura actual.
+ *
+ * Actualiza el offset de aceleración lineal para compensar el ruido y asegurar lecturas precisas.
+ * Dependiendo de la dirección configurada (X o Y), se ajusta el offset correspondiente.
+ */
+void resync_acceleration_offset();
 
+/**
+ * @brief Tarea periódica RTOS para actualizar la lectura de la IMU.
+ *
+ * Llama a read_data() con el contexto global apropiado en cada periodo definido.
+ * 
+ * @param pvParameters Puntero al contexto global del sistema.
+ */
+void Task_IMUData(void* pvParameters);
 
-    /**
-     * @brief Tarea de FreeRTOS que ejecuta periódicamente el poleo de datos del sensor.
-     * Usa punteros extraídos desde una estructura `GlobalContext`.
-     * 
-     * @param pvParameters Puntero a un `GlobalContext*` que contiene referencias al estado del sistema.
-     */
-    void Task_IMUData(void* pvParameters);
-
-}
+} // namespace IMUSensor
 
 #endif //IMU_READER_H

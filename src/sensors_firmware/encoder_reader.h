@@ -1,10 +1,30 @@
 #ifndef ENCODER_READER_H
 #define ENCODER_READER_H
 
-#include "project_config.h"
+#include "vehicle_os/general_config.h"
 #include <ESP32Encoder.h>
 
 /* ---------------- Constantes del sistema ------------------*/
+
+// Según tipo de configuración de encoder
+enum class EncoderMode {
+    SINGLE_EDGE = 1,  // 1x
+    HALF_QUAD   = 2,  // 2x
+    FULL_QUAD   = 4   // 4x
+};
+constexpr EncoderMode ENCODER_MODE = EncoderMode::HALF_QUAD; // Escoger el formato de lectura de encoder
+constexpr float get_encoder_multiplier(EncoderMode mode) {
+    return (mode == EncoderMode::SINGLE_EDGE) ? 1.0f :
+           (mode == EncoderMode::HALF_QUAD)   ? 2.0f :
+           (mode == EncoderMode::FULL_QUAD)   ? 4.0f :
+           2.0f;
+}
+
+// Constantes para interpretar data de los encoders
+constexpr float RAW_ENCODER_PPR = 11.0f * 21.3f; // Steps del encoder x razón de engranaje de motor
+constexpr float ENCODER_PPR = RAW_ENCODER_PPR * get_encoder_multiplier(ENCODER_MODE);
+constexpr float RAD_PER_PULSE = (2.0f * PI) / ENCODER_PPR;
+
 
 // Para ajustar si los cables del encoder se conectaron al revés
 constexpr bool INVERT_ENCODER_LEFT = true;
@@ -26,18 +46,17 @@ namespace EncoderReader {
     /**
      * @brief Inicializa el módulo de encoders.
      *
-     * Configura los pines de los encoders, detiene los contadores,
-     * y deja las variables de pasos y velocidades en cero.
+     * Configura los pines de los encoders, detiene los contadores, y deja las variables de pasos y velocidades en cero.
      * El estado del módulo se establece como INACTIVE.
      *
-     * @param steps_L Referencia a la variable que almacena los pasos acumulados de la rueda izquierda.
-     * @param steps_R Referencia a la variable que almacena los pasos acumulados de la rueda derecha.
+     * @param phi_L Referencia a la variable que almacena el ángulo acumulado de la rueda izquierda [rad].
+     * @param phi_R Referencia a la variable que almacena el ángulo acumulado de la rueda derecha [rad].
      * @param w_L Referencia a la velocidad angular medida de la rueda izquierda [rad/s].
      * @param w_R Referencia a la velocidad angular medida de la rueda derecha [rad/s].
      * @param encoder_state Estado actual del módulo de encoders (se establece como INACTIVE).
      */
     void init(
-        volatile int64_t& steps_L, volatile int64_t& steps_R, 
+        volatile float& phi_L, volatile float& phi_R, 
         volatile float& w_L, volatile float& w_R, 
         volatile uint8_t& encoder_state
     );
@@ -48,14 +67,14 @@ namespace EncoderReader {
      * Esta función calcula el número de pasos desde la última lectura y actualiza
      * las velocidades angulares de cada rueda. No realiza ninguna operación si el módulo está inactivo.
      *
-     * @param steps_L Referencia a la variable con los pasos acumulados de la rueda izquierda.
-     * @param steps_R Referencia a la variable con los pasos acumulados de la rueda derecha.
+     * @param phi_L Referencia a la variable con los pasos acumulados de la rueda izquierda.
+     * @param phi_R Referencia a la variable con los pasos acumulados de la rueda derecha.
      * @param w_L Referencia a la velocidad angular de la rueda izquierda [rad/s].
      * @param w_R Referencia a la velocidad angular de la rueda derecha [rad/s].
      * @param encoder_state Estado actual del módulo de encoders (debe estar en ACTIVE para ejecutar la actualización).
      */
     void update_encoder_data(
-        volatile int64_t& steps_L, volatile int64_t& steps_R, 
+        volatile float& phi_L, volatile float& phi_R, 
         volatile float& w_L, volatile float& w_R, 
         const uint8_t encoder_state
     );
@@ -67,14 +86,14 @@ namespace EncoderReader {
      * la velocidad angular medida, y luego pone ambas velocidades en cero. Los pasos acumulados
      * se conservan (no se reinician aquí).
      *
-     * @param steps_L Referencia a la variable con los pasos acumulados de la rueda izquierda.
-     * @param steps_R Referencia a la variable con los pasos acumulados de la rueda derecha.
+     * @param phi_L Referencia a la variable con los pasos acumulados de la rueda izquierda.
+     * @param phi_R Referencia a la variable con los pasos acumulados de la rueda derecha.
      * @param w_L Referencia a la velocidad angular de la rueda izquierda [rad/s].
      * @param w_R Referencia a la velocidad angular de la rueda derecha [rad/s].
      * @param encoder_state Estado actual del módulo de encoders (se establece como INACTIVE al pausar).
      */
     void pause(
-        volatile int64_t& steps_L, volatile int64_t& steps_R, 
+        volatile float& phi_L, volatile float& phi_R,
         volatile float& w_L, volatile float& w_R,
         volatile uint8_t& encoder_state
     );

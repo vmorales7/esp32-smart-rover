@@ -1,7 +1,7 @@
 #ifndef DISTANCE_SENSORS_H
 #define DISTANCE_SENSORS_H
 
-#include "project_config.h"
+#include "vehicle_os/general_config.h"
 
 /* -------------------- Parámetros del sensor ultrasónico (HC-SR04) -------------------- */
 
@@ -43,6 +43,11 @@ constexpr uint32_t US_PULSE_TIMEOUT_US = US_MAX_DISTANCE_CM / US_CM_PER_US;
 constexpr uint32_t US_WAIT_TIME_MS = 10U;
 
 /**
+ * @brief Tiempo mínimo entre lecturas del sensor ultrasónico [ms].
+ */
+constexpr uint32_t US_MIN_READ_INTERVAL_MS = (uint32_t)(US_PULSE_TIMEOUT_US / 1000.0f)*0 + US_WAIT_TIME_MS;
+
+/**
  * @brief Tiempo de espera para liberar el obstáculo detectado [ms].
  * 
  * Este valor define cuánto tiempo debe pasar sin detectar un obstáculo
@@ -76,6 +81,18 @@ void init_sensor(const uint8_t trig_pin, const uint8_t echo_pin);
  * @return Distancia estimada en cm. Retorna US_MAX_DISTANCE_CM en caso de timeout.
  */
 uint8_t read_distance(const uint8_t trig_pin, const uint8_t echo_pin);
+
+/**
+ * @brief Realiza una lectura de distancia con mediana de 3 lecturas.
+ * 
+ * Realiza tres lecturas del sensor ultrasónico y devuelve la mediana
+ * para reducir el efecto de ruido o lecturas erróneas.
+ * 
+ * @param trig_pin Pin TRIG del sensor.
+ * @param echo_pin Pin ECHO del sensor.
+ * @return Mediana de las tres distancias leídas en cm.
+ */
+uint8_t read_distance_mediana(const uint8_t trig_pin, const uint8_t echo_pin);
 
 /**
  * @brief Reinicia el sistema de sensores de distancia con variables individuales.
@@ -232,13 +249,26 @@ void Task_CheckObstacle(void* pvParameters);
  * @brief Fuerza la lectura de todos los sensores ultrasónicos.
  * 
  * Esta función suspende las tareas de los sensores, espera un tiempo para estabilizar el hardware,
- * realiza lecturas de los tres sensores ultrasónicos y actualiza el flag global de obstáculo.
- * Si el sistema estaba inactivo, lo activa temporalmente para realizar las lecturas.
+ * realiza lecturas de los tres sensores ultrasónicos y actualiza el flag global de obstáculo. Si el 
+ * sistema estaba inactivo, lo activa temporalmente para realizar las lecturas y al final se limpian 
+ * las banderas de obstáculos. Si estaba activo, se mantiene su estado.
  * 
  * @return `true` si se detectó algún obstáculo, `false` en caso contrario.
  */
-bool force_check_all_sensors(GlobalContext* ctx);
+bool force_check_sensors(GlobalContext* ctx_ptr);
 
-}
+/** 
+ * @brief Fuerza la medición de distancias de los sensores ultrasónicos.
+ * 
+ * Esta función suspende las tareas de los sensores, espera un tiempo para estabilizar el hardware,
+ * y realiza lecturas de los tres sensores ultrasónicos. Actualiza las distancias medidas en la estructura
+ * de datos de sensores y reanuda las tareas de sensores al finalizar.
+ * 
+ * @param ctx_ptr Puntero al contexto global que contiene los datos del sistema.
+ * @return void
+*/
+void force_measure_distances(GlobalContext* ctx_ptr);
+
+} // namespace DistanceSensors
 
 #endif // DISTANCE_SENSORS_H

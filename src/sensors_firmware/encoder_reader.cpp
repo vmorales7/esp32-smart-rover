@@ -8,7 +8,7 @@ static ESP32Encoder encoderRight;
 
 static long lastCountLeft = 0;
 static long lastCountRight = 0;
-static unsigned long lastMillis = 0;
+static uint32_t lastMillis = 0;
 
 // Variables para el filtro EMA 
 static float filteredWL = 0.0f;
@@ -16,7 +16,7 @@ static float filteredWR = 0.0f;
 
 
 void init(
-    volatile int64_t& steps_L, volatile int64_t& steps_R, 
+    volatile float& phi_L, volatile float& phi_R, 
     volatile float& w_L, volatile float& w_R, 
     volatile uint8_t& encoder_state
 ) {
@@ -36,8 +36,8 @@ void init(
     encoderRight.clearCount();
 
     // Se inicializan las variables de conteo y las memorias privadas
-    steps_L = 0;
-    steps_R = 0;
+    phi_L = 0.0f;
+    phi_R = 0.0f;
     lastCountLeft = 0;
     lastCountRight = 0;
     lastMillis = millis();
@@ -54,15 +54,15 @@ void init(
 
 
 void update_encoder_data(
-    volatile int64_t& steps_L, volatile int64_t& steps_R, 
+    volatile float& phi_L, volatile float& phi_R, 
     volatile float& w_L, volatile float& w_R, 
     const uint8_t encoder_state
 ) {
     if (encoder_state != ACTIVE) return; // Solo actualizar si estaba activo
 
     // Paso de tiempo
-    unsigned long currentMillis = millis();
-    float dt = (currentMillis - lastMillis) * MS_TO_S;  // Tiempo (s) transcurrido desde la ultima actualización
+    const uint32_t currentMillis = millis();
+    const float dt = (currentMillis - lastMillis) * MS_TO_S;  // Tiempo (s) transcurrido desde la ultima actualización
     if (dt < 0.001f) return; // si es menor a 1ms esperamos hasta la siguiente llamada
 
     // Lectura de la cuenta que se lleva internamente mediante ESP32Encoder
@@ -74,16 +74,16 @@ void update_encoder_data(
     if constexpr (INVERT_ENCODER_RIGHT) currentCountRight = -currentCountRight;
 
     // Cambio en el giro desde la ultima lectura
-    int64_t deltaLeft = (currentCountLeft - lastCountLeft); 
-    int64_t deltaRight = (currentCountRight - lastCountRight);
+    const float delta_L = (currentCountLeft - lastCountLeft) * RAD_PER_PULSE; 
+    const float delta_R = (currentCountRight - lastCountRight) * RAD_PER_PULSE;
 
     // Se acumula el giro sobre el valor que se tenía antes
-    steps_L += deltaLeft;
-    steps_R += deltaRight;
+    phi_L += delta_L;
+    phi_R += delta_R;
 
     // La velocidad es instantánea así que se actualiza con el factor para convertir en radianes
-    float rawWL = deltaLeft * RAD_PER_PULSE / dt;
-    float rawWR = deltaRight * RAD_PER_PULSE / dt;
+    const float rawWL = delta_L / dt;
+    const float rawWR = delta_R / dt;
 
     // Se utiliza un filtro EMA (exponential moving average)
     if constexpr (USE_VELOCITY_FILTER) {
@@ -104,7 +104,7 @@ void update_encoder_data(
 
 
 void pause(
-    volatile int64_t& steps_L, volatile int64_t& steps_R, 
+    volatile float& phi_L, volatile float& phi_R, 
     volatile float& w_L, volatile float& w_R,
     volatile uint8_t& encoder_state
 ) {
@@ -115,10 +115,10 @@ void pause(
     encoderRight.pauseCount();
 
     // Última actualización antes de pausar (para no perder pasos entre ticks)
-    update_encoder_data(steps_L, steps_R, w_L, w_R, encoder_state);
+    update_encoder_data(phi_L, phi_R, w_L, w_R, encoder_state);
 
     // Reset hardware y control interno 
-    // Importante que no se limpien las variables steps_R/L_ptr ya que esto solo lo puede hacer pose_estimator
+    // Importante que no se limpien las variables phi_R/L ya que esto solo lo puede hacer pose_estimator
     encoderLeft.clearCount();
     encoderRight.clearCount();
     lastCountLeft = 0;
@@ -154,17 +154,15 @@ void Task_EncoderUpdate(void* pvParameters) {
     GlobalContext* ctx_ptr = static_cast<GlobalContext*>(pvParameters);
     volatile SystemStates& sts = *ctx_ptr->systems_ptr;
     volatile SensorsData& sens = *ctx_ptr->sensors_ptr;
+    volatile PoseData& pose = *ctx_ptr->pose_ptr;
 
     for (;;) {
         vTaskDelayUntil(&xLastWakeTime, period);
-        if (POSE_ESTIMATOR_TYPE != PoseEstimatorType::ENCODER) { 
+        update_encoder_data(sens.enc_phiL, sens.enc_phiR, sens.enc_wL, sens.enc_wR, sts.encoders);
+        if (pose.estimator_type == PoseEstimatorType::ENCODER) { 
             // En caso de que no se haya implementado el sensor fusion, se pasa directo al dato de pose
-            volatile PoseData& pose = *ctx_ptr->pose_ptr;
-            update_encoder_data(sens.enc_stepsL, sens.enc_stepsR, sens.enc_wL, sens.enc_wR, sts.encoders);
             pose.w_L = sens.enc_wL;
             pose.w_R = sens.enc_wR;
-        } else {
-            update_encoder_data(sens.enc_stepsL, sens.enc_stepsR, sens.enc_wL, sens.enc_wR, sts.encoders);
         }
     }
 }

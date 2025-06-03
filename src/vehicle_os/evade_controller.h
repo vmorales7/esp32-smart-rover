@@ -3,37 +3,22 @@
 
 /* ------------------------ Mis librerías ------------------------*/
 
-#include "project_config.h"
+#include "vehicle_os/general_config.h"
 
-// Sensores
-#include "sensors_firmware/encoder_reader.h"
-#include "sensors_firmware/distance_sensors.h"
-// #include "sensors_firmware/imu_reader.h"
+// Máquina de estados del vehículo
+#include "vehicle_os/vehicle_os.h"
 
-// Estimación y control
-#include "position_system/pose_estimator.h"
-#include "position_system/position_controller.h"
+// Parámetros para evasión (ajusta según tu robot)
+constexpr float EVADE_MIN_SPACE = 40.0f;           // cm
+constexpr float EVADE_DELTA_THETA = 30.0f * DEG_TO_RAD;   // 30 grados en rad
+constexpr float MAX_EVADE_ANGLE = 140.0f * DEG_TO_RAD; // 90 grados en rad
+constexpr float EVADE_ADVANCE_DIST = 0.30f;        // metros
 
-// Control de motores
-#include "motor_drive/motor_controller.h"
-
-// -------------- Parámetros para evasión --------------
-
-constexpr float EVATION_MIN_SPACE = 40.0f;           // cm
-constexpr float DELTA_THETA = 30.0f * (PI/180.0f);   // 30 grados en rad
-constexpr float MAX_EVASION_ANGLE = 90.0f * (PI/180.0f); // 90 grados en rad
-constexpr float EVASION_ADVANCE_DIST = 0.30f;        // metros (ajusta según zona segura)
-
-
-// ------------- Funciones principales -------------
-
+// Funciones para manejar la evasión desde el OS principal
 namespace EvadeController {
-    void init(EvadeContext& ctx);
-    void start_evade(EvadeContext& ctx, GlobalContext* global_ctx);
-    void update(GlobalContext* global_ctx, EvadeContext& ctx);
-    bool is_finished(const EvadeContext& ctx);
-    bool has_failed(const EvadeContext& ctx);
+    void reset_evade_state(GlobalContext* ctx_ptr);
+    void start_evade(GlobalContext* ctx_ptr);
+    void update_evade(GlobalContext* ctx_ptr);
 }
-
 
 #endif // EVADE_CONTROLLER_H

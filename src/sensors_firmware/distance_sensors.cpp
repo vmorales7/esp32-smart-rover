@@ -2,7 +2,10 @@
 
 namespace DistanceSensors {
 
+
 static uint32_t last_obstacle_time = 0; // Tiempo del último obstáculo detectado
+static uint32_t last_read_time = 0; // Tiempo de la última lectura de distancia
+
 
 void init_sensor(const uint8_t trig_pin, const uint8_t echo_pin) {
     pinMode(trig_pin, OUTPUT);
@@ -12,6 +15,13 @@ void init_sensor(const uint8_t trig_pin, const uint8_t echo_pin) {
 
 
 uint8_t read_distance(const uint8_t trig_pin, const uint8_t echo_pin) {
+
+    // Verificar si ha pasado el tiempo mínimo entre lecturas
+    const uint32_t delta = millis() - last_read_time;
+    if (delta < US_MIN_READ_INTERVAL_MS) {
+        delay(US_MIN_READ_INTERVAL_MS - delta + 1); // Esperar el tiempo restante
+    }
+
     // Se generá el trig hacia el sensor
     digitalWrite(trig_pin, LOW);
     delayMicroseconds(2);
@@ -20,13 +30,28 @@ uint8_t read_distance(const uint8_t trig_pin, const uint8_t echo_pin) {
     digitalWrite(trig_pin, LOW);
 
     // Se espera el echo desde el sensor
-    uint32_t duration = pulseIn(echo_pin, HIGH, US_PULSE_TIMEOUT_US);
+    const uint32_t duration = pulseIn(echo_pin, HIGH, US_PULSE_TIMEOUT_US);
+
+    // Se actualiza el tiempo de fin de la última lectura
+    last_read_time = millis();
 
     // Se verifica que no haya timeout, en cuyo caso se devuelve distancia max
     if (duration == 0) return (uint8_t) US_MAX_DISTANCE_CM;
 
     // Cálculo de la distancia
     return (uint8_t) (duration * US_CM_PER_US);
+}
+
+
+uint8_t read_distance_mediana(const uint8_t trig_pin, const uint8_t echo_pin) {
+    uint8_t d1 = read_distance(trig_pin, echo_pin);
+    uint8_t d2 = read_distance(trig_pin, echo_pin);
+    uint8_t d3 = read_distance(trig_pin, echo_pin);
+
+    // Algoritmo simple para la mediana de 3 valores
+    if ((d1 <= d2 && d2 <= d3) || (d3 <= d2 && d2 <= d1)) return d2;
+    if ((d2 <= d1 && d1 <= d3) || (d3 <= d1 && d1 <= d2)) return d1;
+    return d3;
 }
 
 
@@ -93,22 +118,31 @@ bool check_sensor_obstacle(
     const uint8_t distance_state
 ) {
     if (distance_state != ACTIVE) return false;  // Solo leer si el sistema está activo
-    uint8_t d = read_distance(trig_pin, echo_pin);
-    // Serial.println(d);
-    bool obstacle_flag = false;
+    
+    // Realizamos la lectura de distancia
+    const uint8_t d1 = read_distance(trig_pin, echo_pin);
 
-        // Si parece haber obstáculo, confirmar con una segunda lectura
-        if (d < OBSTACLE_THRESHOLD_CM) {
-            // Repetir la lectura para evitar falsos positivos
-            delay(10); // Necesitamos un delay mínimo para que funcione bien la segunda lectura
-            d = read_distance(trig_pin, echo_pin);
-            obstacle_flag = (d < OBSTACLE_THRESHOLD_CM);
-            if (obstacle_flag) global_obstacle_flag = true;
-        }
-        sensor_obstacle_flag = obstacle_flag;
-        distance = d;
-        return obstacle_flag;
+    // Caso rápido: no hay obstáculo, salimos sin segunda lectura
+    if (d1 >= OBSTACLE_THRESHOLD_CM) {
+        distance = d1;
+        sensor_obstacle_flag = false;
+        return sensor_obstacle_flag;
     }
+
+    // Potencial obstáculo, hacemos segunda medición
+    // delay(US_MIN_READ_INTERVAL_MS);
+    const uint8_t d2 = read_distance(trig_pin, echo_pin);
+    const uint8_t d_avg = (d1 + d2) / 2;
+    const bool obstacle_flag = (d_avg < OBSTACLE_THRESHOLD_CM);
+    if (obstacle_flag) {
+        global_obstacle_flag = true;
+        last_obstacle_time = millis();
+    }
+    sensor_obstacle_flag = obstacle_flag;
+    distance = d_avg;
+
+    return obstacle_flag;
+}
 
 
 bool compute_global_obstacle_flag(
@@ -167,10 +201,10 @@ void Task_CheckObstacle(void* pvParameters) {
 }
 
 
-bool force_check_all_sensors(GlobalContext* ctx) {
-    volatile SystemStates& sts = *ctx->systems_ptr;
-    volatile SensorsData& sens = *ctx->sensors_ptr;
-    volatile TaskHandlers& handlers = *ctx->rtos_task_ptr;
+bool force_check_sensors(GlobalContext* ctx_ptr) {
+    volatile SystemStates& sts = *(ctx_ptr->systems_ptr);
+    volatile SensorsData& sens = *(ctx_ptr->sensors_ptr);
+    volatile TaskHandlers& handlers = *(ctx_ptr->rtos_task_ptr);
 
     // 1. Suspender tareas de sensores (para acceso exclusivo a pines) 
     vTaskSuspend(handlers.obstacle_handle);
@@ -211,6 +245,30 @@ bool force_check_all_sensors(GlobalContext* ctx) {
     vTaskResume(handlers.obstacle_handle);
 
     return obstaculo;
+}
+
+
+void force_measure_distances(GlobalContext* ctx_ptr) {
+    volatile SystemStates& sts = *(ctx_ptr->systems_ptr);
+    volatile SensorsData& sens = *(ctx_ptr->sensors_ptr);
+    volatile TaskHandlers& handlers = *(ctx_ptr->rtos_task_ptr);
+
+    // 1. Suspender tareas de sensores (para acceso exclusivo a pines)
+    vTaskSuspend(handlers.obstacle_handle);
+
+    // 2. Espera para estabilizar hardware
+    vTaskDelay(pdMS_TO_TICKS(US_WAIT_TIME_MS + US_PULSE_TIMEOUT_US / 1000.0f));
+
+
+    //3. Forzar lectura de los sensores ultrasónicos
+    sens.us_left_dist  = read_distance_mediana(US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN);
+    vTaskDelay(pdMS_TO_TICKS(US_WAIT_TIME_MS)); // Pequeña pausa entre sensores
+    sens.us_mid_dist   = read_distance_mediana(US_MID_TRIG_PIN, US_MID_ECHO_PIN);
+    vTaskDelay(pdMS_TO_TICKS(US_WAIT_TIME_MS)); // Pequeña pausa entre sensores
+    sens.us_right_dist = read_distance_mediana(US_RIGHT_TRIG_PIN, US_RIGHT_ECHO_PIN);
+
+    // 9. Reanudar tareas periódicas
+    vTaskResume(handlers.obstacle_handle);
 }
 
 } // namespace DistanceSensors

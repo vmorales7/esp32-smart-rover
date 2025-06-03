@@ -1,4 +1,4 @@
-#include "project_config.h"
+#include "vehicle_os/general_config.h"
 #include "motor_drive/motor_controller.h"
 #include "sensors_firmware/encoder_reader.h"
 #include "sensors_firmware/distance_sensors.h"
@@ -13,10 +13,10 @@ constexpr uint16_t PRINT_PERIOD_MS = 500;
 // ====================== FUNCIONES AUXILIARES ======================
 
 void print_encoder_state() {
-    Serial.print("Steps L/R: ");
-    Serial.print(sens.enc_stepsL);
+    Serial.print("phi L/R (°): ");
+    Serial.print(sens.enc_phiL * 180.0f / M_PI, 2);
     Serial.print(" / ");
-    Serial.print(sens.enc_stepsR);
+    Serial.print(sens.enc_phiR * 180.0f / M_PI, 2);
     Serial.print(" | wL: ");
     Serial.print(sens.enc_wL, 3);
     Serial.print(" rad/s | wR: ");
@@ -62,7 +62,7 @@ void ejecutar_fase_con_obstaculo(const char* msg, float dutyL, float dutyR, uint
             tiempo_acumulado += (t_actual - t_anterior);
             t_anterior = t_actual;
         }
-        EncoderReader::update_encoder_data(sens.enc_stepsL, sens.enc_stepsR, sens.enc_wL, sens.enc_wR, sts.encoders);
+        EncoderReader::update_encoder_data(sens.enc_phiL, sens.enc_phiR, sens.enc_wL, sens.enc_wR, sts.encoders);
         if (millis() - t_print >= PRINT_PERIOD_MS) {
             print_encoder_state();
             t_print += PRINT_PERIOD_MS;
@@ -88,7 +88,7 @@ void setup() {
         sens.us_right_dist, sens.us_right_obst, sens.us_obstacle, sts.distance);  
     DistanceSensors::set_state(ACTIVE, sts.distance, 
         sens.us_left_obst,sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);  
-    EncoderReader::init(sens.enc_stepsL, sens.enc_stepsR, sens.enc_wL, sens.enc_wR, sts.encoders);
+    EncoderReader::init(sens.enc_phiL, sens.enc_phiR, sens.enc_wL, sens.enc_wR, sts.encoders);
     EncoderReader::resume(sts.encoders);
     
     Serial.println();
