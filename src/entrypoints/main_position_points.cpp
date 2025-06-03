@@ -32,7 +32,7 @@ bool en_pausa_por_obstaculo = false; // Indica si se pausó por un obstáculo
 // ====================== CONFIGURACIÓN PUNTOS ======================
 
 constexpr ControlType CONTROLLER_TYPE = ControlType::PID; // Tipo de controlador a utilizar
-constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::ENCODER; // Tipo de estimador de pose
+constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::COMPLEMENTARY; // Tipo de estimador de pose
 
 struct Waypoint {
     float x;

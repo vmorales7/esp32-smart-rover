@@ -26,7 +26,7 @@ GlobalContext ctx = {
     .evade_ptr       = nullptr
 };
 
-constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::ENCODER;
+constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::COMPLEMENTARY;
 
 
 // ------------------------ Tareas RTOS adicionales -------------------------

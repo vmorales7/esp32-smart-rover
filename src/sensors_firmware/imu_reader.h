@@ -23,7 +23,7 @@ enum class IMUdir : uint8_t {
     X = 1,
     Z = 2
 };
-constexpr IMUdir ACCEL_DIR = IMUdir::Y;
+constexpr IMUdir ACCEL_DIR = IMUdir::X;
 
 constexpr bool INVERT_SIGN = true;
 constexpr float ACCEL_TOLERANCE = 0.03f;  // Tolerancia de aceleración para considerar ruido

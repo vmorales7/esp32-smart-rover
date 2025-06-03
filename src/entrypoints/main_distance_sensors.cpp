@@ -17,7 +17,7 @@ GlobalContext ctx = {
 
 // ====================== TAREA: Manejo de eventos por obstáculo ======================
 void Task_ObstacleResponse(void* pvParameters) {
-    const TickType_t period = pdMS_TO_TICKS(200);
+    const TickType_t period = pdMS_TO_TICKS(500);
     TickType_t xLastWakeTime = xTaskGetTickCount();
 
     GlobalContext* ctx = static_cast<GlobalContext*>(pvParameters);

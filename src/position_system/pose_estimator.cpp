@@ -110,7 +110,7 @@ void update_pose_imu(
 
     // 2. Velocidades desde IMU: integración de la velocidad y corrección de giro por sensor desalineado
     const float v_imu = v + imu_acc * dt; // Por integración simple
-    const float w_imu_corr = imu_w - v_imu * IMU_CORRECTION_FACTOR;
+    const float w_imu_corr = imu_w - v_imu * IMU_CORRECTION_FACTOR*0;
     const float theta_imu = wrap_to_pi(imu_theta);
 
     // 3. Integración trapezoidal para la posición
@@ -149,7 +149,6 @@ void update_pose_fusion(
     last_millis = now;
 
     // 1. Variables locales
-    float v_fused = 0.0f;
     float w_fused = 0.0f;
     float theta_fused = 0.0f;
 
@@ -162,27 +161,25 @@ void update_pose_fusion(
     const float theta_encoder = wrap_to_pi(theta + dtheta_encoder); // Integración simple
 
     // 3. Velocidades desde IMU: integración de la velocidad y corrección de giro por sensor desalineado
-    const float v_imu = v + imu_acc * dt; // Por integración simple
-    const float w_imu_corr = imu_w - v_imu * IMU_CORRECTION_FACTOR;
+    const float w_imu_corr = imu_w - v_encoder * IMU_CORRECTION_FACTOR;
     const float theta_imu_corr = wrap_to_pi(theta + (imu_theta - last_imu_theta));
 
     // 4. Fusión sensorial (complementary filter)
-    v_fused = v_encoder * FUSION_ALPHA_V + v_imu * (1.0f - FUSION_ALPHA_V);
     w_fused = w_encoder * FUSION_ALPHA_W + w_imu_corr * (1.0f - FUSION_ALPHA_W);
     theta_fused = theta_encoder * FUSION_ALPHA_THETA + theta_imu_corr * (1.0f - FUSION_ALPHA_THETA);
 
     // 5. Integración trapezoidal para la posición
-    const float v_avg = (v + v_fused) / 2.0f;
+    const float v_avg = (v + v_encoder) / 2.0f;
     const float theta_avg = (theta + theta_fused) / 2.0f;
     x += v_avg * cosf(theta_avg) * dt;
     y += v_avg * sinf(theta_avg) * dt;
 
     // 6. Actualización de variables globales de velocidad
-    v = v_fused; 
+    v = v_encoder; 
     w = w_fused; 
     theta = theta_fused;
-    w_L = (v_fused - w_fused * WHEEL_TO_MID_DISTANCE) / WHEEL_RADIUS;
-    w_R = (v_fused + w_fused * WHEEL_TO_MID_DISTANCE) / WHEEL_RADIUS;
+    w_L = (v_encoder - w_fused * WHEEL_TO_MID_DISTANCE) / WHEEL_RADIUS;
+    w_R = (v_encoder + w_fused * WHEEL_TO_MID_DISTANCE) / WHEEL_RADIUS;
 
     // 7. Guardar auxiliares para el próximo ciclo
     last_phiL = encoder_phiL;
