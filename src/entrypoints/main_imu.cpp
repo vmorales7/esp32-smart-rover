@@ -26,7 +26,7 @@ void Task_PrintIMU(void* pvParameters) {
         vTaskDelayUntil(&xLastWakeTime, print_period);
         char buffer[64];
         sprintf(buffer, "ax (m/s2):%6.2f      wz (rad/s):%7.2f      theta (°):%7.2f", 
-            sens.imu_acc, sens.imu_w, sens.imu_theta * 180.0f / M_PI);
+            sens.imu_acc, sens.imu_w, sens.imu_theta * RAD_TO_DEG);
         Serial.println(buffer);
     }
 }
@@ -39,6 +39,7 @@ void setup(){
 
     // Inicialización de IMU
     IMUSensor::init(sens.imu_acc, sens.imu_w, sens.imu_theta, sts.imu);
+    Serial.println("IMU inicializado");
     IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);
 
     // Crear tareas para el IMU y para impresión por serial

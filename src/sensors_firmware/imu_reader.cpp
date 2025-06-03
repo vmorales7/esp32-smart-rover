@@ -42,7 +42,7 @@ bool init(
     last_theta = wrap_to_pi(orientation_data.orientation.x *DEG_TO_RAD); // Guardar el valor inicial de theta
 
     // Valor inicial de aceleración para considerar el offset
-    resync_acceleration_offset();
+    // resync_acceleration_offset();
 
     // Inicializar el estado del sistema
     imu_state = INACTIVE; 

@@ -26,7 +26,7 @@ GlobalContext ctx = {
 // ====================== CONFIGURACIÓN OBJETIVO ======================
 
 constexpr ControlType CONTROLLER_TYPE = ControlType::PID;
-constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::ENCODER;
+constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::COMPLEMENTARY;
 
 // Escoger desplazamiento / alineación / rotación pura
 PositionControlMode control_state = PositionControlMode::MOVE; 

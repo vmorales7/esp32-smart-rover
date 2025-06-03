@@ -22,7 +22,7 @@ GlobalContext ctx = {
     .evade_ptr     = nullptr
 };
 
-constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::ENCODER;
+constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::COMPLEMENTARY;
 const uint16_t TASK_CONTROL_PERIOD_MS = 100;
 
 

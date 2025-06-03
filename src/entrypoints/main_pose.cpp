@@ -1,6 +1,7 @@
 #include "vehicle_os/general_config.h"
 #include "motor_drive/motor_controller.h"
 #include "sensors_firmware/encoder_reader.h"
+#include "sensors_firmware/imu_reader.h"
 #include "position_system/pose_estimator.h"
 #include "position_system/position_controller.h"
 
@@ -24,7 +25,7 @@ GlobalContext ctx = {
 };
 
 constexpr float Wref = 9.0f;
-constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::ENCODER;
+constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::COMPLEMENTARY;
 
 // ====================== Tareas auxiliares ======================
 
@@ -42,6 +43,7 @@ void setup() {
 
     // Inicializar encoder
     EncoderReader::init(sens.enc_phiL, sens.enc_phiR, sens.enc_wL, sens.enc_wR, sts.encoders);
+    IMUSensor::init(sens.imu_acc, sens.imu_w, sens.imu_theta, sts.imu);
 
     // Inicializar estimador de pose
     PoseEstimator::init(pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R,
@@ -61,15 +63,17 @@ void setup() {
     PositionController::set_wheel_speed_ref(Wref, Wref, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
     PoseEstimator::set_state(ACTIVE, sts.pose);
     EncoderReader::resume(sts.encoders);
+    IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);
 
     // Crear tareas RTOS
     xTaskCreatePinnedToCore(EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2048, &ctx, 1, nullptr, 1);
+    xTaskCreatePinnedToCore(IMUSensor::Task_IMUData, "IMU_Check", 2048, &ctx, 1, nullptr, 1);
     xTaskCreatePinnedToCore(MotorController::Task_WheelControl, "WheelControl", 2048, &ctx, 1, nullptr, 1);
     xTaskCreatePinnedToCore(PoseEstimator::Task_PoseEstimatorEncoder, "PoseEstimator", 2048, &ctx, 1, nullptr, 1);
 
     // Performance tests
     xTaskCreatePinnedToCore(Task_PrintPose, "PrintPose", 2048, &ctx, 1, nullptr, 0);
-    // MotorController::set_motors_mode(MotorMode::IDLE, sts.motors, ctrl.duty_L, ctrl.duty_R);
+    MotorController::set_motors_mode(MotorMode::IDLE, sts.motors, ctrl.duty_L, ctrl.duty_R);
     // xTaskCreatePinnedToCore(Task_PrintXY, "PrintXY", 2048, &ctx, 1, nullptr, 0);
 }
 
@@ -90,7 +94,7 @@ void Task_PrintPose(void* pvParameters) {
     for (;;) {
         vTaskDelayUntil(&xLastWakeTime, period);
         Serial.printf("Pose => x: %.2f | y: %.2f | θ: %.2f || Vel => v: %.2f | w: %.2f\n",
-                        pose.x, pose.y, (pose.theta * 180.0f/PI), pose.v, pose.w);
+                        pose.x, pose.y, (pose.theta * RAD_TO_DEG), pose.v, pose.w);
     }
 }
 

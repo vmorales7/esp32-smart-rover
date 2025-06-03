@@ -20,7 +20,7 @@ GlobalContext ctx = {
     .evade_ptr       = &evade
 };
 
-constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::ENCODER;
+constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::COMPLEMENTARY;
 const bool INCLUDE_EVADE = false; // Habilita el controlador de evasión
 
 // ====================== TAREA: Avance con trayectoria ======================

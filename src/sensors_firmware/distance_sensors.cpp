@@ -130,6 +130,7 @@ bool check_sensor_obstacle(
     }
 
     // Potencial obstáculo, hacemos segunda medición
+    // delay(US_MIN_READ_INTERVAL_MS);
     const uint8_t d2 = read_distance(trig_pin, echo_pin);
     const uint8_t d_avg = (d1 + d2) / 2;
     const bool obstacle_flag = (d_avg < OBSTACLE_THRESHOLD_CM);
