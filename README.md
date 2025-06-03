@@ -12,9 +12,9 @@ La estructura del código sigue una arquitectura modular, que separa claramente 
 📁 src/
 ├── motor_drive/         # Control de driver L298N por PWM, y control PI de velocidad de ruedas
 ├── sensors_firmware/    # Módulos para leer encoders, sensores ultrasónicos, e IMU
-├── position_system/     # Estimador de pose y controladores de posición (clásico y avanzado)
+├── position_system/     # Estimadores de pose y controladores de posición
 ├── communication/       # Conexión a Firebase, WiFi y mensajería
-├── vehicle_os/          # Módulo de lógica de operación del vehículo
+├── vehicle_os/          # Módulo de lógica de operación del vehículo y lógica de evasión de obstáculos
 ├── entrypoints/         # Archivos main.cpp individuales para pruebas específicas
 ├── main.cpp             # Main por defecto (no usado)
 └── main_selector.h      # Selector de archivo main activo para compilar desde PlatformIO
@@ -33,7 +33,7 @@ Contiene el `MotorController`, encargado de:
 Incluye:
 - Lectura de **encoders incrementales**
 - Lectura de **sensores ultrasónicos (HC-SR04)** para detección de obstáculos
-- Lectura de IMU (MPU9150)
+- Lectura de IMU (BNO)
 
 ### `/position_system/`
 Implementa:
