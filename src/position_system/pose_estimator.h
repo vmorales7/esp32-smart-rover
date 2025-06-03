@@ -109,6 +109,32 @@ void update_pose_encoder(
 );
 
 /**
+ * @brief Actualiza la pose global usando datos del IMU.
+ *
+ * Usa filtro complementario para estimar velocidad y orientación.
+ * Integra pose por método trapezoidal.
+ *
+ * @param[in] imu_acc       Aceleración lineal medida por IMU [m/s²]
+ * @param[in] imu_w         Velocidad angular medida por IMU [rad/s]
+ * @param[in] imu_theta     Ángulo acumulado del IMU [rad]
+ * @param[in,out] x        Referencia a la posición X global [m]
+ * @param[in,out] y        Referencia a la posición Y global [m]
+ * @param[in,out] theta    Referencia a la orientación global [rad]
+ * @param[in,out] v        Referencia a la velocidad lineal global [m/s]
+ * @param[in,out] w        Referencia a la velocidad angular global [rad/s]
+ * @param[in,out] w_L      Referencia a la velocidad de rueda izquierda [rad/s]
+ * @param[in,out] w_R      Referencia a la velocidad de rueda derecha [rad/s]
+ * @param[in] pose_state   Estado actual del estimador (solo ejecuta si es ACTIVE)
+ */
+void update_pose_imu(
+    const float imu_acc, const float imu_w, const float imu_theta, 
+    volatile float& x, volatile float& y, volatile float& theta,             
+    volatile float& v, volatile float& w, 
+    volatile float& w_L, volatile float& w_R,                  
+    const uint8_t pose_state                 
+);
+
+/**
  * @brief Actualiza la pose global usando fusión sensorial (encoder + IMU).
  *
  * Usa filtro complementario para estimar velocidad y orientación.

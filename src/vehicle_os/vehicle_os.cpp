@@ -86,7 +86,7 @@ void update(GlobalContext* ctx_ptr) {
                     os.state = OS_State::STAND_BY;
                     set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
                 } 
-                else if (os.last_command == RemoteCommand::START) { 
+                else if (os.last_command == RemoteCommand::START) { // Se completó el waypoint y se sigue en START
                     // Se establece el siguiente waypoint solo si se está en START
                     // Futuro: avisar a FB que se alcanzó el waypoint
                     ok = set_waypoint(ctx_ptr); 
@@ -97,7 +97,7 @@ void update(GlobalContext* ctx_ptr) {
                     } else { // Si se pudo establecer el siguiente waypoint, se vuelve a ALIGN
                         // Futuro: avisar a FB que se estableció el nuevo waypoint
                         enter_align(ctx_ptr);
-                        EvadeController::reset_evade_state(ctx_ptr); // Reiniciar el estado de evasión
+                        EvadeController::reset_evade_state(ctx_ptr); // Reiniciar el estado de evasión en cada waypoint nuevo
                         os.state = OS_State::ALIGN;
                         set_operation_log(OS_State::ALIGN, OS_State::MOVE, ctx_ptr);
                     }
@@ -153,6 +153,7 @@ void update(GlobalContext* ctx_ptr) {
                     // Si falla la evasión, se vuelve a STAND_BY
                     enter_stand_by(ctx_ptr);
                     os.state = OS_State::STAND_BY;
+                    os.last_command == RemoteCommand::STOP;
                     set_operation_log(OS_State::STAND_BY, OS_State::EVADE, ctx_ptr);
                 }
             } else {
@@ -274,8 +275,7 @@ bool enter_stand_by(GlobalContext* ctx_ptr) {
     PoseEstimator::set_state(ACTIVE, sts.pose);
 
     // 🧷 Mantener control de posición en modo pasivo, con velocidad de referencia 0
-    PositionController::set_control_mode(PositionControlMode::MANUAL, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
-    PositionController::set_wheel_speed_ref(0.0f, 0.0f, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
+    PositionController::stop_movement(pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
     MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
 
     // 🚫 Desactivar sensores de obstáculos -> se fuerza la limpieza de las flag de obstáculo
@@ -361,8 +361,7 @@ bool enter_evade(GlobalContext* ctx_ptr) {
 
     // Se fija la velocidad de referencia a cero
     // PositionController::set_controller_type();
-    PositionController::set_control_mode(PositionControlMode::MANUAL, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
-    PositionController::set_wheel_speed_ref(0.0f, 0.0f, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
+    PositionController::stop_movement(pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
     MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
 
     // Sensores de distancia desactivados
@@ -416,9 +415,7 @@ bool enter_wait_free_path(GlobalContext* ctx_ptr) {
 
     // 🟢 Activar control de posición (v_ref y w_ref)
     // PositionController::set_controller_type();
-    PositionController::set_control_mode(PositionControlMode::MANUAL, sts.position, 
-        ctrl.w_L_ref, ctrl.w_R_ref);
-    PositionController::set_wheel_speed_ref(0.0f, 0.0f, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
+    PositionController::stop_movement(pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
     MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
 
     // Mantener activada la detección de obstáculos

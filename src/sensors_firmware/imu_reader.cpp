@@ -63,8 +63,7 @@ void set_state(
         imu_acc = 0.0f;
         imu_w = 0.0f;
     } else if (new_state == ACTIVE) {
-        // Actualizar el offset de aceleración
-
+        // Actualizar el offset de aceleración?
     }
     imu_state = new_state; // se actualiza el estado del sistema
 }; 

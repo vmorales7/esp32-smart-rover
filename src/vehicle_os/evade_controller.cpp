@@ -4,7 +4,7 @@
 bool has_free_space(GlobalContext* ctx_ptr) {
     volatile SensorsData& sens = *(ctx_ptr->sensors_ptr);
     // Requiere update de flags antes de leer
-    DistanceSensors::force_check_sensors(ctx_ptr);
+    DistanceSensors::force_measure_distances(ctx_ptr);
     return (sens.us_left_dist >= EVADE_MIN_SPACE &&
             sens.us_mid_dist >= EVADE_MIN_SPACE &&
             sens.us_right_dist >= EVADE_MIN_SPACE);
@@ -47,7 +47,7 @@ void update_evade(GlobalContext* ctx_ptr) {
     switch (evade.state) {
         case EvadeState::SELECT_DIR: {    
             evade.tried_both_sides = false;
-            DistanceSensors::force_check_sensors(ctx_ptr);
+            DistanceSensors::force_measure_distances(ctx_ptr);
             if (evade.direction == 0) {
                 evade.direction = (sens.us_left_dist >= sens.us_right_dist) ? +1 : -1; // +1: izquierda, -1: derecha
             } else {
@@ -80,6 +80,9 @@ void update_evade(GlobalContext* ctx_ptr) {
                                 ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, sts.position);
                             evade.current_angle = evade.direction * EVADE_DELTA_THETA;
                         } else {
+                            OS::enter_evade(ctx_ptr);
+                            PositionController::set_waypoint(evade.saved_waypoint.x, evade.saved_waypoint.y, 0.0f, 
+                                ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, sts.position);
                             evade.state = EvadeState::FAIL;
                         }
                     } else {
@@ -116,9 +119,6 @@ void update_evade(GlobalContext* ctx_ptr) {
             }
             break;
         }
-        default:
-            // No hacer nada, espera a que el OS principal saque del estado EVADE
-            break;
     }
 }
 
