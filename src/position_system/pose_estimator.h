@@ -1,28 +1,18 @@
 #ifndef POSE_ESTIMATOR_H
 #define POSE_ESTIMATOR_H
 
-#include "project_config.h"
+#include "vehicle_os/general_config.h"
 
 /* ---------------- Constantes y variables sistema ------------------*/
-
-// /**
-//  * @brief Estructura que representa la pose estimada del vehículo autónomo.
-//  *
-//  * Contiene la posición (X, Y), la orientación (θ), y las velocidades
-//  * lineal y angular estimadas en el plano.
-//  */
-// struct PoseData {
-//     float x;      ///< Posición X [m]
-//     float y;      ///< Posición Y [m]
-//     float theta;  ///< Orientación [rad]
-//     float v;      ///< Velocidad lineal [m/s]
-//     float w;      ///< Velocidad angular [rad/s]
-// };
 
 constexpr float FUSION_ALPHA_V = 0.9f; // Encoder dominante (deriva)
 constexpr float FUSION_ALPHA_W = 0.1f; // IMU dominante (mide directo)
 constexpr float FUSION_ALPHA_THETA = 0.1f; // IMU dominante (mide directo)
 
+constexpr float IMU_OFFSET_X = 0.02f; // Offset de IMU en eje X [m]
+constexpr float IMU_OFFSET_Y = -0.05f; // Offset de IMU en eje Y [m]
+constexpr float IMU_OFFSET_R = IMU_OFFSET_X*IMU_OFFSET_X + IMU_OFFSET_Y*IMU_OFFSET_Y; // Offset de IMU en radio [m]
+constexpr float IMU_CORRECTION_FACTOR = IMU_OFFSET_Y / IMU_OFFSET_R; 
 
 /* ---------------- Funciones del sistema ------------------*/
 
@@ -39,8 +29,8 @@ void set_state(const uint8_t new_state, volatile uint8_t& pose_state);
 /**
  * @brief Reinicia completamente la pose y los acumuladores de pasos del vehículo.
  *
- * Esta función pone en cero las variables de posición (x, y), orientación (theta),
- * velocidades (lineal y angular) y los pasos acumulados de ambos encoders.
+ * Esta función pone en cero las variables de posición (x, y), orientación (theta), velocidades (lineal y angular), 
+ * los ángulos acumulados de las ruedas (phi_L, phi_R) y el ángulo acumulado del IMU (imu_theta).
  * También reinicia los acumuladores internos utilizados por el estimador de pose
  * para calcular los desplazamientos relativos.
  *
@@ -51,14 +41,16 @@ void set_state(const uint8_t new_state, volatile uint8_t& pose_state);
  * @param[in,out] w      Referencia a la velocidad angular global [rad/s]
  * @param[in,out] w_L    Referencia a la velocidad de rueda izquierda [rad/s]
  * @param[in,out] w_R    Referencia a la velocidad de rueda derecha [rad/s]
- * @param[in,out] steps_L Referencia a los pasos del encoder izquierdo
- * @param[in,out] steps_R Referencia a los pasos del encoder derecho
+ * @param[in,out] phi_L  Referencia al ángulo acumulado de la rueda izquierda [rad]
+ * @param[in,out] phi_R  Referencia al ángulo acumulado de la rueda derecha [rad]
+ * @param[in,out] imu_theta Referencia al ángulo acumulado del IMU [rad]
  */
 void reset_pose(
     volatile float& x, volatile float& y, volatile float& theta,
     volatile float& v, volatile float& w,
     volatile float& w_L, volatile float& w_R,
-    volatile int64_t& steps_L, volatile int64_t& steps_R
+    volatile float& phi_L, volatile float& phi_R, 
+    volatile float& imu_theta
 );
 
 /**
@@ -75,15 +67,17 @@ void reset_pose(
  * @param w Referencia a la velocidad angular inicial [rad/s].
  * @param w_L Referencia a la velocidad de la rueda izquierda [rad/s].
  * @param w_R Referencia a la velocidad de la rueda derecha [rad/s].
- * @param steps_L Referencia al número de pasos del encoder izquierdo.
- * @param steps_R Referencia al número de pasos del encoder derecho.
+ * @param phi_L Referencia al ángulo acumulado de la rueda izquierda [rad].
+ * @param phi_R Referencia al ángulo acumulado de la rueda derecha [rad].
+ * @param imu_theta Referencia al ángulo acumulado del IMU [rad].
  * @param pose_state Variable que almacena el estado del estimador de pose (se establece como INACTIVE).
  */
 void init(
     volatile float& x, volatile float& y, volatile float& theta,
     volatile float& v, volatile float& w,
     volatile float& w_L, volatile float& w_R,
-    volatile int64_t& steps_L, volatile int64_t& steps_R,
+    volatile float& phi_L, volatile float& phi_R, 
+    volatile float& imu_theta,
     volatile uint8_t& pose_state
 );
 
@@ -120,11 +114,13 @@ void update_pose_encoder(
  * Usa filtro complementario para estimar velocidad y orientación.
  * Integra pose por método trapezoidal.
  *
- * @param[in] wL_encoder   Velocidad de rueda izquierda por encoder [rad/s]
- * @param[in] wR_encoder   Velocidad de rueda derecha por encoder [rad/s]
- * @param[in] ax_imu       Aceleración lineal (IMU, eje x o y) [m/s^2]
- * @param[in] wz_imu       Velocidad angular medida por IMU [rad/s]
- * @param[in] theta_imu    Orientación absoluta medida por IMU [rad]
+ * @param[in] encoder_phiL  Ángulo acumulado de la rueda izquierda [rad]
+ * @param[in] encoder_phiR  Ángulo acumulado de la rueda derecha [rad]
+ * @param[in] encoder_wL    Velocidad angular de rueda izquierda [rad/s]
+ * @param[in] encoder_wR    Velocidad angular de rueda derecha [rad/s]
+ * @param[in] imu_acc       Aceleración lineal medida por IMU [m/s²]
+ * @param[in] imu_w         Velocidad angular medida por IMU [rad/s]
+ * @param[in] imu_theta     Ángulo acumulado del IMU [rad]
  * @param[in,out] x        Referencia a la posición X global [m]
  * @param[in,out] y        Referencia a la posición Y global [m]
  * @param[in,out] theta    Referencia a la orientación global [rad]
@@ -135,12 +131,13 @@ void update_pose_encoder(
  * @param[in] pose_state   Estado actual del estimador (solo ejecuta si es ACTIVE)
  */
 void update_pose_fusion(
-    const float wL_encoder, const float wR_encoder,          
-    const float ax_imu, const float wz_imu, const float theta_imu, 
+    const float encoder_phiL, const float encoder_phiR,
+    const float encoder_wL, const float encoder_wR,          
+    const float imu_acc, const float imu_w, const float imu_theta, 
     volatile float& x, volatile float& y, volatile float& theta,             
     volatile float& v, volatile float& w,                           
     volatile float& w_L, volatile float& w_R,                       
-    const uint8_t pose_state                  
+    const uint8_t pose_state                 
 );
 
 /**
@@ -162,74 +159,3 @@ void Task_PoseEstimatorEncoder(void* pvParameters);
 } // namespace PoseEstimator
 
 #endif // POSE_ESTIMATOR_H
-
-
-// /**
-//  * @brief Calcula la nueva pose del vehículo a partir de deltas de giro de ruedas y estado anterior.
-//  *
-//  * Esta función realiza la integración cinemática diferencial de la pose, sin acceder a ningún dato global.
-//  * 
-//  * @param delta_phi_L Giro de la rueda izquierda desde la última lectura [rad].
-//  * @param delta_phi_R Giro de la rueda derecha desde la última lectura [rad].
-//  * @param wL_measured Velocidad angular de la rueda izquierda [rad/s].
-//  * @param wR_measured Velocidad angular de la rueda derecha [rad/s].
-//  * @param x_prev Posición previa en X [m].
-//  * @param y_prev Posición previa en Y [m].
-//  * @param theta_prev Orientación previa [rad].
-//  * @return PoseData Estimación de la nueva pose.
-//  */
-// PoseData compute_encoder_pose(
-//     float delta_phi_L, float delta_phi_R,
-//     float w_L, float w_R,
-//     float x_prev, float y_prev, float theta_prev
-// );
-
-// /**
-//  * @brief Estima la nueva pose utilizando datos de los encoders y el estado actual del vehículo.
-//  *
-//  * Captura los pasos actuales, calcula los deltas desde la última lectura, y retorna
-//  * una estructura `PoseData` sin modificar el estado global.
-//  *
-//  * @param w_L Variable con la velocidad angular izquierda medida.
-//  * @param w_R Variable con la velocidad angular derecha medida.
-//  * @param steps_L Variable con los pasos acumulados del encoder izquierdo.
-//  * @param steps_R Variable con los pasos acumulados del encoder derecho.
-//  * @param x Variable con la posición actual en X.
-//  * @param y Variable con la posición actual en Y.
-//  * @param theta Variable con la orientación actual θ.
-//  * @param v Variable con la velocidad lineal actual.
-//  * @param w Variable con la velocidad angular actual.
-//  * @return PoseData Estimación de la pose actual.
-//  */
-// PoseData estimate_pose_from_encoder(
-//     volatile float& w_L, volatile float& w_R,
-//     volatile int64_t& steps_L, volatile int64_t& steps_R,
-//     volatile float& x, volatile float& y, volatile float& theta,
-//     volatile float& v, volatile float& w
-// );
-
-// /**
-//  * @brief Actualiza la pose estimada del vehículo en base a la odometría.
-//  *
-//  * Esta función estima la nueva posición, orientación y velocidades del vehículo
-//  * utilizando los datos de los encoders (velocidades angulares y pasos acumulados).
-//  * La estimación se realiza únicamente si el estimador de pose se encuentra activo.
-//  *
-//  * @param w_L Velocidad angular medida de la rueda izquierda [rad/s].
-//  * @param w_R Velocidad angular medida de la rueda derecha [rad/s].
-//  * @param steps_L Pasos acumulados del encoder izquierdo.
-//  * @param steps_R Pasos acumulados del encoder derecho.
-//  * @param x Referencia a la posición actual en el eje X [m] (actualizada con la nueva estimación).
-//  * @param y Referencia a la posición actual en el eje Y [m].
-//  * @param theta Referencia a la orientación actual del vehículo [rad].
-//  * @param v Referencia a la velocidad lineal actual [m/s].
-//  * @param w Referencia a la velocidad angular actual [rad/s].
-//  * @param pose_state Estado actual del estimador de pose (debe ser ACTIVE para ejecutar la estimación).
-//  */
-// void update_pose(
-//     volatile float& w_L, volatile float& w_R,
-//     volatile int64_t& steps_L, volatile int64_t& steps_R,
-//     volatile float& x, volatile float& y, volatile float& theta,
-//     volatile float& v, volatile float& w,
-//     volatile uint8_t& pose_state
-// );

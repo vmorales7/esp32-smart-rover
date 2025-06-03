@@ -6,37 +6,35 @@
 /* -------------- Definiciones de los pines de la ESP32 --------------*/
 
 // Para control del L298N
-constexpr uint8_t MOTOR_LEFT_PWM_PIN  = 26;  // Azul
-constexpr uint8_t MOTOR_LEFT_DIR_PIN1 = 25; // Blanco
-constexpr uint8_t MOTOR_LEFT_DIR_PIN2 = 33; // Verde
+constexpr uint8_t MOTOR_LEFT_PWM_PIN  = 5;  // Azul
+constexpr uint8_t MOTOR_LEFT_DIR_PIN1 = 17; // Blanco
+constexpr uint8_t MOTOR_LEFT_DIR_PIN2 = 16; // Verde
 
-constexpr uint8_t MOTOR_RIGHT_PWM_PIN  = 18;  // Azul
-constexpr uint8_t MOTOR_RIGHT_DIR_PIN1 = 19; // Blanco
-constexpr uint8_t MOTOR_RIGHT_DIR_PIN2 = 21; // Verde
+constexpr uint8_t MOTOR_RIGHT_PWM_PIN  = 2;  // Azul
+constexpr uint8_t MOTOR_RIGHT_DIR_PIN1 = 0; // Blanco
+constexpr uint8_t MOTOR_RIGHT_DIR_PIN2 = 4; // Verde
 
 // Para los encoders
 // Azul = Vcc & Negro = GND 
 constexpr uint8_t ENCODER_LEFT_A_PIN  = 14; // Amarillo
 constexpr uint8_t ENCODER_LEFT_B_PIN  = 27; // Verde
-constexpr uint8_t ENCODER_RIGHT_A_PIN = 16; // Amarillo
-constexpr uint8_t ENCODER_RIGHT_B_PIN = 17; // Verde
+constexpr uint8_t ENCODER_RIGHT_A_PIN = 18; // Amarillo
+constexpr uint8_t ENCODER_RIGHT_B_PIN = 19; // Verde
 
 // Sensores ultrasónicos
-constexpr uint8_t US_LEFT_TRIG_PIN = 32;
-constexpr uint8_t US_LEFT_ECHO_PIN = 34;
+constexpr uint8_t US_LEFT_TRIG_PIN = 25;
+constexpr uint8_t US_LEFT_ECHO_PIN = 26;
 
-constexpr uint8_t US_MID_TRIG_PIN = 13;  
-constexpr uint8_t US_MID_ECHO_PIN = 12;
+constexpr uint8_t US_MID_TRIG_PIN = 32;  
+constexpr uint8_t US_MID_ECHO_PIN = 35;
 
 constexpr uint8_t US_RIGHT_TRIG_PIN = 22;
 constexpr uint8_t US_RIGHT_ECHO_PIN = 23;
 
 // I2C para IMU
-constexpr uint8_t IMU_SDA_PIN = 4;
-constexpr uint8_t IMU_SCL_PIN = 5;
+constexpr uint8_t IMU_SDA_PIN = 21;
+constexpr uint8_t IMU_SCL_PIN = 13;
 
-// Aux: LED para debug
-constexpr uint8_t ESP32_LED = 2;
 
 
 /* -------------- Constantes generales --------------*/
@@ -45,11 +43,11 @@ constexpr uint8_t ESP32_LED = 2;
 constexpr float WHEEL_RADIUS = 0.067f / 2.0f;    // en metros
 constexpr float WHEELS_SEPARATION = 0.194f;                // distancia entre ruedas (L)
 constexpr float WHEEL_TO_MID_DISTANCE = WHEELS_SEPARATION / 2.0f;   // media distancia entre ruedas (L/2)
+constexpr float WM_NOM = 215.0 * 2*PI/60.0; // rad/s nominales bajo carga = 22.51 (29.3 sin carga)
 
 // Auxiliares
 constexpr uint8_t WHEEL_LEFT  = 0U;
 constexpr uint8_t WHEEL_RIGHT = 1U;
-constexpr float MS_TO_S = 0.001f;
 
 constexpr uint8_t ACTIVE   = 1U;
 constexpr uint8_t INACTIVE = 0U;
@@ -57,12 +55,16 @@ constexpr uint8_t INACTIVE = 0U;
 constexpr bool SUCCESS = true;
 constexpr bool ERROR   = false;
 
+constexpr float MS_TO_S = 0.001f;
+
+// Puntos de trayectoria
+constexpr uint8_t MAX_TRAJECTORY_POINTS = 100; // Define máximo de puntos
+constexpr float NULL_WAYPOINT_XY = 99.9f;
+
 
 /* ----------------------------- Constantes motores ----------------------------*/
 
-constexpr uint16_t RPM_NOM = 215U;            // rpm nominales bajo carga (son 280 sin carga)       
-constexpr float WM_NOM = RPM_NOM * 2*PI/60.0; // rad/s nominales bajo carga = 22.51 (29.3 sin carga)
-
+// Modos de operación de los motores
 enum class MotorMode : uint8_t {
     IDLE = 0U,    // Se dejan libres los motores, alta impedancia entre los bornes del motor
     ACTIVE = 1U,  // Se controla la velocidad con el duty y los pines de control
@@ -70,38 +72,15 @@ enum class MotorMode : uint8_t {
     BREAK = 3U    // Motores bloqueados, frena el motor
 };
 
-/* ----------------------------- Constantes encoders ----------------------------*/
-
-// Según tipo de configuración de encoder
-enum class EncoderMode {
-    SINGLE_EDGE = 1,  // 1x
-    HALF_QUAD   = 2,  // 2x
-    FULL_QUAD   = 4   // 4x
-};
-constexpr EncoderMode ENCODER_MODE = EncoderMode::HALF_QUAD; // Escoger el formato de lectura de encoder
-constexpr float get_encoder_multiplier(EncoderMode mode) {
-    return (mode == EncoderMode::SINGLE_EDGE) ? 1.0f :
-           (mode == EncoderMode::HALF_QUAD)   ? 2.0f :
-           (mode == EncoderMode::FULL_QUAD)   ? 4.0f :
-           2.0f;
-}
-
-// Constantes para interpretar data de los encoders
-constexpr float RAW_ENCODER_PPR = 11.0f * 21.3f; // Steps del encoder x razón de engranaje de motor
-constexpr float ENCODER_PPR = RAW_ENCODER_PPR * get_encoder_multiplier(ENCODER_MODE);
-constexpr float RAD_PER_PULSE = (2.0f * M_PI) / ENCODER_PPR;
-
-
-/* ----------------------------- Constantes PoseEstimator ----------------------------*/
-
+// Tipos de estimadores de pose
 enum class PoseEstimatorType : uint8_t {
     ENCODER = 1U,
-    FUSION  = 2U
+    IMU = 2U,
+    COMPLEMENTARY  = 3U,
+    KALMAN = 4U
 };
 
-
-/* ------------------------ Constantes de control de posición -----------------------*/
-
+// Modos de control de posición
 enum class PositionControlMode : uint8_t {
     INACTIVE = 0U,
     MANUAL,
@@ -110,17 +89,13 @@ enum class PositionControlMode : uint8_t {
     ROTATE
 };
 
+// Tipos de controladores
 enum class ControlType : uint8_t {
     PID = 0U,
     BACKS
 };
 
-
-/* ------------------------ Constantes OS ------------------------*/
-
-constexpr uint8_t MAX_TRAJECTORY_POINTS = 100; // Define máximo de puntos
-constexpr float NULL_WAYPOINT_XY = 99.9f;
-
+// Estados de la máquina de estados del sistema operativo del vehículo autónomo
 enum class OS_State : uint8_t {
     INIT = 0,          // Estado inicial al encender
     IDLE,              // Espera sin movimiento
@@ -143,8 +118,7 @@ enum class RemoteCommand : uint8_t {
     IDLE
 };
 
-// ------------- Estados internos de la evasión -------------
-
+// Estados del sistema de evasión
 enum class EvadeState : uint8_t {
     IDLE = 0,
     SELECT_DIR,
@@ -161,7 +135,7 @@ enum class EvadeState : uint8_t {
 
 constexpr uint16_t WHEEL_CONTROL_PERIOD_MS = 10;
 constexpr uint16_t ENCODER_READ_PERIOD_MS = 10;
-constexpr uint16_t IMU_READ_PERIOD_MS = 20;
+constexpr uint16_t IMU_READ_PERIOD_MS = 10;
 constexpr uint16_t OBSTACLE_CHECK_PERIOD_MS = 200;
 constexpr uint16_t POSE_ESTIMATOR_PERIOD_MS = 10; 
 constexpr uint16_t POSITION_CONTROL_PERIOD_MS = 200;
@@ -214,11 +188,11 @@ struct SystemStates {
 };
 
 struct SensorsData{
-    /// Pasos/pulsos acumulados del encoder izquierdo.
+    /// Ángulo acumulados del encoder.
     /// Se actualiza periódicamente por el módulo `encoder_reader`.
     /// Solo una lectura por medio del estimador de pose puede reiniciar su valor para evitar perder datos.
-    int64_t enc_stepsL;
-    int64_t enc_stepsR;
+    float enc_phiL;
+    float enc_phiR;
 
     /// Velocidad angular medida de las ruedas [rad/s] mediante el encoder.
     /// Calculada a partir del número de pasos y el intervalo de muestreo.
@@ -235,17 +209,17 @@ struct SensorsData{
 
     bool us_obstacle;          ///< true si cualquier sensor US detecta obstáculo (< threshold)
 
-    float imu_ax; ///< aceleración en el eje x
-    float imu_wz; ///< velocidad angular con respecto al eje z
+    float imu_acc; ///< aceleración en el eje x
+    float imu_w; ///< velocidad angular con respecto al eje z
     float imu_theta; ///< ángulo rotación respecto al norte magnetico de output total (orientacion absoluta)
 
     // Constructor por defecto
     SensorsData()
-        : enc_stepsL(0), enc_stepsR(0),
+        : enc_phiL(0.0f), enc_phiR(0.0f),
           enc_wL(0.0f), enc_wR(0.0f),
           us_left_dist(0), us_mid_dist(0), us_right_dist(0),
           us_left_obst(false), us_mid_obst(false), us_right_obst(false),
-          imu_ax(0.0f), imu_wz(0.0f), imu_theta(0.0f)
+          imu_acc(0.0f), imu_w(0.0f), imu_theta(0.0f)
     {}
 };
 
@@ -277,7 +251,7 @@ struct PoseData {
     float w_R;
 
     PoseData()
-        : estimator_type(PoseEstimatorType::ENCODER),
+        : estimator_type(PoseEstimatorType::COMPLEMENTARY),
           x(0.0f), y(0.0f), theta(0.0f),
           v(0.0f), w(0.0f),
           w_L(0.0f), w_R(0.0f)

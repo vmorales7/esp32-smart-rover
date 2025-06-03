@@ -14,6 +14,8 @@
 // #define USE_MAIN_POSE                   // Rutina de prueba para pose_estimator
 // #define USE_MAIN_DISTANCE_SENSORS       // RTOS con todos los sensores de distancia
 // #define USE_MAIN_AVANCE2                // Rutina de velocidades + detención por obstáculo + RTOS
+// #define USE_MAIN_IMU_TEST                       //Rutina de prubea de iMU
+// #define USE_MAIN_IMU_CALIBRATION         // Rutina de calibración del IMU
 // #define USE_MAIN_POSITION_BASIC         // Control de posición hacia punto único
 // #define USE_MAIN_POSITION_POINTS        // Múltiples posiciones + detención por obstáculo
 #define USE_MAIN_AVANCE3                 // Rutina de estados simple
@@ -43,6 +45,10 @@
   #include "entrypoints/main_distance_sensors.cpp"
 #elif defined(USE_MAIN_AVANCE2)
   #include "entrypoints/main_avance2.cpp"
+#elif defined(USE_MAIN_IMU_TEST)
+  #include "entrypoints/main_imu.cpp"
+#elif defined(USE_MAIN_IMU_CALIBRATION)
+  #include "entrypoints/main_imu_calib.cpp"
 #elif defined(USE_MAIN_POSITION_BASIC)
   #include "entrypoints/main_position_basic.cpp"
 #elif defined(USE_MAIN_POSITION_POINTS)

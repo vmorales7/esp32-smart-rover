@@ -34,11 +34,7 @@ void start_evade(GlobalContext* ctx_ptr) {
 
     evade.saved_waypoint.x = ctrl.x_d;
     evade.saved_waypoint.y = ctrl.y_d;
-
     evade.state = EvadeState::SELECT_DIR;
-
-    DistanceSensors::set_state(INACTIVE, sts.distance, 
-        sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
 }
 
 void update_evade(GlobalContext* ctx_ptr) {
@@ -61,7 +57,7 @@ void update_evade(GlobalContext* ctx_ptr) {
             evade.current_angle = evade.direction * EVADE_DELTA_THETA;
             PositionController::set_diferential_waypoint(0.0f, evade.direction * EVADE_DELTA_THETA, 
                 ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, sts.position);
-            PositionController::set_control_mode(PositionControlMode::ROTATE, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
+            OS::enter_rotate(ctx_ptr);
             evade.state = EvadeState::WAIT_ALIGN;
             break;
         }
@@ -98,18 +94,15 @@ void update_evade(GlobalContext* ctx_ptr) {
         }
         case EvadeState::WAIT_ADVANCE: {
             if (ctrl.waypoint_reached) {
+                // Avance exitoso, retomar el waypoint, dejar el vehículo detenido, y volver a máquina principal
+                OS::enter_evade(ctx_ptr);
                 PositionController::set_waypoint(evade.saved_waypoint.x, evade.saved_waypoint.y, 0.0f, 
                     ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, sts.position);
-                PositionController::set_control_mode(PositionControlMode::MANUAL, sts.position, 
-                    ctrl.w_L_ref, ctrl.w_R_ref);
-                PositionController::set_wheel_speed_ref(0.0f, 0.0f, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
                 evade.state = EvadeState::FINISHED;
             } 
             else if (sens.us_obstacle) {
                 // Obstáculo temporal durante avance: detener hasta liberar
-                PositionController::set_control_mode(PositionControlMode::MANUAL, sts.position, 
-                    ctrl.w_L_ref, ctrl.w_R_ref);
-                PositionController::set_wheel_speed_ref(0.0f, 0.0f, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
+                OS::enter_wait_free_path(ctx_ptr);
                 evade.state = EvadeState::WAIT_FREE_PATH;
             }
             break;
@@ -118,8 +111,7 @@ void update_evade(GlobalContext* ctx_ptr) {
             DistanceSensors::update_global_obstacle_flag(
                 sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
             if (!sens.us_obstacle) {
-                PositionController::set_control_mode(PositionControlMode::MOVE, sts.position, 
-                    ctrl.w_L_ref, ctrl.w_R_ref);
+                OS::enter_move(ctx_ptr);
                 evade.state = EvadeState::WAIT_ADVANCE;
             }
             break;

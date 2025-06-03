@@ -1,4 +1,4 @@
-#include "project_config.h"
+#include "vehicle_os/general_config.h"
 #include "motor_drive/motor_controller.h"
 #include "sensors_firmware/encoder_reader.h"
 #include "sensors_firmware/distance_sensors.h"
@@ -31,7 +31,9 @@ bool en_pausa_por_obstaculo = false; // Indica si se pausó por un obstáculo
 
 // ====================== CONFIGURACIÓN PUNTOS ======================
 
-ControlType controller_type = ControlType::PID; // Tipo de controlador a utilizar
+constexpr ControlType CONTROLLER_TYPE = ControlType::PID; // Tipo de controlador a utilizar
+constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::ENCODER; // Tipo de estimador de pose
+
 struct Waypoint {
     float x;
     float y;
@@ -116,9 +118,10 @@ void setup() {
     Serial.println("Inicio: Seguimiento de puntos");
 
     // Inicialización de sistemas
-    EncoderReader::init(sens.enc_stepsL, sens.enc_stepsR, sens.enc_wL, sens.enc_wR, sts.encoders);
-    PoseEstimator::init(pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R, 
-        sens.enc_stepsL, sens.enc_stepsR, sts.pose);
+    EncoderReader::init(sens.enc_phiL, sens.enc_phiR, sens.enc_wL, sens.enc_wR, sts.encoders);
+    PoseEstimator::init(pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R,
+        sens.enc_phiL, sens.enc_phiR, sens.imu_theta, sts.pose);
+    pose.estimator_type = POSE_ESTIMATOR_TYPE; // Establecer tipo de estimador de pose
     MotorController::init(sts.motors, ctrl.duty_L, ctrl.duty_R);
     DistanceSensors::init(sens.us_left_dist, sens.us_left_obst, sens.us_mid_dist, sens.us_mid_obst, 
         sens.us_right_dist, sens.us_right_obst, sens.us_obstacle, sts.distance);
@@ -131,7 +134,7 @@ void setup() {
     PoseEstimator::set_state(ACTIVE, sts.pose);
     DistanceSensors::set_state(ACTIVE, sts.distance, 
         sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
-    PositionController::set_controller_type(controller_type, ctrl.controller_type);
+    PositionController::set_controller_type(CONTROLLER_TYPE, ctrl.controller_type);
     PositionController::set_control_mode(PositionControlMode::ALIGN, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
     MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
 

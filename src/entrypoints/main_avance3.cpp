@@ -20,7 +20,8 @@ GlobalContext ctx = {
     .evade_ptr       = &evade
 };
 
-const bool include_evade = true; // Habilita el controlador de evasión
+constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::ENCODER;
+const bool INCLUDE_EVADE = false; // Habilita el controlador de evasión
 
 // ====================== TAREA: Avance con trayectoria ======================
 void setup() {
@@ -31,11 +32,12 @@ void setup() {
     OS::add_waypoint(0.5, 0.5, op);  // Gira y avanza en Y
     OS::add_waypoint(1.0, 0.0, op);  // Avanza en diagonal
 
-    // Decidir si incluir el controlador de evasión
-    evade.include_evade = include_evade;
-
     // Inicializar hardware y lanzar todas las tareas RTOS
     OS::enter_init(&ctx);
+
+    // Configurar control de evasión y estimador de pose
+    evade.include_evade = INCLUDE_EVADE;
+    pose.estimator_type = POSE_ESTIMATOR_TYPE;  
 }
 
 void loop() {

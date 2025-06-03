@@ -3,17 +3,16 @@
 
 /* ------------------------ Mis librerías ------------------------*/
 
-#include "project_config.h"
+#include "vehicle_os/general_config.h"
 
 // Sensores
 #include "sensors_firmware/encoder_reader.h"
 #include "sensors_firmware/distance_sensors.h"
-// #include "sensors_firmware/imu_reader.h"
+#include "sensors_firmware/imu_reader.h"
 
 // Estimación y control
 #include "position_system/pose_estimator.h"
 #include "position_system/position_controller.h"
-// #include "position_system/evade_controller.h"
 
 // Control de motores
 #include "motor_drive/motor_controller.h"
@@ -117,6 +116,25 @@ bool enter_move(GlobalContext* ctx);
  * @return true si se configuró correctamente la evasión, false en caso contrario
  */
 bool enter_evade(GlobalContext* ctx);
+
+/**
+ * @brief Realiza las operaciones para permitir que el vehículo rote en torno a su eje
+ * 
+ * Configura el sistema para rotar el vehículo en torno a su eje, activando los sensores y el estimador de posición, 
+ * y configurando el controlador de posición. Los sensores de distancia se mantienen desactivados.
+ * 
+ * @param ctx Puntero al contexto global con datos del sistema
+ * @return true si se configuró correctamente la rotación, false en caso contrario
+ */
+bool enter_rotate(GlobalContext* ctx_ptr);
+
+/**
+ * @brief Realiza las operaciones para entrar al estado detenido esperando liberación de obstáculo
+ * 
+ * @param ctx_ptr Puntero al contexto global con datos del sistema
+ * @return true si se configuró correctamente el estado de espera, false en caso contrario
+ */
+bool enter_wait_free_path(GlobalContext* ctx_ptr);
 
 /**
  * @brief Inicializa la trayectoria con valores nulos

@@ -1,7 +1,7 @@
 #ifndef POSITION_CONTROLLER_H
 #define POSITION_CONTROLLER_H
 
-#include "project_config.h"
+#include "vehicle_os/general_config.h"
 
 /* ---------------- Constantes y variables sistema ------------------*/
 

@@ -1,4 +1,4 @@
-#include "project_config.h"
+#include "vehicle_os/general_config.h"
 #include "motor_drive/motor_controller.h"
 #include "sensors_firmware/encoder_reader.h"
 #include "sensors_firmware/distance_sensors.h"
@@ -22,6 +22,7 @@ GlobalContext ctx = {
     .evade_ptr     = nullptr
 };
 
+constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::ENCODER;
 const uint16_t TASK_CONTROL_PERIOD_MS = 100;
 
 
@@ -172,8 +173,9 @@ void setup() {
         sens.us_right_dist, sens.us_right_obst, sens.us_obstacle, sts.distance);
     DistanceSensors::set_state(ACTIVE, sts.distance,
         sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
-
-    EncoderReader::init(sens.enc_stepsL, sens.enc_stepsR, pose.w_L, pose.w_R, sts.encoders);
+    
+    EncoderReader::init(sens.enc_phiL, sens.enc_phiR, pose.w_L, pose.w_R, sts.encoders);
+    pose.estimator_type = POSE_ESTIMATOR_TYPE;
     EncoderReader::resume(sts.encoders);
 
     // Tareas principales (núcleo 1)

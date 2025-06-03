@@ -1,7 +1,7 @@
 #ifndef DISTANCE_SENSORS_H
 #define DISTANCE_SENSORS_H
 
-#include "project_config.h"
+#include "vehicle_os/general_config.h"
 
 /* -------------------- Parámetros del sensor ultrasónico (HC-SR04) -------------------- */
 
@@ -232,8 +232,9 @@ void Task_CheckObstacle(void* pvParameters);
  * @brief Fuerza la lectura de todos los sensores ultrasónicos.
  * 
  * Esta función suspende las tareas de los sensores, espera un tiempo para estabilizar el hardware,
- * realiza lecturas de los tres sensores ultrasónicos y actualiza el flag global de obstáculo.
- * Si el sistema estaba inactivo, lo activa temporalmente para realizar las lecturas.
+ * realiza lecturas de los tres sensores ultrasónicos y actualiza el flag global de obstáculo. Si el 
+ * sistema estaba inactivo, lo activa temporalmente para realizar las lecturas y al final se limpian 
+ * las banderas de obstáculos. Si estaba activo, se mantiene su estado.
  * 
  * @return `true` si se detectó algún obstáculo, `false` en caso contrario.
  */

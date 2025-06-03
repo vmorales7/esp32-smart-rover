@@ -1,5 +1,7 @@
-#include "project_config.h"
+#include "vehicle_os/general_config.h"
 #include "motor_drive/motor_controller.h"
+#include "sensors_firmware/encoder_reader.h"
+
 #warning "Compilando main_encoder_interrupt_test.cpp"
 
 // ====================== VARIABLES GLOBALES ======================
@@ -47,10 +49,10 @@ void loop() {
         float dt = (now - last_print) / 1000.0f; // en segundos
         float w = delta * (2*PI) / RAW_ENCODER_PPR / dt;
 
-        Serial.print("Steps: ");
-        Serial.print(current_steps);
-        Serial.print(" | delta steps: ");
-        Serial.print(delta);
+        Serial.print("Ángulo (°): ");
+        Serial.print(current_steps * RAD_PER_PULSE * 180.0f / M_PI, 2);
+        Serial.print(" | delta ángulo (°): ");
+        Serial.print(delta * RAD_PER_PULSE * 180.0f / M_PI);
         Serial.print(" | w (rad/s): ");
         Serial.println(w, 2);
 

@@ -17,8 +17,7 @@ La estructura del código sigue una arquitectura modular, que separa claramente 
 ├── vehicle_os/          # Módulo de lógica de operación del vehículo
 ├── entrypoints/         # Archivos main.cpp individuales para pruebas específicas
 ├── main.cpp             # Main por defecto (no usado)
-├── main_selector.h      # Selector de archivo main activo para compilar desde PlatformIO
-└── project_config.h     # Configuraciones generales del sistema, constantes físicas y pines
+└── main_selector.h      # Selector de archivo main activo para compilar desde PlatformIO
 ```
 ---
 
@@ -40,14 +39,17 @@ Incluye:
 Implementa:
 - Estimador de posición y velocidad (pose)
 - Controlador de posición con dos modos:
-  - `SPEED_REF_AUTO_BASIC`: algoritmo clásico con PID en ángulo
-  - `SPEED_REF_AUTO_ADVANCED`: ley de control en espacio de estados
+  - `PID`: algoritmo clásico con PID en ángulo
+  - `BACKS`: ley de control tipo backstepping
 
 ### `/communication/`
 Reservado para futura implementación de conexión con Firebase (vía WiFi).
 
 ### `/vehicle_os/`
-Reservado para integrar una **máquina de estados** de alto nivel del vehículo (avance, evasión, retorno, etc.).
+Implementa máquina de estados general del sistema. Incluye:
+- Lógica de control
+- Lógica de evasión.
+- Archivo con configuraciones generales del sistema, constantes físicas y pines
 
 ### `/entrypoints/`
 Cada archivo `main_*.cpp` corresponde a una **prueba específica**, como por ejemplo:
