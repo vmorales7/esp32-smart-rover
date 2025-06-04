@@ -24,7 +24,7 @@ void check_duty_speed(DutyProfile& duty, const float w_measured, const float w_r
 
     // ¿Intenta invertir respecto al giro actual?
     bool break_flag = false;
-    if (duty.duty_dir != sign_wm) {
+    if (duty.duty_dir != sign_wm) {            // Hay inversión de sentido
         if (abs_wm > WHEEL_INVERT_THRESHOLD) { // Demasiado rápido para invertir?
             // Detener y evaluar frenado
             duty.duty_val = 0.0f;
@@ -46,7 +46,7 @@ DutyProfile init_duty_profile(const float rawDuty) {
     DutyProfile duty_profile = {0};
     duty_profile.duty_val = rawDuty;
     duty_profile.abs_duty = fabsf(rawDuty);
-    bool fw = (rawDuty >= 0.0f);
+    const bool fw = (rawDuty >= 0.0f);
     duty_profile.forward = fw;
     duty_profile.duty_dir = fw ? 1 : -1;
     return duty_profile;
@@ -129,23 +129,24 @@ void init(
 }
 
 
-void set_motor_pwm(const uint8_t wheel, const float abs_duty, bool forward){
-    uint32_t pwm = abs_duty * PWM_MAX + 0.5f;
+void set_motor_pwm(const uint8_t wheel, const float abs_duty, const bool forward){
+    const uint32_t pwm = abs_duty * PWM_MAX + 0.5f;
+    bool fw = forward;
     if (wheel == WHEEL_LEFT) {
-        if constexpr (INVERT_MOTOR_LEFT) forward = !forward;     
-        digitalWrite(MOTOR_LEFT_DIR_PIN1, forward ? HIGH : LOW);
-        digitalWrite(MOTOR_LEFT_DIR_PIN2, forward ? LOW : HIGH);
+        if constexpr (INVERT_MOTOR_LEFT) fw = !forward;     
+        digitalWrite(MOTOR_LEFT_DIR_PIN1, fw ? HIGH : LOW);
+        digitalWrite(MOTOR_LEFT_DIR_PIN2, fw ? LOW : HIGH);
         ledcWrite(PWM_CHANNEL_LEFT, pwm);
     } else if (wheel == WHEEL_RIGHT){
-        if constexpr (INVERT_MOTOR_RIGHT) forward = !forward;
-        digitalWrite(MOTOR_RIGHT_DIR_PIN1, forward ? HIGH : LOW);
-        digitalWrite(MOTOR_RIGHT_DIR_PIN2, forward ? LOW : HIGH);
+        if constexpr (INVERT_MOTOR_RIGHT) fw = !forward; 
+        digitalWrite(MOTOR_RIGHT_DIR_PIN1, fw ? HIGH : LOW);
+        digitalWrite(MOTOR_RIGHT_DIR_PIN2, fw ? LOW : HIGH);
         ledcWrite(PWM_CHANNEL_RIGHT, pwm);
     }
 }
 
 
-void set_motor_break(uint8_t wheel) {
+void set_motor_break(const uint8_t wheel) {
     // Los pines de control se fuerzan a HIGH para frenado            
     if (wheel == WHEEL_LEFT) {
         digitalWrite(MOTOR_LEFT_DIR_PIN1, HIGH);
@@ -159,7 +160,7 @@ void set_motor_break(uint8_t wheel) {
 }
 
 
-void set_motor_idle(uint8_t wheel) {
+void set_motor_idle(const uint8_t wheel) {
     // Los pines de control se fuerzan a LOW
     if (wheel == WHEEL_LEFT) {
         digitalWrite(MOTOR_LEFT_DIR_PIN1, LOW);
@@ -201,10 +202,8 @@ void set_motors_mode(
 
 
 void apply_duty_profile(
-    const uint8_t wheel_id,
-    const DutyProfile& duty_data,
-    volatile float& global_duty,
-    volatile MotorMode& motor_state
+    const uint8_t wheel_id, const DutyProfile duty_data,
+    volatile float& global_duty, const MotorMode motor_state
 ) {
     // Verificar que el sistema esté en un modo válido
     if (motor_state != MotorMode::MANUAL && motor_state != MotorMode::AUTO) return;
@@ -225,7 +224,7 @@ void apply_duty_profile(
 void set_motors_duty(
     const float duty_left, const float duty_right, 
     volatile float& dutyL_global, volatile float& dutyR_global,
-    volatile MotorMode& motor_state
+    const MotorMode motor_state
 ) {
     if (motor_state != MotorMode::MANUAL && motor_state != MotorMode::AUTO) return;
 
@@ -244,17 +243,16 @@ void set_motors_duty(
 
 
 void update_motors_control(
-    volatile float& w_L, volatile float& w_R, 
-    volatile float& w_L_ref, volatile float& w_R_ref,
+    const float w_L, const float w_R, 
+    const float w_L_ref, const float w_R_ref,
     volatile float& duty_L, volatile float& duty_R, 
-    volatile MotorMode& state
+    const MotorMode state
 ) {
     if (state != MotorMode::AUTO) return; // Se opera solo en modo auto
     // Cálculo del PI
     DutyProfile dutyL = pidLeft.compute(w_L_ref, w_L);
     DutyProfile dutyR = pidRight.compute(w_R_ref, w_R);
-
-    // Aplicar
+    // Aplicar duty resultante
     apply_duty_profile(WHEEL_LEFT, dutyL, duty_L, state);
     apply_duty_profile(WHEEL_RIGHT, dutyR, duty_R, state);
 }

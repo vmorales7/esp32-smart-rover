@@ -53,7 +53,9 @@ void setup() {
 
     // Inicialización de módulos
     EncoderReader::init(sens.enc_phiL, sens.enc_phiR, sens.enc_wL, sens.enc_wR, sts.encoders);
-    IMUSensor::init(sens.imu_acc, sens.imu_w, sens.imu_theta, sts.imu);
+    if (POSE_ESTIMATOR_TYPE == PoseEstimatorType::COMPLEMENTARY) {
+        IMUSensor::init(sens.imu_acc, sens.imu_w, sens.imu_theta, sts.imu);
+    }
     PoseEstimator::init(pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R,
         sens.enc_phiL, sens.enc_phiR, sens.imu_theta, sts.pose);
     pose.estimator_type = POSE_ESTIMATOR_TYPE; // Establecer tipo de estimador
@@ -61,7 +63,9 @@ void setup() {
     PositionController::init(sts.position, ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, ctrl.w_L_ref, ctrl.w_R_ref); 
 
     // Crear tareas principales
-    xTaskCreatePinnedToCore(IMUSensor::Task_IMUData, "ReadIMU", 2048, &ctx, 2, nullptr, 1);
+    if (POSE_ESTIMATOR_TYPE == PoseEstimatorType::COMPLEMENTARY) {
+        xTaskCreatePinnedToCore(IMUSensor::Task_IMUData, "ReadIMU", 2048, &ctx, 2, nullptr, 1);
+    }
     xTaskCreatePinnedToCore(EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2048, &ctx, 2, nullptr, 1);
     xTaskCreatePinnedToCore(MotorController::Task_WheelControl, "WheelControl", 2048, &ctx, 2, nullptr, 1);
     xTaskCreatePinnedToCore(PoseEstimator::Task_PoseEstimatorEncoder, "PoseEstimator", 2048, &ctx, 2, nullptr, 1);
@@ -73,7 +77,9 @@ void setup() {
 
     // Establecer modos
     EncoderReader::resume(sts.encoders);
-    IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);
+    if (POSE_ESTIMATOR_TYPE == PoseEstimatorType::COMPLEMENTARY) {
+        IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);
+    }
     PoseEstimator::set_state(ACTIVE, sts.pose);
     PositionController::set_controller_type(CONTROLLER_TYPE, ctrl.controller_type);
     MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
