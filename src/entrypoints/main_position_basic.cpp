@@ -49,7 +49,6 @@ void setup() {
     delay(1000);
     Serial.begin(115200);
     Serial.println("Main: Position Control — Basic");
-    delay(1000);
 
     // Inicialización de módulos
     EncoderReader::init(sens.enc_phiL, sens.enc_phiR, sens.enc_wL, sens.enc_wR, sts.encoders);
@@ -77,7 +76,7 @@ void setup() {
 
     // Establecer modos
     EncoderReader::resume(sts.encoders);
-    if (POSE_ESTIMATOR_TYPE == PoseEstimatorType::COMPLEMENTARY) {
+    if (POSE_ESTIMATOR_TYPE == PoseEstimatorType::ENCODER) {
         IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);
     }
     PoseEstimator::set_state(ACTIVE, sts.pose);

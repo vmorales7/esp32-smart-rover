@@ -5,13 +5,13 @@
 
 /* ---------------- Constantes y variables sistema ------------------*/
 
-constexpr float FUSION_ALPHA_W = 0.1f; // IMU dominante (mide directo)
-constexpr float FUSION_ALPHA_THETA = 0.1f; // IMU dominante (mide directo)
+constexpr float FUSION_ALPHA_W = 0.9f; // IMU dominante (mide directo)
+constexpr float FUSION_ALPHA_THETA = 0.9f; // IMU dominante (mide directo)
 
 constexpr float IMU_OFFSET_X = 0.02f; // Offset de IMU en eje X [m]
 constexpr float IMU_OFFSET_Y = -0.02f; // Offset de IMU en eje Y [m]
 constexpr float IMU_OFFSET_R = IMU_OFFSET_X*IMU_OFFSET_X + IMU_OFFSET_Y*IMU_OFFSET_Y; // Offset de IMU en radio [m]
-constexpr float IMU_CORRECTION_FACTOR = -0.05 / 0.011; 
+constexpr float IMU_CORRECTION_FACTOR =  -0.05/0.011;//IMU_OFFSET_Y/ IMU_OFFSET_R; 
 
 /* ---------------- Funciones del sistema ------------------*/
 

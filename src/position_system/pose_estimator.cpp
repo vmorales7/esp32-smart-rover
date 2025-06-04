@@ -147,7 +147,7 @@ void update_pose_fusion(
     const uint64_t now = millis();
     const float dt = (now - last_millis) * MS_TO_S; 
     if (dt <= 0.001f) return; // Protección contra dt muy pequeño
-
+    last_millis = now;
     // 1. Variables locales
     float w_fused = 0.0f;
     float theta_fused = 0.0f;
@@ -185,7 +185,6 @@ void update_pose_fusion(
     last_phiL = encoder_phiL;
     last_phiR = encoder_phiR;
     last_imu_theta = imu_theta;
-    last_millis = now;
 }   
 
 
