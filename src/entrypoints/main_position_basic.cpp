@@ -76,17 +76,18 @@ void setup() {
     IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);
     PoseEstimator::set_state(ACTIVE, sts.pose);
     PositionController::set_controller_type(CONTROLLER_TYPE, ctrl.controller_type);
-    PositionController::set_control_mode(CONTROL_MODE, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
     MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
 
     // Asignar punto objetivo
-    if (CONTROL_MODE == PositionControlMode::ALIGN) {
+    if (CONTROL_MODE == PositionControlMode::ROTATE) {
         PositionController::set_diferential_waypoint(
             0.0f, Q_OBJETIVO, ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, sts.position);
     } else {
         PositionController::set_waypoint(
             X_OBJETIVO, Y_OBJETIVO, 0.0f, ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, sts.position);
     }
+    // Comenzar el control de posición
+    PositionController::set_control_mode(CONTROL_MODE, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
 }
 
 void loop() {
