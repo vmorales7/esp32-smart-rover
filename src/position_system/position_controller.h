@@ -6,9 +6,9 @@
 /* ---------------- Constantes y variables sistema ------------------*/
 
 // Tolerancias para control de posición: evitar oscilaciones
-constexpr float NAVIGATION_ANGLE_TOLERANCE = 30.0f * (2*PI / 180.0);
-constexpr float ROTATION_ANGLE_TOLERANCE = 3.0f * (2*PI / 180.0);
-constexpr float DISTANCE_TOLERANCE = 0.05f; 
+constexpr float DISTANCE_TOLERANCE = 0.05f;                 // 5 cm de tolerancia
+constexpr float ANGLE_TOLERANCE = 3.0f * DEG_TO_RAD;        // 3 grados en radianes
+constexpr float MAX_ANGLE_DEVIATION = 30.0f * DEG_TO_RAD;   // 30 grados en radianes
 
 // Thresholds para considerar que el vehículo está detenido
 constexpr float V_MAX = WM_NOM * WHEEL_RADIUS;
@@ -24,10 +24,10 @@ constexpr float KW_ALPHA = 0.1f / KI_ALPHA; // Ganancia anti-windup
 constexpr float INTEGRAL_ALPHA_MAX = 0.5 * V_MAX / KI_ALPHA; // Clamping del integrador
 
 // Ganancias de PI de rho
-constexpr float KP_RHO = 1.0f;  // Ganancia proporcional (0.7)
-constexpr float KI_RHO = 0.1f;  // Ganancia integral (0.1)
-constexpr float KW_RHO = 0.1f / KI_RHO; // Ganancia anti-windup
-constexpr float INTEGRAL_RHO_MAX = 0.5 * V_MAX / KI_RHO; // Clamping del integrador
+constexpr float KP_RHO = 2.0f;  // Ganancia proporcional (0.7)
+constexpr float KI_RHO = 0.0f;  // Ganancia integral (0.1)
+constexpr float KW_RHO = 0.0f;  // Ganancia anti-windup (0.1/K_I_RHO)
+constexpr float INTEGRAL_RHO_MAX = 0.0; // Clamping del integrador (0.5 * V_MAX / KI_RHO)
 
 // Parámetros del controlador tipo backstepping
 constexpr float K1 = 2.0f; 
@@ -274,21 +274,6 @@ bool stop_movement(
  * @return VelocityData Estructura con los valores finales de (v, w, wL, wR) tras la saturación.
  */
 VelocityData constrain_velocity(const float v_raw, const float w_raw);
-
-/**
- * @brief Calcula la velocidad angular de referencia de una rueda,
- *        a partir de v_ref y w_ref.
- *
- * @param v_ref Velocidad lineal de referencia global [m/s]
- * @param w_ref Velocidad angular de referencia global [rad/s]
- * @param wheel_id WHEEL_LEFT (0) o WHEEL_RIGHT (1)
- * @return Velocidad angular de referencia para la rueda [rad/s]
- */
-float compute_wheel_speed(
-    const float v_ref, 
-    const float w_ref, 
-    const uint8_t wheel_id
-);
 
 /**
  * @brief Tarea RTOS que ejecuta periódicamente el controlador de posición,

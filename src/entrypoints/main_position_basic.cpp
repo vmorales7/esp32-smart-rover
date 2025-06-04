@@ -1,6 +1,7 @@
 #include "vehicle_os/general_config.h"
 #include "motor_drive/motor_controller.h"
 #include "sensors_firmware/encoder_reader.h"
+#include "sensors_firmware/imu_reader.h"
 #include "position_system/pose_estimator.h"
 #include "position_system/position_controller.h"
 
@@ -25,14 +26,16 @@ GlobalContext ctx = {
 
 // ====================== CONFIGURACIÓN OBJETIVO ======================
 
-constexpr ControlType CONTROLLER_TYPE = ControlType::   BACKS;
-constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::COMPLEMENTARY;
+// Configuración de control y estimación de posición
+constexpr ControlType CONTROLLER_TYPE = ControlType::PID;
+constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::ENCODER;
 
-// Escoger desplazamiento / alineación / rotación pura
-PositionControlMode control_state = PositionControlMode::MOVE; 
+// Escoger objetivo y modo de control: MOVE o ROTATE
+constexpr PositionControlMode CONTROL_MODE = PositionControlMode::MOVE; 
 constexpr float X_OBJETIVO = 1.0f; 
 constexpr float Y_OBJETIVO = 1.0f;
-constexpr float Q_OBJETIVO = 0.0f * PI/180.f;  // modificar solo si se quiere un giro puro
+constexpr float Q_OBJETIVO = 0.0f * DEG_TO_RAD; // radianes
+
 
 
 // ====================== PROTOTIPOS ======================
@@ -46,30 +49,23 @@ void setup() {
     delay(1000);
     Serial.begin(115200);
     Serial.println("Main: Position Control — Basic");
+    delay(1000);
 
     // Inicialización de módulos
     EncoderReader::init(sens.enc_phiL, sens.enc_phiR, sens.enc_wL, sens.enc_wR, sts.encoders);
-    // IMUReader::init(sens.imu_ax, sens.imu_wz, sens.imu_theta, sts.imu); // A futuro
+    if (POSE_ESTIMATOR_TYPE == PoseEstimatorType::COMPLEMENTARY) {
+        IMUSensor::init(sens.imu_acc, sens.imu_w, sens.imu_theta, sts.imu);
+    }
     PoseEstimator::init(pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R,
         sens.enc_phiL, sens.enc_phiR, sens.imu_theta, sts.pose);
     pose.estimator_type = POSE_ESTIMATOR_TYPE; // Establecer tipo de estimador
     MotorController::init(sts.motors, ctrl.duty_L, ctrl.duty_R);
     PositionController::init(sts.position, ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, ctrl.w_L_ref, ctrl.w_R_ref); 
 
-    delay(20000);
-
-    // Establecer modos
-    EncoderReader::resume(sts.encoders);
-    // IMUReader::resume(sts.imu); // A futuro
-    PoseEstimator::set_state(ACTIVE, sts.pose);
-    PositionController::set_controller_type(CONTROLLER_TYPE, ctrl.controller_type);
-    PositionController::set_control_mode(control_state, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
-    MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
-
-    // Asignar punto objetivo
-    PositionController::set_waypoint(X_OBJETIVO, Y_OBJETIVO, Q_OBJETIVO, ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, sts.position);
-
     // Crear tareas principales
+    if (POSE_ESTIMATOR_TYPE == PoseEstimatorType::COMPLEMENTARY) {
+        xTaskCreatePinnedToCore(IMUSensor::Task_IMUData, "ReadIMU", 2048, &ctx, 2, nullptr, 1);
+    }
     xTaskCreatePinnedToCore(EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2048, &ctx, 2, nullptr, 1);
     xTaskCreatePinnedToCore(MotorController::Task_WheelControl, "WheelControl", 2048, &ctx, 2, nullptr, 1);
     xTaskCreatePinnedToCore(PoseEstimator::Task_PoseEstimatorEncoder, "PoseEstimator", 2048, &ctx, 2, nullptr, 1);
@@ -78,6 +74,26 @@ void setup() {
     // Debug
     xTaskCreatePinnedToCore(Task_PrintPose, "PrintPose", 2048, &ctx, 1, nullptr, 0);
     //xTaskCreatePinnedToCore(Task_PrintXY, "PrintXY", 2048, &ctx, 1, nullptr, 0);
+
+    // Establecer modos
+    EncoderReader::resume(sts.encoders);
+    if (POSE_ESTIMATOR_TYPE == PoseEstimatorType::COMPLEMENTARY) {
+        IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);
+    }
+    PoseEstimator::set_state(ACTIVE, sts.pose);
+    PositionController::set_controller_type(CONTROLLER_TYPE, ctrl.controller_type);
+    MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
+
+    // Asignar punto objetivo
+    if (CONTROL_MODE == PositionControlMode::ROTATE) {
+        PositionController::set_diferential_waypoint(
+            0.0f, Q_OBJETIVO, ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, sts.position);
+    } else {
+        PositionController::set_waypoint(
+            X_OBJETIVO, Y_OBJETIVO, 0.0f, ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, sts.position);
+    }
+    // Comenzar el control de posición
+    PositionController::set_control_mode(CONTROL_MODE, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
 }
 
 void loop() {

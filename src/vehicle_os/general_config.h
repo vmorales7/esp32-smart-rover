@@ -40,10 +40,10 @@ constexpr uint8_t IMU_SCL_PIN = 13;
 /* -------------- Constantes generales --------------*/
 
 // Parámetros físicos del vehículo
-constexpr float WHEEL_RADIUS = 0.067f / 2.0f;    // en metros
-constexpr float WHEELS_SEPARATION = 0.194f;                // distancia entre ruedas (L)
+constexpr float WHEEL_RADIUS = 0.067f / 2.0f; // en metros
+constexpr float WHEELS_SEPARATION = 0.194f;   // distancia entre ruedas (L)
 constexpr float WHEEL_TO_MID_DISTANCE = WHEELS_SEPARATION / 2.0f;   // media distancia entre ruedas (L/2)
-constexpr float WM_NOM = 215.0 * 2*PI/60.0; // rad/s nominales bajo carga = 22.51 (29.3 sin carga)
+constexpr float WM_NOM = 215.0 * 2*PI/60.0;    // rad/s nominales bajo carga = 22.51 (29.3 sin carga)
 
 // Auxiliares
 constexpr uint8_t WHEEL_LEFT  = 0U;
@@ -67,7 +67,7 @@ constexpr float NULL_WAYPOINT_XY = 99.9f;
 // Modos de operación de los motores
 enum class MotorMode : uint8_t {
     IDLE = 0U,    // Se dejan libres los motores, alta impedancia entre los bornes del motor
-    ACTIVE = 1U,  // Se controla la velocidad con el duty y los pines de control
+    MANUAL = 1U,  // Se controla la velocidad con el duty y los pines de control
     AUTO = 2U,    // Modo de control automático
     BREAK = 3U    // Motores bloqueados, frena el motor
 };

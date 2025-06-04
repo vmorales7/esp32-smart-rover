@@ -83,7 +83,7 @@ void setup() {
 
     // Inicialización de motor y encoder
     MotorController::init(sts.motors, ctrl.duty_L, ctrl.duty_R);
-    MotorController::set_motors_mode(MotorMode::ACTIVE, sts.motors, ctrl.duty_L, ctrl.duty_R);
+    MotorController::set_motors_mode(MotorMode::MANUAL, sts.motors, ctrl.duty_L, ctrl.duty_R);
     DistanceSensors::init(sens.us_left_dist, sens.us_left_obst, sens.us_mid_dist, sens.us_mid_obst, 
         sens.us_right_dist, sens.us_right_obst, sens.us_obstacle, sts.distance);  
     DistanceSensors::set_state(ACTIVE, sts.distance, 

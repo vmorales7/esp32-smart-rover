@@ -101,8 +101,7 @@ void Task_FaseManager(void* pvParameters) {
             case FaseEstado::OBSTACULO: {
                 fase_wL_ref = 0.0f;
                 fase_wR_ref = 0.0f;
-                if (fabsf(pose.w_L) < W_STOP_THRESHOLD &&
-                    fabsf(pose.w_R) < W_STOP_THRESHOLD) {
+                if (fabsf(pose.w_L) < W_STOP_THRESHOLD && fabsf(pose.w_R) < W_STOP_THRESHOLD) {
                     MotorController::set_motors_mode(MotorMode::IDLE, sts.motors, ctrl.duty_L, ctrl.duty_R);
                     fase_estado = FaseEstado::DETENIDO_POR_OBSTACULO;
                     Serial.println("Vehiculo detenido completamente por obstaculo.");
@@ -110,16 +109,14 @@ void Task_FaseManager(void* pvParameters) {
                 break;
             }
             case FaseEstado::DETENIDO_POR_OBSTACULO: {
-                const bool obstacle_flag = DistanceSensors::compute_global_obstacle_flag(
-                    sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst);
-                if (!obstacle_flag) {
+                DistanceSensors::update_global_obstacle_flag(
+                        sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
+                if (!sens.us_obstacle) {
                     fase_estado = FaseEstado::EJECUTANDO;
                     MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
                     fase_wL_ref = fases[fase_indice_actual].wL_ref;
                     fase_wR_ref = fases[fase_indice_actual].wR_ref;
                     Serial.println("Obstaculo retirado. Reanudando fase actual.");
-                    DistanceSensors::update_global_obstacle_flag(
-                        sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
                 }
                 break;
             }
@@ -162,21 +159,14 @@ void setup() {
     Serial.println("Inicio: Avance 2");
     delay(1000);
 
+    // Inicialización de módulos
     MotorController::init(sts.motors, ctrl.duty_L, ctrl.duty_R);
-    MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
-
-    PositionController::init(sts.position, ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, 
-        ctrl.w_L_ref, ctrl.w_R_ref);
-    PositionController::set_control_mode(PositionControlMode::MANUAL, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
-
     DistanceSensors::init(sens.us_left_dist, sens.us_left_obst, sens.us_mid_dist, sens.us_mid_obst,
         sens.us_right_dist, sens.us_right_obst, sens.us_obstacle, sts.distance);
-    DistanceSensors::set_state(ACTIVE, sts.distance,
-        sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
-    
     EncoderReader::init(sens.enc_phiL, sens.enc_phiR, pose.w_L, pose.w_R, sts.encoders);
     pose.estimator_type = POSE_ESTIMATOR_TYPE;
-    EncoderReader::resume(sts.encoders);
+    PositionController::init(sts.position, ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, 
+        ctrl.w_L_ref, ctrl.w_R_ref);
 
     // Tareas principales (núcleo 1)
     xTaskCreatePinnedToCore(EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2048, &ctx, 1, nullptr, 1);
@@ -186,6 +176,13 @@ void setup() {
     // Tareas secundaria (núcleo 0)
     xTaskCreatePinnedToCore(DistanceSensors::Task_CheckObstacle, "ObstacleCheck", 2048, &ctx, 1, nullptr, 0);
     xTaskCreatePinnedToCore(Task_Printer, "Printer", 2048, nullptr, 1, nullptr, 0);
+
+    // Configuración de estados iniciales
+    DistanceSensors::set_state(ACTIVE, sts.distance,
+        sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
+    MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
+    EncoderReader::resume(sts.encoders);
+    PositionController::set_control_mode(PositionControlMode::MANUAL, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
 }
 
 void loop() {

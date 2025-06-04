@@ -21,10 +21,11 @@ constexpr float MAX_DUTY = 1.0f;
 // Speed controller PI parameters
 constexpr float KP_WHEEL = 0.09f;
 constexpr float KI_WHEEL = 0.07f;
-constexpr float KW_WHEEL = 0.01f;
+constexpr float KW_WHEEL = 0.02f;
+constexpr float INTEGRAL_MAX = 0.5f * MAX_DUTY / KI_WHEEL; // Límite del integrador para anti-windup
 
 // Speed control limits
-constexpr float WHEEL_INVERT_THRESHOLD = 0.1 * WM_NOM;        // No invertir el signo del duty si va muy rápido [rad/s]
+constexpr float WHEEL_INVERT_THRESHOLD = 0.2 * WM_NOM;        // No invertir el signo del duty si va muy rápido [rad/s]
 constexpr float WHEEL_BRAKE_THRESHOLD  = 0.5 * WM_NOM;        // Threshold de velocidad para freno activo [rad/s]
 constexpr float WHEEL_STOP_THRESHOLD   = (2.0f * PI / 20.0f); // Threshold de velocidad para considerar stop [rad/s]
 
@@ -90,7 +91,7 @@ private:
  * @param rawDuty Valor crudo del duty [-1.0, 1.0]
  * @return DutyProfile inicializado
  */
-DutyProfile init_duty_profile(float rawDuty);
+DutyProfile init_duty_profile(const float rawDuty);
 
 /**
  * @brief Aplica límites prácticos y técnicos al duty.
@@ -132,7 +133,7 @@ void init(
  * @param abs_duty Valor absoluto del duty [0.0 – 1.0]
  * @param forward Sentido del giro: true = adelante
  */
-void set_motor_pwm(uint8_t wheel, float abs_duty, bool forward);
+void set_motor_pwm(const uint8_t wheel, const float abs_duty, const bool forward);
 
 /**
  * @brief Aplica freno activo a un motor utilizando el L298N.
@@ -142,7 +143,7 @@ void set_motor_pwm(uint8_t wheel, float abs_duty, bool forward);
  *
  * @param wheel Identificador del motor (`WHEEL_LEFT` o `WHEEL_RIGHT`).
  */
-void set_motor_break(uint8_t wheel);
+void set_motor_break(const uint8_t wheel);
 
 /**
  * @brief Coloca un motor en modo libre (alta impedancia).
@@ -152,7 +153,7 @@ void set_motor_break(uint8_t wheel);
  *
  * @param wheel Identificador del motor (`WHEEL_LEFT` o `WHEEL_RIGHT`).
  */
-void set_motor_idle(uint8_t wheel);
+void set_motor_idle(const uint8_t wheel);
 
 /**
  * @brief Cambia el modo global de los motores.
@@ -176,10 +177,10 @@ void set_motors_mode(
  * @param motor_state Estado actual del sistema de motor.
  */
 void apply_duty_profile(
-    uint8_t wheel_id,
-    const DutyProfile& duty_data,
+    const uint8_t wheel_id,
+    const DutyProfile duty_data,
     volatile float& global_duty,
-    volatile MotorMode& motor_state
+    const MotorMode motor_state
 );
         
 /**
@@ -196,7 +197,7 @@ void set_motors_duty(
     const float duty_right,
     volatile float& dutyL_global,
     volatile float& dutyR_global,
-    volatile MotorMode& motor_state
+    const MotorMode motor_state
 );
 
 /**
@@ -216,10 +217,10 @@ void set_motors_duty(
  * @param state Estado del controlador de motores (debe estar en MOTOR_AUTO para ejecutar control).
  */
 void update_motors_control(
-    volatile float& w_L, volatile float& w_R, 
-    volatile float& w_L_ref, volatile float& w_R_ref,
+    const float w_L, const float w_R, 
+    const float w_L_ref, const float w_R_ref,
     volatile float& duty_L, volatile float& duty_R, 
-    volatile MotorMode& state
+    const MotorMode state
 );
 
 /**

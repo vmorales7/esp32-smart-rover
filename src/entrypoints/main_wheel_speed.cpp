@@ -26,7 +26,7 @@ GlobalContext ctx = {
     .evade_ptr       = nullptr
 };
 
-constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::COMPLEMENTARY;
+constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::ENCODER;
 
 
 // ------------------------ Tareas RTOS adicionales -------------------------
@@ -60,14 +60,10 @@ void setup() {
 
     // Inicialización
     MotorController::init(sts.motors, ctrl.duty_L, ctrl.duty_R);
-    MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
     EncoderReader::init(sens.enc_phiL, sens.enc_phiR, sens.enc_wL, sens.enc_wR, sts.encoders);
     pose.estimator_type = POSE_ESTIMATOR_TYPE; // Establecer tipo de estimador de pose
     PositionController::init(sts.position, ctrl.x_d, ctrl.y_d, ctrl.theta_d, 
         ctrl.waypoint_reached, ctrl.w_L_ref, ctrl.w_R_ref);
-    PositionController::set_control_mode(PositionControlMode::MANUAL, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
-    EncoderReader::resume(sts.encoders);
-    PositionController::set_wheel_speed_ref(W1, W1, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
 
     // Lanzar todas las tareas RTOS
     xTaskCreatePinnedToCore(EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2048, &ctx, 3, nullptr, 1);
@@ -75,6 +71,12 @@ void setup() {
     xTaskCreatePinnedToCore(Task_ToggleReference, "ToggleRef", 2048, &ctx, 1, nullptr, 1);
     xTaskCreatePinnedToCore(Task_Printer, "Printer", 2048, &ctx, 1, nullptr, 0);
     // xTaskCreatePinnedToCore(Task_PrintPerformance, "PrintPerformance", 2048, &ctx, 1, nullptr, 0);
+    
+    // Empezar operación
+    EncoderReader::resume(sts.encoders);
+    PositionController::set_control_mode(PositionControlMode::MANUAL, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
+    MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
+    PositionController::set_wheel_speed_ref(W1, W1, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
 }
 
 void loop() {
