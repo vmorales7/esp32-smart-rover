@@ -25,7 +25,7 @@ void setup() {
     
     // Inicializar motor
     MotorController::init(motors_op, dutyL, dutyR);
-    MotorController::set_motors_mode(MotorMode::ACTIVE, motors_op, dutyL, dutyR);
+    MotorController::set_motors_mode(MotorMode::MANUAL, motors_op, dutyL, dutyR);
     MotorController::set_motors_duty(0.5f, 0.5f, dutyL, dutyR, motors_op);
     
     // Inicializar encoder

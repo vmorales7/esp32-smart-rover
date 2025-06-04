@@ -119,7 +119,10 @@ void setup() {
     Serial.println("Inicio: Seguimiento de puntos");
 
     // Inicialización de sistemas
-    IMUSensor::init(sens.imu_acc, sens.imu_w, sens.imu_theta, sts.imu);
+    if (POSE_ESTIMATOR_TYPE == PoseEstimatorType::COMPLEMENTARY) {
+        IMUSensor::init(sens.imu_acc, sens.imu_w, sens.imu_theta, sts.imu);
+        delay(10); //Esperar I2C 
+    }
     EncoderReader::init(sens.enc_phiL, sens.enc_phiR, sens.enc_wL, sens.enc_wR, sts.encoders);
     PoseEstimator::init(pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R,
         sens.enc_phiL, sens.enc_phiR, sens.imu_theta, sts.pose);
@@ -130,18 +133,10 @@ void setup() {
     PositionController::init(sts.position, ctrl.x_d, ctrl.y_d, ctrl.theta_d, 
         ctrl.waypoint_reached, ctrl.w_L_ref, ctrl.w_R_ref);
 
-    // Puesta en marcha de todo
-    IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);
-    EncoderReader::resume(sts.encoders);
-    PoseEstimator::set_state(ACTIVE, sts.pose);
-    DistanceSensors::set_state(ACTIVE, sts.distance, 
-        sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
-    PositionController::set_controller_type(CONTROLLER_TYPE, ctrl.controller_type);
-    PositionController::set_control_mode(PositionControlMode::ALIGN, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
-    MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
-
     // Tareas de sistema (core 1)
-    xTaskCreatePinnedToCore(IMUSensor::Task_IMUData, "ReadIMU", 2048, &ctx, 1, nullptr, 1);
+    if (POSE_ESTIMATOR_TYPE == PoseEstimatorType::COMPLEMENTARY) {
+        xTaskCreatePinnedToCore(IMUSensor::Task_IMUData, "ReadIMU", 2048, &ctx, 1, nullptr, 1);
+    }
     xTaskCreatePinnedToCore(EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2048, &ctx, 1, nullptr, 1);
     xTaskCreatePinnedToCore(MotorController::Task_WheelControl, "WheelControl", 2048, &ctx, 1, nullptr, 1);
     xTaskCreatePinnedToCore(PoseEstimator::Task_PoseEstimatorEncoder, "PoseEstimator", 2048, &ctx, 1, nullptr, 1);
@@ -152,6 +147,18 @@ void setup() {
 
     // Tarea principal de control por puntos (core 0)
     xTaskCreatePinnedToCore(Task_ControlPorPuntos, "ControlPorPuntos", 2048, &ctx, 2, nullptr, 0);
+
+    // Puesta en marcha de todo (activar subsistemas)
+    if (POSE_ESTIMATOR_TYPE == PoseEstimatorType::COMPLEMENTARY) {
+        IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);
+    }
+    EncoderReader::resume(sts.encoders);
+    PoseEstimator::set_state(ACTIVE, sts.pose);
+    DistanceSensors::set_state(ACTIVE, sts.distance, 
+        sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
+    PositionController::set_controller_type(CONTROLLER_TYPE, ctrl.controller_type);
+    PositionController::set_control_mode(PositionControlMode::ALIGN, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
+    MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
 }
 
 void loop() {
