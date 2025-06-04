@@ -123,6 +123,7 @@ void update_pose_imu(
     v = v_imu; 
     w = w_imu_corr; 
     theta = theta_imu;
+    Serial.println(theta);
     w_L = (v_imu - w_imu_corr * WHEEL_TO_MID_DISTANCE) / WHEEL_RADIUS;
     w_R = (v_imu + w_imu_corr * WHEEL_TO_MID_DISTANCE) / WHEEL_RADIUS;
 
@@ -146,7 +147,6 @@ void update_pose_fusion(
     const uint64_t now = millis();
     const float dt = (now - last_millis) * MS_TO_S; 
     if (dt <= 0.001f) return; // Protección contra dt muy pequeño
-    last_millis = now;
 
     // 1. Variables locales
     float w_fused = 0.0f;
@@ -162,7 +162,7 @@ void update_pose_fusion(
 
     // 3. Velocidades desde IMU: integración de la velocidad y corrección de giro por sensor desalineado
     const float w_imu_corr = imu_w - v_encoder * IMU_CORRECTION_FACTOR;
-    const float theta_imu_corr = wrap_to_pi(theta + (imu_theta - last_imu_theta));
+    const float theta_imu_corr = wrap_to_pi(theta + (imu_theta-last_imu_theta));
 
     // 4. Fusión sensorial (complementary filter)
     w_fused = w_encoder * FUSION_ALPHA_W + w_imu_corr * (1.0f - FUSION_ALPHA_W);
@@ -184,7 +184,8 @@ void update_pose_fusion(
     // 7. Guardar auxiliares para el próximo ciclo
     last_phiL = encoder_phiL;
     last_phiR = encoder_phiR;
-    last_imu_theta = theta_imu_corr;
+    last_imu_theta = imu_theta;
+    last_millis = now;
 }   
 
 

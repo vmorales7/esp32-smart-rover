@@ -25,7 +25,7 @@ GlobalContext ctx = {
 
 // ====================== CONFIGURACIÓN OBJETIVO ======================
 
-constexpr ControlType CONTROLLER_TYPE = ControlType::PID;
+constexpr ControlType CONTROLLER_TYPE = ControlType::   BACKS;
 constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::COMPLEMENTARY;
 
 // Escoger desplazamiento / alineación / rotación pura
@@ -55,6 +55,8 @@ void setup() {
     pose.estimator_type = POSE_ESTIMATOR_TYPE; // Establecer tipo de estimador
     MotorController::init(sts.motors, ctrl.duty_L, ctrl.duty_R);
     PositionController::init(sts.position, ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, ctrl.w_L_ref, ctrl.w_R_ref); 
+
+    delay(20000);
 
     // Establecer modos
     EncoderReader::resume(sts.encoders);

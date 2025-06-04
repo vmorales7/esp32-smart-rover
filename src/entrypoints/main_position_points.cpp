@@ -40,9 +40,9 @@ struct Waypoint {
 };
 constexpr uint8_t NUM_PUNTOS = 3;
 Waypoint trayectoria[NUM_PUNTOS] = {
+    {1.0f, 0.0f},
     {1.0f, 1.0f},
-    {2.0f, 1.0f},
-    {2.0f, 2.0f}
+    {0.0f, 0.0f}
 };
 uint8_t punto_actual = 0;
 
