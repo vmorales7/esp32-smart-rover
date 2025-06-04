@@ -23,7 +23,7 @@ void setup() {
 
     // Inicializar
     MotorController::init(motors_op, dutyL, dutyR);
-    MotorController::set_motors_mode(MotorMode::ACTIVE, motors_op, dutyL, dutyR);
+    MotorController::set_motors_mode(MotorMode::MANUAL, motors_op, dutyL, dutyR);
     delay(3000);
     Serial.println("Test: Duty Cycle Motor - Iniciando secuencia...");
 

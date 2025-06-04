@@ -67,7 +67,7 @@ constexpr float NULL_WAYPOINT_XY = 99.9f;
 // Modos de operación de los motores
 enum class MotorMode : uint8_t {
     IDLE = 0U,    // Se dejan libres los motores, alta impedancia entre los bornes del motor
-    ACTIVE = 1U,  // Se controla la velocidad con el duty y los pines de control
+    MANUAL = 1U,  // Se controla la velocidad con el duty y los pines de control
     AUTO = 2U,    // Modo de control automático
     BREAK = 3U    // Motores bloqueados, frena el motor
 };

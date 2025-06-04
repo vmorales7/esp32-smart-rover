@@ -21,10 +21,11 @@ constexpr float MAX_DUTY = 1.0f;
 // Speed controller PI parameters
 constexpr float KP_WHEEL = 0.09f;
 constexpr float KI_WHEEL = 0.07f;
-constexpr float KW_WHEEL = 0.01f;
+constexpr float KW_WHEEL = 0.02f;
+constexpr float INTEGRAL_MAX = 0.5f * MAX_DUTY / KI_WHEEL; // Límite del integrador para anti-windup
 
 // Speed control limits
-constexpr float WHEEL_INVERT_THRESHOLD = 0.1 * WM_NOM;        // No invertir el signo del duty si va muy rápido [rad/s]
+constexpr float WHEEL_INVERT_THRESHOLD = 0.2 * WM_NOM;        // No invertir el signo del duty si va muy rápido [rad/s]
 constexpr float WHEEL_BRAKE_THRESHOLD  = 0.5 * WM_NOM;        // Threshold de velocidad para freno activo [rad/s]
 constexpr float WHEEL_STOP_THRESHOLD   = (2.0f * PI / 20.0f); // Threshold de velocidad para considerar stop [rad/s]
 

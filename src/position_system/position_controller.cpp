@@ -75,7 +75,6 @@ bool set_waypoint(
     theta_d_global = wrap_to_pi(theta_d); // Normalizar el ángulo al rango (-π, π]
     reset_pid_state(); // Reiniciar el estado del PID
     waypoint_reached = false; // Reiniciar la bandera de waypoint alcanzado
-    //set_control_mode(PositionControlMode::ALIGN, control_mode);
     return SUCCESS; // Indicar que se estableció el waypoint correctamente
 }
 
@@ -136,9 +135,7 @@ MovingState update_control_pid(
     if (dt < 0.001) return move_state; // Protección de tiempo mínimo
     last_millis = now;
 
-    // 2) Condicional de operación: define tolerancia de ángulo, alpha, rho, y aplica criterio de convergencia
-    const float angle_tolerance = (control_mode == PositionControlMode::MOVE) 
-                                    ? NAVIGATION_ANGLE_TOLERANCE : ROTATION_ANGLE_TOLERANCE;
+    // 2) Condicional de operación: define alpha, rho, y aplica criterio de convergencia
     if (control_mode == PositionControlMode::MOVE) { // Caso de control de movimiento
         rho = sqrtf(dx*dx + dy*dy);                 // Distancia al objetivo
         alpha = wrap_to_pi(atan2f(dy, dx) - theta); // Error de orientación hacia el objetivo
@@ -147,12 +144,12 @@ MovingState update_control_pid(
     else if (control_mode == PositionControlMode::ALIGN) { // Caso de alineación hacia el objetivo
         // rho no se usa y se deja en cero
         alpha = wrap_to_pi(atan2f(dy, dx) - theta); // Error de orientación hacia el objetivo
-        move_state = (fabsf(alpha) < angle_tolerance) ? MovingState::STOPPING : MovingState::ROTATING;
+        move_state = (fabsf(alpha) < ANGLE_TOLERANCE) ? MovingState::STOPPING : MovingState::ROTATING;
     } 
     else if (control_mode == PositionControlMode::ROTATE) { // Caso de rotación pura
         // rho no se usa y se deja en cero
         alpha = wrap_to_pi(theta_d - theta); // Error respecto al ángulo objetivo
-        move_state = (fabsf(alpha) < angle_tolerance) ? MovingState::STOPPING : MovingState::ROTATING;
+        move_state = (fabsf(alpha) < ANGLE_TOLERANCE) ? MovingState::STOPPING : MovingState::ROTATING;
     }
 
     // 3) Control
@@ -165,7 +162,7 @@ MovingState update_control_pid(
         // Control tipo PI para la distancia. 
         // Modo rotating o si el ángulo es muy grande -> solo gira en el lugar (mantiene vref en 0)
         float v_ref_raw = 0.0f;
-        if (move_state != MovingState::ADVANCING || fabsf(alpha) > angle_tolerance) {
+        if (move_state != MovingState::ADVANCING || fabsf(alpha) > MAX_ANGLE_DEVIATION) {
             // Se deja la referencia de velocidad lineal en cero
             move_state = MovingState::ROTATING; // El estado de movimiento será de rotación
             integral_rho = 0.0f; // Reiniciar integral de rho
@@ -232,13 +229,11 @@ MovingState update_control_backstepping(
     float e3 = 0.0f; // Se sobreescribe más adelante
 
     // 2) Condiciones de control y referencias crudas
-    const float angle_tolerance = (control_mode == PositionControlMode::MOVE) 
-                                    ? NAVIGATION_ANGLE_TOLERANCE : ROTATION_ANGLE_TOLERANCE;
     if (control_mode == PositionControlMode::MOVE) { // Movimiento normal
         move_state = (rho < DISTANCE_TOLERANCE) ? MovingState::STOPPING : MovingState::ADVANCING;
         if (move_state == MovingState::ADVANCING) {
             e3 = wrap_to_pi(atan2f(dy, dx) - theta); // Error angular respecto al objetivo
-            if (fabs(e3) < angle_tolerance) {
+            if (fabs(e3) < MAX_ANGLE_DEVIATION) {
                 v_ref_local = K1*e1;           // Si el ángulo es pequeño, avanzar
             } else {
                 // Si el ángulo es grande, solo rotar y se mantiene la referencia de velocidad lineal en cero
@@ -251,14 +246,13 @@ MovingState update_control_backstepping(
         // La alineación deseada dependerá del modo de control
         float theta_d_local = (control_mode == PositionControlMode::ALIGN) ? atan2f(dy, dx) : theta_d; 
         e3 = wrap_to_pi(theta_d_local - theta); // Error angular respecto al objetivo
-        if (fabs(e3) < angle_tolerance) {
+        if (fabs(e3) < ANGLE_TOLERANCE) {
             move_state = MovingState::STOPPING; // Si el error es pequeño, detener
         } else {
             move_state = MovingState::ROTATING; // Si no, rotar con control angular
             w_ref_local = K2*e2 + K3*e1*e2*e3;
         }
     } 
-
     // 3) Aplicar saturación y aplicar a las ruedas
     const VelocityData sat_vel = constrain_velocity(v_ref_local, w_ref_local);
     set_wheel_speed_ref(sat_vel.wL, sat_vel.wR, wL_ref, wR_ref, control_mode);
@@ -289,7 +283,7 @@ bool update_control(
         state = update_control_backstepping(x, y, theta, x_d, y_d, theta_d, wL_ref, wR_ref, control_mode);
     }
     // Verificar si se alcanzó el objetivo
-    if (state == MovingState::STOPPING && v < V_STOP_THRESHOLD && w < W_STOP_THRESHOLD) {
+    if (state == MovingState::STOPPING && fabsf(v) < V_STOP_THRESHOLD && fabsf(w) < W_STOP_THRESHOLD) {
         state = MovingState::STOPPED; // Si el vehículo está detenido, se considera que se alcanzó el objetivo
         waypoint_reached = true; // Marcar que se alcanzó el waypoint
     } else {
@@ -332,23 +326,11 @@ VelocityData constrain_velocity(float v, float w) {
         w *= scale;
 
         // Recalcular las velocidades de rueda considerando el escalamiento
-        const float rotation_term = w * WHEEL_TO_MID_DISTANCE;
-        wL = (v - rotation_term) / WHEEL_RADIUS;
-        wR = (v + rotation_term) / WHEEL_RADIUS;
+        wL = (v - w * WHEEL_TO_MID_DISTANCE) / WHEEL_RADIUS;
+        wR = (v + w * WHEEL_TO_MID_DISTANCE) / WHEEL_RADIUS;
     }
     VelocityData data = {v, w, wL, wR};
     return data;
-}
-
-
-float compute_wheel_speed(const float v, const float w, const uint8_t wheel_id) {
-    const float rotation_term = w * WHEELS_SEPARATION / 2.0f;
-    if (wheel_id == WHEEL_LEFT)
-        return (v - rotation_term) / WHEEL_RADIUS;
-    else if (wheel_id == WHEEL_RIGHT)
-        return (v + rotation_term) / WHEEL_RADIUS;
-    else
-        return 0.0f; // default / error
 }
 
 

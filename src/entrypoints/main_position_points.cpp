@@ -2,6 +2,7 @@
 #include "motor_drive/motor_controller.h"
 #include "sensors_firmware/encoder_reader.h"
 #include "sensors_firmware/distance_sensors.h"
+#include "sensors_firmware/imu_reader.h"
 #include "position_system/pose_estimator.h"
 #include "position_system/position_controller.h"
 
@@ -32,7 +33,7 @@ bool en_pausa_por_obstaculo = false; // Indica si se pausó por un obstáculo
 // ====================== CONFIGURACIÓN PUNTOS ======================
 
 constexpr ControlType CONTROLLER_TYPE = ControlType::PID; // Tipo de controlador a utilizar
-constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::COMPLEMENTARY; // Tipo de estimador de pose
+constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::ENCODER; // Tipo de estimador de pose
 
 struct Waypoint {
     float x;
@@ -118,6 +119,7 @@ void setup() {
     Serial.println("Inicio: Seguimiento de puntos");
 
     // Inicialización de sistemas
+    IMUSensor::init(sens.imu_acc, sens.imu_w, sens.imu_theta, sts.imu);
     EncoderReader::init(sens.enc_phiL, sens.enc_phiR, sens.enc_wL, sens.enc_wR, sts.encoders);
     PoseEstimator::init(pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R,
         sens.enc_phiL, sens.enc_phiR, sens.imu_theta, sts.pose);
@@ -129,8 +131,8 @@ void setup() {
         ctrl.waypoint_reached, ctrl.w_L_ref, ctrl.w_R_ref);
 
     // Puesta en marcha de todo
+    IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);
     EncoderReader::resume(sts.encoders);
-    // IMUReader::resume(sts.imu); // A futuro
     PoseEstimator::set_state(ACTIVE, sts.pose);
     DistanceSensors::set_state(ACTIVE, sts.distance, 
         sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
@@ -139,6 +141,7 @@ void setup() {
     MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
 
     // Tareas de sistema (core 1)
+    xTaskCreatePinnedToCore(IMUSensor::Task_IMUData, "ReadIMU", 2048, &ctx, 1, nullptr, 1);
     xTaskCreatePinnedToCore(EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2048, &ctx, 1, nullptr, 1);
     xTaskCreatePinnedToCore(MotorController::Task_WheelControl, "WheelControl", 2048, &ctx, 1, nullptr, 1);
     xTaskCreatePinnedToCore(PoseEstimator::Task_PoseEstimatorEncoder, "PoseEstimator", 2048, &ctx, 1, nullptr, 1);
