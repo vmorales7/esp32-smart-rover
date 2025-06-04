@@ -65,24 +65,23 @@ void setup() {
     delay(1000);
     Serial.println("Inicio: Test con encoder + tarea RTOS");
 
-    // Inicializar motor
+    // Inicialización
     MotorController::init(sts.motors, ctrl.duty_L, ctrl.duty_R);
-    MotorController::set_motors_mode(MotorMode::ACTIVE, sts.motors, ctrl.duty_L, ctrl.duty_R);
-
-    // Inicializar encoder
     EncoderReader::init(sens.enc_phiL, sens.enc_phiR, sens.enc_wL, sens.enc_wR, sts.encoders);
-    EncoderReader::resume(sts.encoders);
 
     // Crear tareas
     xTaskCreatePinnedToCore(EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2048, &ctx, 1, nullptr, 1);
-    xTaskCreatePinnedToCore(Task_SerialPrint, "SerialMonitor", 2048, nullptr, 1, nullptr, APP_CPU_NUM);
+
 
     // Empezamos la operación
+    EncoderReader::resume(sts.encoders);
+    MotorController::set_motors_mode(MotorMode::MANUAL, sts.motors, ctrl.duty_L, ctrl.duty_R);
     MotorController::set_motors_duty(0.5f, 0.5f, ctrl.duty_L, ctrl.duty_R, sts.motors);
 
     // Pruebas de desempeño
-    MotorController::set_motors_mode(MotorMode::IDLE, sts.motors, ctrl.duty_L, ctrl.duty_R);
+    xTaskCreatePinnedToCore(Task_SerialPrint, "SerialMonitor", 2048, nullptr, 1, nullptr, APP_CPU_NUM);
     // xTaskCreatePinnedToCore(Task_SerialPrintPlot, "PrintPlot", 2048, nullptr, 1, nullptr, APP_CPU_NUM);
+    // MotorController::set_motors_mode(MotorMode::IDLE, sts.motors, ctrl.duty_L, ctrl.duty_R);
 }
 
 // ====================== LOOP ======================

@@ -58,14 +58,14 @@ void setup() {
     // Inicializar el sistema
     DistanceSensors::init(sens.us_left_dist, sens.us_left_obst, sens.us_mid_dist, sens.us_mid_obst,
         sens.us_right_dist, sens.us_right_obst, sens.us_obstacle, states.distance);    
+
+    // Tarea de lectura de sensor y de respuesta a eventos de obstáculo
+    xTaskCreatePinnedToCore(DistanceSensors::Task_CheckObstacle, "US_Check", 2048, &ctx, 1, nullptr, 0);
+    xTaskCreatePinnedToCore(Task_ObstacleResponse,"ObstacleResponse",2048, &ctx, 2, nullptr, 0);
+
+    // Empezar
     DistanceSensors::set_state(ACTIVE, states.distance, 
         sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
-
-    // Crear tareas para cada sensor ultrasónico
-    xTaskCreatePinnedToCore(DistanceSensors::Task_CheckObstacle, "US_Check", 2048, &ctx, 1, nullptr, 0);
-
-    // Crear tarea de respuesta a eventos de obstáculo -> Prioridad mayor
-    xTaskCreatePinnedToCore(Task_ObstacleResponse,"ObstacleResponse",2048, &ctx, 2, nullptr, 0);
 }
 
 // ====================== LOOP VACÍO ======================

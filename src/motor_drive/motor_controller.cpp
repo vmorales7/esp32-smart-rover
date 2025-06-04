@@ -75,10 +75,11 @@ WheelSpeedPID::WheelSpeedPID(float kp, float ki, float kw)
         check_duty_limits(duty_data);
         check_duty_speed(duty_data, measured, setpoint);
 
-        // Anti-windup clásico
+        // Anti-windup por back-calculation + clamping
         float dutyError = rawDuty - duty_data.duty_val;
         float anti_wp = Kw * dutyError;
         integral += (error - anti_wp) * dt;
+        integral = constrain(integral, -INTEGRAL_MAX, INTEGRAL_MAX); // Clamping del integrador
     
         // Finalizar
         lastTime = now;
@@ -206,7 +207,7 @@ void apply_duty_profile(
     volatile MotorMode& motor_state
 ) {
     // Verificar que el sistema esté en un modo válido
-    if (motor_state != MotorMode::ACTIVE && motor_state != MotorMode::AUTO) return;
+    if (motor_state != MotorMode::MANUAL && motor_state != MotorMode::AUTO) return;
 
     // Caso especial: aplicar freno
     if (duty_data.break_flag) {
@@ -226,7 +227,7 @@ void set_motors_duty(
     volatile float& dutyL_global, volatile float& dutyR_global,
     volatile MotorMode& motor_state
 ) {
-    if (motor_state != MotorMode::ACTIVE && motor_state != MotorMode::AUTO) return;
+    if (motor_state != MotorMode::MANUAL && motor_state != MotorMode::AUTO) return;
 
     DutyProfile dutyL_data = init_duty_profile(duty_left);
     DutyProfile dutyR_data = init_duty_profile(duty_right);

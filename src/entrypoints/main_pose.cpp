@@ -25,7 +25,7 @@ GlobalContext ctx = {
 };
 
 constexpr float Wref = 9.0f;
-constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::COMPLEMENTARY;
+constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::ENCODER;
 
 // ====================== Tareas auxiliares ======================
 
@@ -41,7 +41,7 @@ void setup() {
     Serial.println("Pose Debug — Wheel speed cte 50% Wm nom");
     delay(1000);
 
-    // Inicializar encoder
+    // Inicializar encoder y IMU
     EncoderReader::init(sens.enc_phiL, sens.enc_phiR, sens.enc_wL, sens.enc_wR, sts.encoders);
     IMUSensor::init(sens.imu_acc, sens.imu_w, sens.imu_theta, sts.imu);
 
