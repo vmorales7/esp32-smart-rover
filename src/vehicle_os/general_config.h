@@ -43,7 +43,7 @@ constexpr uint8_t IMU_SCL_PIN = 13;
 constexpr float WHEEL_RADIUS = 0.067f / 2.0f; // en metros
 constexpr float WHEELS_SEPARATION = 0.194f;   // distancia entre ruedas (L)
 constexpr float WHEEL_TO_MID_DISTANCE = WHEELS_SEPARATION / 2.0f;   // media distancia entre ruedas (L/2)
-constexpr float WM_NOM = 215.0 * 2*PI/60.0;    // rad/s nominales bajo carga = 22.51 (29.3 sin carga)
+constexpr float WM_NOM = 215.0 * 2*PI/60.0 * 0.8;    // rad/s nominales bajo carga = 22.51 (29.3 sin carga)
 
 // Auxiliares
 constexpr uint8_t WHEEL_LEFT  = 0U;
@@ -136,9 +136,9 @@ enum class EvadeState : uint8_t {
 constexpr uint16_t WHEEL_CONTROL_PERIOD_MS = 10;
 constexpr uint16_t ENCODER_READ_PERIOD_MS = 10;
 constexpr uint16_t IMU_READ_PERIOD_MS = 10;
-constexpr uint16_t OBSTACLE_CHECK_PERIOD_MS = 200;
+constexpr uint16_t OBSTACLE_CHECK_PERIOD_MS = 100;
 constexpr uint16_t POSE_ESTIMATOR_PERIOD_MS = 10; 
-constexpr uint16_t POSITION_CONTROL_PERIOD_MS = 200;
+constexpr uint16_t POSITION_CONTROL_PERIOD_MS = 100;
 constexpr uint16_t OS_UPDATE_PERIOD_MS = 50; 
 
 constexpr uint16_t BASIC_STACK_SIZE = 2048; // Tamaño de stack básico para tareas RTOS

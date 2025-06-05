@@ -20,24 +20,48 @@ GlobalContext ctx = {
     .evade_ptr       = &evade
 };
 
-constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::COMPLEMENTARY;
+constexpr ControlType CONTROLLER_TYPE = ControlType::PID; // Tipo de controlador a utilizar
+constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::ENCODER;
 const bool INCLUDE_EVADE = false; // Habilita el controlador de evasión
+
+
+void Task_PrintWheelSpeedRef(void* pvParameters) {
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    const TickType_t period = pdMS_TO_TICKS(500);
+    GlobalContext* ctx_ptr = static_cast<GlobalContext*>(pvParameters);
+    for (;;) {
+        vTaskDelayUntil(&xLastWakeTime, period);
+        Serial.printf("Vel. L: %.2f, Vel. R: %.2f\n", 
+            ctx_ptr->control_ptr->w_L_ref, ctx_ptr->control_ptr->w_R_ref);
+    }
+}
 
 // ====================== TAREA: Avance con trayectoria ======================
 void setup() {
     Serial.begin(115200);
-
-    // Inicializa la trayectoria (puedes agregar tus puntos de prueba aquí)
-    OS::add_waypoint(0.5, 0.0, op);  // Avanza 0.5m en X
-    OS::add_waypoint(0.5, 0.5, op);  // Gira y avanza en Y
-    OS::add_waypoint(1.0, 0.0, op);  // Avanza en diagonal
+    delay(1000); 
+    Serial.println();
+    Serial.println("Iniciando prueba Avance 3...");
+    Serial.println();
+    delay(5000);
 
     // Inicializar hardware y lanzar todas las tareas RTOS
     OS::enter_init(&ctx);
 
+    // Inicializa la trayectoria (puedes agregar tus puntos de prueba aquí)
+    OS::add_waypoint(2.0, 0.0, op);  // Avanza 0.5m en X
+    // OS::add_waypoint(1.0, 1.0, op);  // Gira y avanza en Y
+    // OS::add_waypoint(1.0, 0.0, op);  // Avanza en diagonal
+    // OS::add_waypoint(0.0, 0.0, op);  // Avanza en diagonal
+
     // Configurar control de evasión y estimador de pose
+    ctrl.controller_type = CONTROLLER_TYPE;
     evade.include_evade = INCLUDE_EVADE;
-    pose.estimator_type = POSE_ESTIMATOR_TYPE;  
+    pose.estimator_type = POSE_ESTIMATOR_TYPE; 
+    
+    // xTaskCreatePinnedToCore(
+    //     Task_PrintWheelSpeedRef, "PrintWheelSpeedRef", 2048, &ctx, 1, nullptr, 0);
+    
 }
 
 void loop() {
