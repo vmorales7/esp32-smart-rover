@@ -2,46 +2,6 @@
 
 /* ---------------- Funciones auxiliares generales ------------------*/
 
-void check_duty_limits(DutyProfile& duty) {
-    if (duty.abs_duty >= MIN_MOVE_DUTY) {                 
-        if (duty.abs_duty > MAX_DUTY) {
-            duty.abs_duty = MAX_DUTY; // Limitar al duty máximo (100%)
-            duty.duty_val = MAX_DUTY * duty.duty_dir;
-        } 
-    } else if (duty.abs_duty > ZERO_DUTY_THRESHOLD) {
-        duty.abs_duty = MIN_MOVE_DUTY;            // Duty es válido pero menor al mínimo útil
-        duty.duty_val = MIN_MOVE_DUTY * duty.duty_dir;
-    } else {
-        duty.abs_duty = 0.0f;                     // Duty demasiado bajo se toma como cero
-        duty.duty_val = 0.0f;
-    }
-}
-
-void check_duty_speed(DutyProfile& duty, const float w_measured, const float w_ref) {
-    // Caracterizar la velocidad
-    const float abs_wm = fabsf(w_measured);
-    const int8_t sign_wm = (w_measured >= 0) ? 1 : -1;
-
-    // ¿Intenta invertir respecto al giro actual?
-    bool break_flag = false;
-    if (duty.duty_dir != sign_wm) {            // Hay inversión de sentido
-        if (abs_wm > WHEEL_INVERT_THRESHOLD) { // Demasiado rápido para invertir?
-            // Detener y evaluar frenado
-            duty.duty_val = 0.0f;
-            duty.abs_duty = 0.0f;
-            break_flag = (abs_wm < WHEEL_BRAKE_THRESHOLD); // Suficientemente lento para aplicar freno?
-        }
-    }
-    duty.break_flag = break_flag;
-
-    // ¿Está partiendo el vehículo desde una posición de detención? -> El duty debe ser mayor al mínimo
-    if (duty.abs_duty > ZERO_DUTY_THRESHOLD && abs_wm < WHEEL_STOP_THRESHOLD) {
-        const float new_abs =  fmaxf(duty.abs_duty, MIN_START_DUTY);
-        duty.abs_duty = new_abs;
-        duty.duty_val = new_abs * duty.duty_dir;
-    }
-}
-
 DutyProfile init_duty_profile(const float rawDuty) {
     DutyProfile duty_profile = {0};
     duty_profile.duty_val = rawDuty;
@@ -50,6 +10,46 @@ DutyProfile init_duty_profile(const float rawDuty) {
     duty_profile.forward = fw;
     duty_profile.duty_dir = fw ? 1 : -1;
     return duty_profile;
+}
+
+void check_max_duty(DutyProfile& duty) {
+    if (duty.abs_duty > MAX_DUTY) {
+        duty.abs_duty = MAX_DUTY; // Limitar al duty máximo (100%)
+        duty.duty_val = MAX_DUTY * duty.duty_dir;   
+    }
+}
+
+void check_inversion_duty(DutyProfile& duty, const float w_measured) {
+    // Caracterizar la velocidad
+    const float abs_wm = fabsf(w_measured);
+    const int8_t sign_wm = (w_measured >= 0) ? 1 : -1;
+    bool break_flag = false;
+
+    // ¿Intenta invertir respecto al giro actual yendo muy rápido?
+    if (duty.duty_dir != sign_wm && abs_wm > WHEEL_INVERT_THRESHOLD) { 
+        // Detener y evaluar frenado
+        duty.duty_val = 0.0f;
+        duty.abs_duty = 0.0f;
+        break_flag = (abs_wm < WHEEL_BRAKE_THRESHOLD); // Suficientemente lento para aplicar freno?
+    }
+    duty.break_flag = break_flag;
+}
+
+void check_min_duty(DutyProfile& duty) {
+    if (duty.abs_duty < ZERO_DUTY_THRESHOLD) {
+        duty.abs_duty = 0.0f;                     // Duty demasiado bajo se toma como cero
+        duty.duty_val = 0.0f;
+    }
+}
+
+void check_starting_duty(DutyProfile& duty, const float w_measured) {
+    // ¿Está partiendo el vehículo desde una posición de detención? -> El duty debe ser mayor al mínimo
+    const float abs_wm = fabsf(w_measured);
+    if (duty.abs_duty > ZERO_DUTY_THRESHOLD && abs_wm < WHEEL_STOP_THRESHOLD) {
+        const float new_abs =  fmaxf(duty.abs_duty, MIN_START_DUTY);
+        duty.abs_duty = new_abs;
+        duty.duty_val = new_abs * duty.duty_dir;
+    }
 }
 
 
@@ -70,16 +70,21 @@ WheelSpeedPID::WheelSpeedPID(float kp, float ki, float kw)
         float error = setpoint - measured;
         float rawDuty = Kp * error + Ki * integral;
 
-        // Se limita el duty según límites prácticos y técnicos por velocidad
+        // Se limita el duty según límites máximos y evitando inversión
         DutyProfile duty_data = init_duty_profile(rawDuty);
-        check_duty_limits(duty_data);
-        check_duty_speed(duty_data, measured, setpoint);
+        check_max_duty(duty_data);
 
         // Anti-windup por back-calculation + clamping
-        float dutyError = rawDuty - duty_data.duty_val;
-        float anti_wp = Kw * dutyError;
-        integral += (error - anti_wp) * dt;
+        const float dutyError = rawDuty - duty_data.duty_val;
+        const float anti_wp = Kw * dutyError;
+        const float integral_leak = LAMBDA_WHEEL * integral;
+        integral += (error - anti_wp - integral_leak) * dt;
         integral = constrain(integral, -INTEGRAL_MAX, INTEGRAL_MAX); // Clamping del integrador
+
+        // Correciones al duty
+        check_min_duty(duty_data);
+        // check_starting_duty(duty_data, measured);
+        check_inversion_duty(duty_data, measured);
     
         // Finalizar
         lastTime = now;
@@ -231,8 +236,8 @@ void set_motors_duty(
     DutyProfile dutyL_data = init_duty_profile(duty_left);
     DutyProfile dutyR_data = init_duty_profile(duty_right);
 
-    check_duty_limits(dutyL_data);
-    check_duty_limits(dutyR_data);
+    check_max_duty(dutyL_data);
+    check_max_duty(dutyR_data);
 
     set_motor_pwm(WHEEL_LEFT, dutyL_data.abs_duty, dutyL_data.forward);
     set_motor_pwm(WHEEL_RIGHT, dutyR_data.abs_duty, dutyR_data.forward);

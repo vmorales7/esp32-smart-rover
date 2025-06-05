@@ -47,13 +47,14 @@ Waypoint trayectoria[NUM_PUNTOS] = {
     {1.0f, 0.0f},
     {0.0f, 0.0f}
 };
+
 uint8_t punto_actual = 0;
 
 
 // ====================== TAREA PRINCIPAL ======================
 void Task_ControlPorPuntos(void* pvParameters) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
-    const TickType_t period = pdMS_TO_TICKS(200);
+    const TickType_t period = pdMS_TO_TICKS(100);
 
     volatile GlobalContext& ctx = *static_cast<GlobalContext*>(pvParameters);
     volatile PoseData& pose = *ctx.pose_ptr;
@@ -65,7 +66,7 @@ void Task_ControlPorPuntos(void* pvParameters) {
         vTaskDelayUntil(&xLastWakeTime, period);
         // Verificar si ya llegó
         if (!ctrl.waypoint_reached) {
-            Serial.printf("Posición actual: (x=%.2f, y=%.2f)\n", pose.x, pose.y);
+            Serial.printf("Posición actual: (x=%.2f, y=%.2f, theta =%.2f)\n", pose.x, pose.y, pose.theta*RAD_TO_DEG);
             // Detención por obstáculo si está avanzando
             if (sens.us_obstacle && sts.position == PositionControlMode::MOVE) {
                 Serial.println("Obstáculo detectado, deteniendo motores.");
@@ -77,9 +78,13 @@ void Task_ControlPorPuntos(void* pvParameters) {
             else if (!sens.us_obstacle && en_pausa_por_obstaculo) {
                 Serial.printf("Obstáculo despejado, reanudando movimiento hacia el punto (x=%.2f, y=%.2f)\n", 
                     ctrl.x_d, ctrl.y_d);
+
                 PositionController::set_control_mode(last_control_mode, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
                 en_pausa_por_obstaculo = false;
             }
+            // else if(en_pausa_por_obstaculo) {
+            //     Serial.printf("Esperando. Dutys: dL=%.2f, dR=%.2f\n", ctrl.duty_L, ctrl.duty_R);
+            // }
             DistanceSensors::update_global_obstacle_flag(
                 sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
         } 
@@ -118,7 +123,10 @@ void Task_ControlPorPuntos(void* pvParameters) {
 void setup() {
     Serial.begin(115200);
     delay(1000);
+    Serial.println();
     Serial.println("Inicio: Seguimiento de puntos");
+    Serial.println();
+    delay(5000);
 
     // Inicialización de sistemas
     if (POSE_ESTIMATOR_TYPE == PoseEstimatorType::COMPLEMENTARY) {

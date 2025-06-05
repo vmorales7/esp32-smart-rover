@@ -10,7 +10,7 @@
 
 // Parámetros para evasión (ajusta según tu robot)
 constexpr float EVADE_MIN_SPACE = 40.0f;           // cm
-constexpr float EVADE_DELTA_THETA = 30.0f * DEG_TO_RAD;   // 30 grados en rad
+constexpr float EVADE_DELTA_THETA = 45.0f * DEG_TO_RAD;   // 45 grados en rad
 constexpr float MAX_EVADE_ANGLE = 140.0f * DEG_TO_RAD; // 90 grados en rad
 constexpr float EVADE_ADVANCE_DIST = 0.30f;        // metros
 

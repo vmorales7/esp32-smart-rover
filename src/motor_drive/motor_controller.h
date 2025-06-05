@@ -13,16 +13,16 @@ constexpr uint8_t PWM_CHANNEL_LEFT = 0U;
 constexpr uint8_t PWM_CHANNEL_RIGHT = 1U;
 
 // Motor duty limits
-constexpr float ZERO_DUTY_THRESHOLD = 0.1f; // por debajo de esto se considera 0
-constexpr float MIN_MOVE_DUTY = 0.29f;      // mínimo con movimiento para pwm de 1000Hz (0.17 sin carga)
-constexpr float MIN_START_DUTY = 0.33f;     // mínimo para partida para pwm de 1000Hz (0.22 sin carga)
+constexpr float ZERO_DUTY_THRESHOLD = 0.15f; // por debajo de esto se considera 0
+constexpr float MIN_START_DUTY = 0.35f;     // mínimo para partida para pwm de 1000Hz (0.22 sin carga)
 constexpr float MAX_DUTY = 1.0f;
 
 // Speed controller PI parameters
-constexpr float KP_WHEEL = 0.09f;
-constexpr float KI_WHEEL = 0.07f;
-constexpr float KW_WHEEL = 0.02f;
+constexpr float KP_WHEEL = 0.1f;
+constexpr float KI_WHEEL = 0.2f;
+constexpr float KW_WHEEL = 0.3f / KI_WHEEL;
 constexpr float INTEGRAL_MAX = 0.5f * MAX_DUTY / KI_WHEEL; // Límite del integrador para anti-windup
+constexpr float LAMBDA_WHEEL = KI_WHEEL * 0.25f; // Factor de fuga del integrador
 
 // Speed control limits
 constexpr float WHEEL_INVERT_THRESHOLD = 0.2 * WM_NOM;        // No invertir el signo del duty si va muy rápido [rad/s]
@@ -94,19 +94,30 @@ private:
 DutyProfile init_duty_profile(const float rawDuty);
 
 /**
- * @brief Aplica límites prácticos y técnicos al duty.
+ * @brief Verifica y ajusta el duty para que no exceda el máximo permitido.
  * @param duty Referencia al perfil a proteger
  */
-void check_duty_limits(DutyProfile& duty);
+void check_max_duty(DutyProfile& duty);
 
 /**
  * @brief Verifica si debe aplicarse freno o impedir inversión.
  * @param duty Perfil de duty a actualizar
  * @param w_measured Velocidad medida [rad/s]
- * @param w_ref Velocidad de referencia [rad/s]
  */
-void check_duty_speed(DutyProfile& duty, float w_measured, float w_ref);
+void check_inversion_duty(DutyProfile& duty, float w_measured);
 
+/**
+ * @brief Aplica límites prácticos y técnicos al duty.
+ * @param duty Referencia al perfil a proteger
+ */
+void check_min_duty(DutyProfile& duty);
+
+/**
+ * @brief Verifica si el duty es suficiente para partir desde una posición detenida.
+ * @param duty Perfil de duty a actualizar
+ * @param w_measured Velocidad medida [rad/s]
+ */
+void check_starting_duty(DutyProfile& duty, const float w_measured);
 
 /* ---------------- MotorController ------------------*/
 

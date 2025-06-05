@@ -52,11 +52,11 @@ struct Fase {
 
 constexpr uint8_t NUM_FASES = 5;
 Fase fases[NUM_FASES] = {
-    {"Avanzando recto (0.5 wn)", 0.5f * WM_NOM, 0.5f * WM_NOM, 10000},
-    {"Deteniendo", 0.0f, 0.0f, 3000},
-    {"Giro derecha (0.4 wn)", -0.4f * WM_NOM, 0.4f * WM_NOM, 5000},
-    {"Deteniendo", 0.0f, 0.0f, 3000},
-    {"Avanzando recto (0.5 wn)", 0.5f * WM_NOM, 0.5f * WM_NOM, 10000},
+    {"Avanzando recto (0.5 wn)", 0.5f * WM_NOM, 0.5f * WM_NOM, 5000},
+    {"Deteniendo", 0.0f, 0.0f, 1500},
+    {"Giro derecha (0.4 wn)", -0.4f * WM_NOM, 0.4f * WM_NOM, 1200},
+    {"Deteniendo", 0.0f, 0.0f, 1500},
+    {"Avanzando recto (0.5 wn)", 0.5f * WM_NOM, 0.5f * WM_NOM, 5000},
 };
 
 // ====================== TAREAS ======================
@@ -156,8 +156,9 @@ void Task_Printer(void* pvParameters) {
 void setup() {
     Serial.begin(115200);
     delay(1000);
+    Serial.println();
     Serial.println("Inicio: Avance 2");
-    delay(1000);
+    delay(5000);
 
     // Inicialización de módulos
     MotorController::init(sts.motors, ctrl.duty_L, ctrl.duty_R);
