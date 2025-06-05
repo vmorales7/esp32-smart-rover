@@ -55,14 +55,15 @@ void update_evade(GlobalContext* ctx_ptr) {
                 evade.direction = evade.direction;
             }
             evade.current_angle = evade.direction * EVADE_DELTA_THETA;
-            PositionController::set_diferential_waypoint(0.0f, evade.direction * EVADE_DELTA_THETA, 
-                ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, sts.position);
+            PositionController::set_diferential_waypoint(0.0f, evade.current_angle, ctrl.x_d, ctrl.y_d, ctrl.theta_d, 
+                ctrl.waypoint_reached, sts.position);
             OS::enter_rotate(ctx_ptr);
             evade.state = EvadeState::WAIT_ALIGN;
             break;
         }
         case EvadeState::WAIT_ALIGN: {
             if (ctrl.waypoint_reached) {
+                PositionController::stop_movement(pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
                 const bool free = has_free_space(ctx_ptr);
                 if (free) {
                     PositionController::set_diferential_waypoint(EVADE_ADVANCE_DIST, 0.0f, 
@@ -90,6 +91,7 @@ void update_evade(GlobalContext* ctx_ptr) {
                         PositionController::set_diferential_waypoint(
                             0.0f, evade.direction * EVADE_DELTA_THETA, 
                             ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, sts.position);
+                        OS::enter_rotate(ctx_ptr);
                     }
                 }
             }
