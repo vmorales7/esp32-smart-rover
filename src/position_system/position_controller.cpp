@@ -63,8 +63,7 @@ bool set_controller_type(
 bool set_waypoint(
     const float x_d, const float y_d, const float theta_d,
     volatile float& x_d_global, volatile float& y_d_global, volatile float& theta_d_global,
-    volatile bool& waypoint_reached,
-    volatile PositionControlMode& control_mode
+    volatile bool& waypoint_reached, volatile PositionControlMode& control_mode
 ) {
     if (control_mode == PositionControlMode::INACTIVE || control_mode == PositionControlMode::MANUAL) {
         return ERROR; // No se actualiza si el modo es inactivo o manual
@@ -159,11 +158,12 @@ MovingState update_control_pid(
         const float w_ref_raw = KP_ALPHA * alpha + KI_ALPHA * integral_alpha + KD_ALPHA * derivative;
         last_alpha = alpha;
 
-        // Control tipo PI para la distancia. 
-        // Modo rotating o si el ángulo es muy grande -> solo gira en el lugar (mantiene vref en 0)
+        // Control tipo PI para la distancia -> se mantiene v_ref = 0.0 cuando: 
+            // 1. Modo rotating
+            // 2. Modo advancing + el ángulo > MAX_ANGLE_DEVIATION -> gira en el lugar hasta alinearse (ANGLE_TOLERANCE)
         float v_ref_raw = 0.0f;
-        if (move_state != MovingState::ADVANCING || fabsf(alpha) > MAX_ANGLE_DEVIATION) {
-            // Se deja la referencia de velocidad lineal en cero
+        const float max_angle = (last_moving_state == MovingState::ROTATING) ? ANGLE_TOLERANCE : MAX_ANGLE_DEVIATION;
+        if (move_state != MovingState::ADVANCING || fabsf(alpha) > max_angle) {
             move_state = MovingState::ROTATING; // El estado de movimiento será de rotación
             integral_rho = 0.0f; // Reiniciar integral de rho
         } else {
@@ -232,8 +232,9 @@ MovingState update_control_backstepping(
     if (control_mode == PositionControlMode::MOVE) { // Movimiento normal
         move_state = (rho < DISTANCE_TOLERANCE) ? MovingState::STOPPING : MovingState::ADVANCING;
         if (move_state == MovingState::ADVANCING) {
+            const float max_angle = (last_moving_state == MovingState::ROTATING) ? ANGLE_TOLERANCE : MAX_ANGLE_DEVIATION;
             e3 = wrap_to_pi(atan2f(dy, dx) - theta); // Error angular respecto al objetivo
-            if (fabs(e3) < MAX_ANGLE_DEVIATION) {
+            if (fabs(e3) < max_angle) {
                 v_ref_local = K1*e1;           // Si el ángulo es pequeño, avanzar
             } else {
                 // Si el ángulo es grande, solo rotar y se mantiene la referencia de velocidad lineal en cero

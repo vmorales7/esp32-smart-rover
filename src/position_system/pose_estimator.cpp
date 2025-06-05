@@ -127,7 +127,7 @@ void update_pose_imu(
     w_R = (v_imu + w_imu_corr * WHEEL_TO_MID_DISTANCE) / WHEEL_RADIUS;
 
     // 5. Guardar auxiliares para el próximo ciclo
-    last_imu_theta = theta_imu;
+    last_imu_theta = imu_theta;
 }   
 
 
@@ -184,7 +184,7 @@ void update_pose_fusion(
     // 7. Guardar auxiliares para el próximo ciclo
     last_phiL = encoder_phiL;
     last_phiR = encoder_phiR;
-    last_imu_theta = theta_imu_corr;
+    last_imu_theta = imu_theta;
 }   
 
 

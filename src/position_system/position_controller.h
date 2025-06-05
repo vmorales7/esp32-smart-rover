@@ -6,8 +6,8 @@
 /* ---------------- Constantes y variables sistema ------------------*/
 
 // Tolerancias para control de posición: evitar oscilaciones
-constexpr float DISTANCE_TOLERANCE = 0.05f;                 // 5 cm de tolerancia
-constexpr float ANGLE_TOLERANCE = 3.0f * DEG_TO_RAD;        // 3 grados en radianes
+constexpr float DISTANCE_TOLERANCE = 0.1f;                 // 5 cm de tolerancia
+constexpr float ANGLE_TOLERANCE = 2.0f * DEG_TO_RAD;        // 3 grados en radianes
 constexpr float MAX_ANGLE_DEVIATION = 30.0f * DEG_TO_RAD;   // 30 grados en radianes
 
 // Thresholds para considerar que el vehículo está detenido
@@ -17,20 +17,20 @@ constexpr float V_STOP_THRESHOLD = 0.01 * V_MAX;   // 10 cm en 30 segundos
 constexpr float W_STOP_THRESHOLD = 0.02 * W_MAX;   // 1 vuelta en 30 segundos
 
 // Ganancias del PID de alfa
-constexpr float KP_ALPHA = 3.0f;  // Ganancia proporcional
-constexpr float KI_ALPHA = 0.2f;  // Ganancia integral
+constexpr float KP_ALPHA = 2.0f;  // Ganancia proporcional
+constexpr float KI_ALPHA = 0.5f;  // Ganancia integral
 constexpr float KD_ALPHA = 0.0f;  // Ganancia derivativa
-constexpr float KW_ALPHA = 0.1f / KI_ALPHA; // Ganancia anti-windup
+constexpr float KW_ALPHA = 0.2f / KI_ALPHA; // Ganancia anti-windup
 constexpr float INTEGRAL_ALPHA_MAX = 0.5 * V_MAX / KI_ALPHA; // Clamping del integrador
 
 // Ganancias de PI de rho
-constexpr float KP_RHO = 2.0f;  // Ganancia proporcional (0.7)
-constexpr float KI_RHO = 0.0f;  // Ganancia integral (0.1)
-constexpr float KW_RHO = 0.0f;  // Ganancia anti-windup (0.1/K_I_RHO)
-constexpr float INTEGRAL_RHO_MAX = 0.0; // Clamping del integrador (0.5 * V_MAX / KI_RHO)
+constexpr float KP_RHO = 0.7f;  // Ganancia proporcional (0.7)
+constexpr float KI_RHO = 0.1f;  // Ganancia integral (0.1)
+constexpr float KW_RHO = 0.1f / KI_RHO;  // Ganancia anti-windup (0.1/K_I_RHO)
+constexpr float INTEGRAL_RHO_MAX = 0.5 * V_MAX / KI_RHO; // Clamping del integrador (0.5 * V_MAX / KI_RHO)
 
 // Parámetros del controlador tipo backstepping
-constexpr float K1 = 2.0f; 
+constexpr float K1 = 1.0f; 
 constexpr float K2 = 3.0f; 
 constexpr float K3 = 0.5f; 
 

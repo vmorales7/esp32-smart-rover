@@ -6,8 +6,8 @@
 
 // Constantes
 constexpr float W1 = 0.5f * WM_NOM;
-constexpr float W2 = 0.7f * WM_NOM;
-constexpr uint32_t TOGGLE_INTERVAL_MS = 10000;
+constexpr float W2 = -0.5f * WM_NOM;
+constexpr uint32_t TOGGLE_INTERVAL_MS = 5000;
 constexpr uint32_t PRINT_INTERVAL_MS = 250;
 
 // Variables globales del sistema
@@ -57,6 +57,11 @@ void Task_PrintPerformance(void* pvParameters);
 
 void setup() {
     Serial.begin(115200);
+    delay(1000);
+    Serial.println();
+    Serial.println("Test de velocidad de rueda");
+    Serial.println();
+    delay(5000); 
 
     // Inicialización
     MotorController::init(sts.motors, ctrl.duty_L, ctrl.duty_R);
@@ -94,8 +99,8 @@ void Task_Printer(void* pvParameters) {
 
     for (;;) {
         vTaskDelayUntil(&xLastWakeTime, period);
-        Serial.printf("wL %.2f dutyL %.2f | wR %.2f dutyR %.2f\n",
-                      sens.enc_wL, ctrl.duty_L, sens.enc_wR, ctrl.duty_R);
+        Serial.printf("w_ref %.2f | wL %.2f dutyL %.2f | wR %.2f dutyR %.2f\n",
+                      ctrl.w_L_ref,sens.enc_wL, ctrl.duty_L, sens.enc_wR, ctrl.duty_R);
     }
 }
 

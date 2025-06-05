@@ -17,12 +17,13 @@ void update(GlobalContext* ctx_ptr) {
     switch (os.state) {
         case OS_State::INIT: {// Solo se ejecuta como paso hacia IDLE
             enter_idle(ctx_ptr);
-            clear_trajectory_with_null(os); // Limpiar la trayectoria
+            // clear_trajectory_with_null(os); // Limpiar la trayectoria
             os.state = OS_State::IDLE;
             set_operation_log(OS_State::IDLE, OS_State::INIT, ctx_ptr); // Log de transición
             break;
         }
         case OS_State::IDLE: {
+            // Serial.printf("Estado IDLE. Cantidad de puntos %.2f\n", os.total_targets);
             // Por ahora no se hace nada en IDLE, pero luego se hará lectura de Firebase
             if (os.total_targets > 0) {
                 enter_stand_by(ctx_ptr);
@@ -43,6 +44,7 @@ void update(GlobalContext* ctx_ptr) {
                     // Avisar a FB que se estableció el waypoint
                 } else { // Si no se pudo, nos quedamos en STAND_BY
                     enter_stand_by(ctx_ptr);
+                    set_operation_log(OS_State::STAND_BY, OS_State::STAND_BY, ctx_ptr);
                 }
             } else if (os.last_command == RemoteCommand::IDLE) {                    
                 enter_idle(ctx_ptr);
@@ -55,11 +57,16 @@ void update(GlobalContext* ctx_ptr) {
         case OS_State::ALIGN: { // Este estado se usa para alinear el vehículo hacia el objetivo
             if (ctrl.waypoint_reached) {
                 // Si se alinea, podemos pasar al estado MOVE
+                Serial.printf("Waypoint pendientes: %d\n", os.total_targets);
                 ok = set_waypoint(ctx_ptr); // Checkeo ante error y limpiar flag de waypoint alcanzado
                 if (ok) { // Si se pudo entrar al estado MOVE, se actualiza el estado
                     enter_move(ctx_ptr);
                     os.state = OS_State::MOVE;
                     set_operation_log(OS_State::MOVE, OS_State::ALIGN, ctx_ptr);
+                    if (ctrl.waypoint_reached) {
+                        Serial.println("Entrando a MOVE pero con waypoint alcanzado");
+                        Serial.printf("Waypoint pendientes: %d\n", os.total_targets);
+                    }
                 } else {// Si no se pudo entrar al estado MOVE, se vuelve a STAND_BY
                     enter_stand_by(ctx_ptr);
                     os.state = OS_State::STAND_BY;
@@ -127,6 +134,7 @@ void update(GlobalContext* ctx_ptr) {
                             enter_wait_free_path(ctx_ptr);
                         }
                         set_operation_log(OS_State::EVADE, OS_State::MOVE, ctx_ptr);
+                        os.state = OS_State::EVADE;
                     }
                 }
             }
@@ -178,12 +186,14 @@ bool set_waypoint(GlobalContext* ctx_ptr) {
     volatile OperationData& os = *(ctx_ptr->os_ptr);
 
     // Fijar el punto objetivo a partir del primer punto en la trayectoria
+    // Serial.printf("Waypoint pendientes: %d\n", os.total_targets);
     if (os.total_targets > 0) {
         PositionController::set_waypoint(os.trajectory[0].x, os.trajectory[0].y, 0.0f,
             ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, sts.position);
         // PositionController::set_control_mode(PositionControlMode::ALIGN, sts.position);
         return SUCCESS;
     }
+    // Serial.println("Waypoint no fijado");
     return ERROR; // No hay puntos en la trayectoria 
 }
 
@@ -200,7 +210,8 @@ bool enter_init(GlobalContext* ctx_ptr) {
     os.state = OS_State::INIT;
 
     // 1. Inicialización de módulos individuales
-    IMUSensor::init(sens.imu_acc, sens.imu_w, sens.imu_theta, sts.imu);
+    if (pose.estimator_type == PoseEstimatorType::COMPLEMENTARY){
+        IMUSensor::init(sens.imu_acc, sens.imu_w, sens.imu_theta, sts.imu);}
     EncoderReader::init(sens.enc_phiL, sens.enc_phiR, sens.enc_wL, sens.enc_wR, sts.encoders);
     PoseEstimator::init(pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R, 
         sens.enc_phiL, sens.enc_phiR, sens.imu_theta, sts.pose); 
@@ -211,10 +222,10 @@ bool enter_init(GlobalContext* ctx_ptr) {
         ctrl.w_L_ref, ctrl.w_R_ref);
 
     // 2. Lanzar tareas RTOS núcleo 1
+    if (pose.estimator_type == PoseEstimatorType::COMPLEMENTARY){ 
+        xTaskCreatePinnedToCore(IMUSensor::Task_IMUData, "UpdateIMU", 2*BASIC_STACK_SIZE, ctx_ptr, 3, nullptr, 1);}
     xTaskCreatePinnedToCore(
         EncoderReader::Task_EncoderUpdate, "EncoderUpdate", 2*BASIC_STACK_SIZE, ctx_ptr, 3, nullptr, 1);
-    xTaskCreatePinnedToCore(
-        IMUSensor::Task_IMUData, "UpdateIMU", 2*BASIC_STACK_SIZE, ctx_ptr, 3, nullptr, 1);
     xTaskCreatePinnedToCore(
         PoseEstimator::Task_PoseEstimatorEncoder, "PoseEstimator", 4*BASIC_STACK_SIZE, ctx_ptr, 2, nullptr, 1);
     xTaskCreatePinnedToCore(
@@ -224,7 +235,7 @@ bool enter_init(GlobalContext* ctx_ptr) {
         
     // 3. Lanzar tareas RTOS núcleo 0
     xTaskCreatePinnedToCore(
-        OS::Task_VehicleOS, "VehicleOS", 2*BASIC_STACK_SIZE, ctx_ptr, 1, nullptr, 0);
+        OS::Task_VehicleOS, "VehicleOS", 3*BASIC_STACK_SIZE, ctx_ptr, 1, nullptr, 0);
     xTaskCreatePinnedToCore(
         DistanceSensors::Task_CheckObstacle, "CheckObstacles", 2*BASIC_STACK_SIZE, ctx_ptr, 2, &(task_handlers.obstacle_handle), 0);
 
@@ -246,8 +257,9 @@ bool enter_idle(GlobalContext* ctx_ptr) {
     MotorController::set_motors_mode(MotorMode::IDLE, sts.motors, ctrl.duty_L, ctrl.duty_R);
 
     // ⏸️ Pausar encoders, IMU, y estimación de pose -> resetar posición y orientación a cero
+    if (pose.estimator_type == PoseEstimatorType::COMPLEMENTARY){ 
+        IMUSensor::set_state(INACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);}
     EncoderReader::pause(sens.enc_phiL, sens.enc_phiR, sens.enc_wL, sens.enc_wR, sts.encoders);
-    IMUSensor::set_state(INACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);
     PoseEstimator::set_state(INACTIVE, sts.pose);
     PoseEstimator::reset_pose(pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R, 
         sens.enc_phiL, sens.enc_phiR, sens.imu_theta);
@@ -270,7 +282,8 @@ bool enter_stand_by(GlobalContext* ctx_ptr) {
     volatile OperationData& os = *(ctx_ptr->os_ptr);
 
     // 🧭 Activar lectura de sensores y estimador de pose (para no perder seguimiento del vehículo)
-    IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);
+    if (pose.estimator_type == PoseEstimatorType::COMPLEMENTARY){ 
+        IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);}
     EncoderReader::resume(sts.encoders);
     PoseEstimator::set_state(ACTIVE, sts.pose);
 
@@ -300,7 +313,8 @@ bool enter_align(GlobalContext* ctx_ptr) {
     bool ok = true;
 
     // 🟢 Reanudar sensores y estimador de posición
-    IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);
+    if (pose.estimator_type == PoseEstimatorType::COMPLEMENTARY){ 
+        IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);}
     EncoderReader::resume(sts.encoders);
     PoseEstimator::set_state(ACTIVE, sts.pose);
 
@@ -328,7 +342,8 @@ bool enter_move(GlobalContext* ctx_ptr) {
     bool ok = true;
 
     // 🟢 Reanudar sensores y estimador de posición
-    IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);
+    if (pose.estimator_type == PoseEstimatorType::COMPLEMENTARY){ 
+        IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);}
     EncoderReader::resume(sts.encoders);
     PoseEstimator::set_state(ACTIVE, sts.pose);
 
@@ -355,7 +370,8 @@ bool enter_evade(GlobalContext* ctx_ptr) {
     bool ok = true;
 
     // 🟡 Reanudar sensores y estimadores
-    IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);
+    if (pose.estimator_type == PoseEstimatorType::COMPLEMENTARY){ 
+        IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);}
     EncoderReader::resume(sts.encoders);
     PoseEstimator::set_state(ACTIVE, sts.pose);
 
@@ -381,7 +397,8 @@ bool enter_rotate(GlobalContext* ctx_ptr) {
     bool ok = true;
 
     // 🟢 Reanudar sensores y estimador de posición
-    IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);
+    if (pose.estimator_type == PoseEstimatorType::COMPLEMENTARY){ 
+        IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);}
     EncoderReader::resume(sts.encoders);
     PoseEstimator::set_state(ACTIVE, sts.pose);
 
@@ -409,7 +426,8 @@ bool enter_wait_free_path(GlobalContext* ctx_ptr) {
     bool ok = true;
 
     // 🟢 Reanudar sensores y estimador de posición
-    IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);
+    if (pose.estimator_type == PoseEstimatorType::COMPLEMENTARY){ 
+        IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);}
     EncoderReader::resume(sts.encoders);
     PoseEstimator::set_state(ACTIVE, sts.pose);
 
@@ -492,6 +510,9 @@ void set_operation_log(const OS_State new_state, const OS_State old_state, Globa
         } else if (old_state == OS_State::EVADE) {
             snprintf(const_cast<char*>(os.last_log), sizeof(os.last_log), 
                 "Entrando a estado STAND-BY desde EVADE en (x=%.2f, y=%.2f)", pose.x, pose.y);
+        } else if (old_state == OS_State::STAND_BY) {
+            snprintf(const_cast<char*>(os.last_log), sizeof(os.last_log), 
+                "Entrando a estado STAND-BY desde STAND-BY en (x=%.2f, y=%.2f)", pose.x, pose.y);
         } else {
             strncpy(const_cast<char*>(os.last_log), "Entrando a estado STAND-BY", sizeof(os.last_log));
         }
@@ -522,6 +543,10 @@ void set_operation_log(const OS_State new_state, const OS_State old_state, Globa
             "Entrando a estado EVADE desde MOVE en (x=%.2f, y=%.2f)", pose.x, pose.y);
     }
     os.last_log[sizeof(os.last_log)-1] = '\0'; // Seguridad de terminador null
+    if (new_state != old_state) {
+        Serial.printf("Log de transición: %s\n", os.last_log); // Imprimir log de transición
+        Serial.println();
+    }
 }
 
 } // namespace OS

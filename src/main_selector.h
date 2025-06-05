@@ -16,9 +16,9 @@
 // #define USE_MAIN_AVANCE2                // Rutina de velocidades + detención por obstáculo + RTOS
 // #define USE_MAIN_IMU_CALIBRATION        // Rutina de calibración del IMU
 // #define USE_MAIN_IMU_TEST               // Rutina de prueba de iMU
-#define USE_MAIN_POSITION_BASIC         // Control de posición hacia punto único
+// #define USE_MAIN_POSITION_BASIC         // Control de posición hacia punto único
 // #define USE_MAIN_POSITION_POINTS        // Múltiples posiciones + detención por obstáculo
-// #define USE_MAIN_AVANCE3                // Pruebas de OS + evasión de obstáculos sin Firebase
+#define USE_MAIN_AVANCE3                // Pruebas de OS + evasión de obstáculos sin Firebase
 // #define USE_MAIN_DEBUG
 
 
