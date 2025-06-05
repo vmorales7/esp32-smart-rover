@@ -13,7 +13,7 @@ constexpr uint8_t PWM_CHANNEL_LEFT = 0U;
 constexpr uint8_t PWM_CHANNEL_RIGHT = 1U;
 
 // Motor duty limits
-constexpr float ZERO_DUTY_THRESHOLD = 0.2f; // por debajo de esto se considera 0
+constexpr float ZERO_DUTY_THRESHOLD = 0.15f; // por debajo de esto se considera 0
 constexpr float MIN_START_DUTY = 0.35f;     // mínimo para partida para pwm de 1000Hz (0.22 sin carga)
 constexpr float MAX_DUTY = 1.0f;
 

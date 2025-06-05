@@ -41,6 +41,7 @@ void update(GlobalContext* ctx_ptr) {
                     enter_align(ctx_ptr); // El controlador intentará alinear el vehículo hacia el objetivo
                     os.state = OS_State::ALIGN;
                     set_operation_log(OS_State::ALIGN, OS_State::STAND_BY, ctx_ptr);
+                    EvadeController::reset_evade_state(ctx_ptr);
                     // Avisar a FB que se estableció el waypoint
                 } else { // Si no se pudo, nos quedamos en STAND_BY
                     enter_stand_by(ctx_ptr);
@@ -56,17 +57,13 @@ void update(GlobalContext* ctx_ptr) {
         }
         case OS_State::ALIGN: { // Este estado se usa para alinear el vehículo hacia el objetivo
             if (ctrl.waypoint_reached) {
-                // Si se alinea, podemos pasar al estado MOVE
-                Serial.printf("Waypoint pendientes: %d\n", os.total_targets);
+                PositionController::stop_movement(pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
                 ok = set_waypoint(ctx_ptr); // Checkeo ante error y limpiar flag de waypoint alcanzado
                 if (ok) { // Si se pudo entrar al estado MOVE, se actualiza el estado
                     enter_move(ctx_ptr);
                     os.state = OS_State::MOVE;
                     set_operation_log(OS_State::MOVE, OS_State::ALIGN, ctx_ptr);
-                    if (ctrl.waypoint_reached) {
-                        Serial.println("Entrando a MOVE pero con waypoint alcanzado");
-                        Serial.printf("Waypoint pendientes: %d\n", os.total_targets);
-                    }
+
                 } else {// Si no se pudo entrar al estado MOVE, se vuelve a STAND_BY
                     enter_stand_by(ctx_ptr);
                     os.state = OS_State::STAND_BY;
@@ -86,6 +83,7 @@ void update(GlobalContext* ctx_ptr) {
         }
         case OS_State::MOVE: {
             if (ctrl.waypoint_reached) {
+                PositionController::stop_movement(pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
                 // Si se alcanza el objetivo y las ruedas están detenidas, se completa el waypoint
                 ok = complete_current_waypoint(os);
                 if (!ok) {// Si no se pudo completar el waypoint (# targets = 0), se manda todo a STAND_BY
@@ -186,14 +184,11 @@ bool set_waypoint(GlobalContext* ctx_ptr) {
     volatile OperationData& os = *(ctx_ptr->os_ptr);
 
     // Fijar el punto objetivo a partir del primer punto en la trayectoria
-    // Serial.printf("Waypoint pendientes: %d\n", os.total_targets);
     if (os.total_targets > 0) {
         PositionController::set_waypoint(os.trajectory[0].x, os.trajectory[0].y, 0.0f,
             ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, sts.position);
-        // PositionController::set_control_mode(PositionControlMode::ALIGN, sts.position);
         return SUCCESS;
     }
-    // Serial.println("Waypoint no fijado");
     return ERROR; // No hay puntos en la trayectoria 
 }
 
@@ -513,8 +508,12 @@ void set_operation_log(const OS_State new_state, const OS_State old_state, Globa
         } else if (old_state == OS_State::STAND_BY) {
             snprintf(const_cast<char*>(os.last_log), sizeof(os.last_log), 
                 "Entrando a estado STAND-BY desde STAND-BY en (x=%.2f, y=%.2f)", pose.x, pose.y);
-        } else {
-            strncpy(const_cast<char*>(os.last_log), "Entrando a estado STAND-BY", sizeof(os.last_log));
+        } else if (old_state == OS_State::IDLE) {
+            snprintf(const_cast<char*>(os.last_log), sizeof(os.last_log), 
+                "Entrando a estado STAND-BY desde IDLE en (x=%.2f, y=%.2f)", pose.x, pose.y);            
+        }else {
+            snprintf(const_cast<char*>(os.last_log), sizeof(os.last_log), 
+                "Entrando a estado STAND-BY en (x=%.2f, y=%.2f)", pose.x, pose.y);
         }
     } 
     else if (new_state == OS_State::ALIGN) {

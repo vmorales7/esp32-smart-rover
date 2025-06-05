@@ -44,6 +44,7 @@ struct VelocityData {
 
 // Enum auxiliar para el modo de movimiento del vehículo
 enum class MovingState : uint8_t {
+    IDLE,
     STOPPED,  // Vehículo detenido
     ROTATING, // Vehículo alineando hacia el objetivo
     ADVANCING, // Vehículo alineando hacia el objetivo

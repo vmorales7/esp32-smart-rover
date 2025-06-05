@@ -37,6 +37,7 @@ bool set_control_mode(
     if (new_mode == control_mode) return SUCCESS;
     control_mode = new_mode;
     reset_pid_state(); // Reiniciar el estado del PID
+    last_moving_state = MovingState::IDLE;
     if (new_mode == PositionControlMode::INACTIVE) {
         // Si se pone en modo inactivo, se dejan las referencias de velocidad en cero
         wL_ref = 0.0f;
@@ -65,7 +66,7 @@ bool set_waypoint(
     volatile float& x_d_global, volatile float& y_d_global, volatile float& theta_d_global,
     volatile bool& waypoint_reached, volatile PositionControlMode& control_mode
 ) {
-    if (control_mode == PositionControlMode::INACTIVE || control_mode == PositionControlMode::MANUAL) {
+    if (control_mode == PositionControlMode::INACTIVE) {
         return ERROR; // No se actualiza si el modo es inactivo o manual
     }
     // Actualizar las coordenadas del destino
@@ -74,6 +75,8 @@ bool set_waypoint(
     theta_d_global = wrap_to_pi(theta_d); // Normalizar el ángulo al rango (-π, π]
     reset_pid_state(); // Reiniciar el estado del PID
     waypoint_reached = false; // Reiniciar la bandera de waypoint alcanzado
+    Serial.printf("waypoint_reached = %d\n", waypoint_reached);
+    Serial.println();
     return SUCCESS; // Indicar que se estableció el waypoint correctamente
 }
 
@@ -84,12 +87,12 @@ bool set_diferential_waypoint(
     volatile bool& waypoint_reached,
     const PositionControlMode control_mode
 ) {
-    if (control_mode == PositionControlMode::INACTIVE || control_mode == PositionControlMode::MANUAL) {
+    if (control_mode == PositionControlMode::INACTIVE) {
         return ERROR; // No se actualiza si el modo es inactivo o manual
     }
     // Actualizar las coordenadas del destino
     theta_d_global = wrap_to_pi(theta_d_global + delta_theta); 
-    x_d_global += dist * cosf(theta_d_global);
+    x_d_global +=  dist* cosf(theta_d_global);
     y_d_global += dist * sinf(theta_d_global);
     reset_pid_state(); // Reiniciar el estado del PID
     waypoint_reached = false; // Reiniciar la bandera de waypoint alcanzado
@@ -257,6 +260,7 @@ MovingState update_control_backstepping(
     // 3) Aplicar saturación y aplicar a las ruedas
     const VelocityData sat_vel = constrain_velocity(v_ref_local, w_ref_local);
     set_wheel_speed_ref(sat_vel.wL, sat_vel.wR, wL_ref, wR_ref, control_mode);
+    last_moving_state = move_state; // Actualizar el estado de movimiento global
     return move_state;
 }
 
@@ -278,7 +282,7 @@ bool update_control(
     // Llamar al controlador según el modo de control
     MovingState state = last_moving_state;
     if (controller_type == ControlType::PID) {
-        state =  update_control_pid(x, y, theta, x_d, y_d, theta_d, wL_ref, wR_ref, control_mode);
+        state = update_control_pid(x, y, theta, x_d, y_d, theta_d, wL_ref, wR_ref, control_mode);
     } 
     else if (controller_type == ControlType::BACKS) {
         state = update_control_backstepping(x, y, theta, x_d, y_d, theta_d, wL_ref, wR_ref, control_mode);
@@ -291,6 +295,7 @@ bool update_control(
         waypoint_reached = false; // Si no se detuvo, no se alcanzó el waypoint
     }
     last_moving_state = state; // Actualizar el estado de movimiento global
+    if (waypoint_reached) Serial.printf("Objetivo alcanzado: (x = %.2f, y = %.2f). Estamos: (x = %.2f, y = %.2f)\n", x_d, y_d, x, y);
     return waypoint_reached; // Retorna true si se alcanzó el objetivo y el vehículo está detenido
 }
 
