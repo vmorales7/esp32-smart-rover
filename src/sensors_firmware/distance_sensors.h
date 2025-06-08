@@ -200,23 +200,6 @@ bool check_sensor_obstacle(
 );
 
 /**
- * @brief Calcula la presencia de un obstáculo global a partir de las banderas individuales.
- *
- * Esta función retorna `true` si al menos uno de los sensores ultrasónicos
- * (izquierdo, medio o derecho) ha detectado un obstáculo.
- *
- * @param left_obst Referencia al flag de obstáculo detectado por el sensor izquierdo.
- * @param mid_obst Referencia al flag de obstáculo detectado por el sensor central.
- * @param right_obst Referencia al flag de obstáculo detectado por el sensor derecho.
- * @return `true` si hay al menos un obstáculo detectado por alguno de los sensores.
- */
-bool compute_global_obstacle_flag(
-    const bool left_obst,
-    const bool mid_obst,
-    const bool right_obst
-);
-
-/**
  * @brief Actualiza el flag global de detección de obstáculos.
  *
  * Esta función calcula si existe un obstáculo en base a las banderas individuales

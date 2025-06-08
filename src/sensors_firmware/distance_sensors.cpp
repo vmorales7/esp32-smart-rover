@@ -143,17 +143,10 @@ bool check_sensor_obstacle(
 }
 
 
-bool compute_global_obstacle_flag(
-    const bool left_obst, const bool mid_obst, const bool right_obst
-) {
-    return left_obst || mid_obst || right_obst;
-}
-
-
 bool update_global_obstacle_flag(
     const bool left_obst, const bool mid_obst, const bool right_obst, volatile bool& obstacle
 ) { 
-    const bool found = compute_global_obstacle_flag(left_obst, mid_obst, right_obst);
+    const bool found = (left_obst || mid_obst || right_obst);
     const uint32_t now = millis();
     if (!found) {
         // Solo permitir liberar la bandera si pasó suficiente tiempo sin obstáculo
