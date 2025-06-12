@@ -50,9 +50,6 @@ void setup() {
 
     // Inicializa la trayectoria (puedes agregar tus puntos de prueba aquí)
     OS::add_waypoint(1.0, 0.0, op); 
-    OS::add_waypoint(1.0, 1.0, op); 
-    OS::add_waypoint(2.0, 1.0, op);  
-    OS::add_waypoint(0.0, 0.0, op); 
 
     // Configurar control de evasión y estimador de pose
     ctrl.controller_type = CONTROLLER_TYPE;

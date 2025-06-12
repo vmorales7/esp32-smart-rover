@@ -39,12 +39,10 @@ struct Waypoint {
     float x;
     float y;
 };
-constexpr uint8_t NUM_PUNTOS = 5;
+constexpr uint8_t NUM_PUNTOS = 3;
 Waypoint trayectoria[NUM_PUNTOS] = {
     {0.0f, 0.0f},
-    {1.0f, 0.0f},
     {1.0f, 1.0f},
-    {1.0f, 0.0f},
     {0.0f, 0.0f}
 };
 
