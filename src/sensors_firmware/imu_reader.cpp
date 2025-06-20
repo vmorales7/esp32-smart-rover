@@ -94,6 +94,8 @@ void read_data(
 
     // Se usa la velocidad pura, la corrección se hace en el estimador de pose
     float w = gyro_data.gyro.z;
+    const float abs_w= fabsf(w);
+    w= (abs_w < W_TOLERANCE) ? 0.0f : w; 
 
     // Orientacion del IMU
     const float current_theta = orientation_data.orientation.x*DEG_TO_RAD;

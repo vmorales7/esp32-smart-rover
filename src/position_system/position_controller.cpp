@@ -11,6 +11,10 @@ static float last_alpha = 0.0f;
 static float integral_rho = 0.0f; 
 static float last_millis = 0.0f;
 
+static float e1= 0.0f;
+static float e2= 0.0f;
+static float e3= 0.0f;
+
 void init(
     volatile PositionControlMode& control_mode,
     volatile float& x_d_global, volatile float& y_d_global, volatile float& theta_d_global,
@@ -74,6 +78,7 @@ bool set_waypoint(
     y_d_global = y_d;
     theta_d_global = wrap_to_pi(theta_d); // Normalizar el ángulo al rango (-π, π]
     reset_pid_state(); // Reiniciar el estado del PID
+    reset_backs();
     waypoint_reached = false; // Reiniciar la bandera de waypoint alcanzado
     Serial.printf("waypoint_reached = %d\n", waypoint_reached);
     Serial.println();
@@ -84,8 +89,7 @@ bool set_waypoint(
 bool set_diferential_waypoint(
     const float dist, const float delta_theta,
     volatile float& x_d_global, volatile float& y_d_global, volatile float& theta_d_global,
-    volatile bool& waypoint_reached,
-    const PositionControlMode control_mode
+    volatile bool& waypoint_reached, const PositionControlMode control_mode
 ) {
     if (control_mode == PositionControlMode::INACTIVE) {
         return ERROR; // No se actualiza si el modo es inactivo o manual
@@ -95,6 +99,7 @@ bool set_diferential_waypoint(
     x_d_global +=  dist* cosf(theta_d_global);
     y_d_global += dist * sinf(theta_d_global);
     reset_pid_state(); // Reiniciar el estado del PID
+    reset_backs();
     waypoint_reached = false; // Reiniciar la bandera de waypoint alcanzado
     return SUCCESS;
 }
@@ -212,6 +217,15 @@ void reset_pid_state() {
     last_millis = millis() * MS_TO_S;
 }
 
+void reset_backs() {
+    
+    e1= 0.0f;
+    e2= 0.0f;
+    e3= 0.0f;
+    last_millis = millis() * MS_TO_S;
+}
+
+
 
 MovingState update_control_backstepping(
     const float x, const float y, const float theta,
@@ -226,9 +240,9 @@ MovingState update_control_backstepping(
     MovingState move_state = last_moving_state;
 
     // 1) Errores cinemáticos en marco del robot
-    const float e1 = cosf(theta)*dx + sinf(theta)*dy;
-    const float e2 = -sinf(theta)*dx + cosf(theta)*dy;
-    const float rho = sqrtf(e1*e1 + e2*e2);
+    float e1 = cosf(theta)*dx + sinf(theta)*dy;
+    float e2 = -sinf(theta)*dx + cosf(theta)*dy;
+    float rho = sqrtf(e1*e1 + e2*e2);
     float e3 = 0.0f; // Se sobreescribe más adelante
 
     // 2) Condiciones de control y referencias crudas
@@ -243,7 +257,7 @@ MovingState update_control_backstepping(
                 // Si el ángulo es grande, solo rotar y se mantiene la referencia de velocidad lineal en cero
                 move_state = MovingState::ROTATING; // Cambiar el estado de movimiento a alineación
             }
-            w_ref_local = K2*e2 + K3*e1*e2*e3; // Siempre hay control angular
+            w_ref_local = K2*e3 + K3*e1*e2; // Siempre hay control angular
         }
     } 
     else if (control_mode == PositionControlMode::ALIGN || control_mode == PositionControlMode::ROTATE) {
@@ -254,7 +268,7 @@ MovingState update_control_backstepping(
             move_state = MovingState::STOPPING; // Si el error es pequeño, detener
         } else {
             move_state = MovingState::ROTATING; // Si no, rotar con control angular
-            w_ref_local = K2*e2 + K3*e1*e2*e3;
+            w_ref_local = K2*e3 + K3*e1*e2;
         }
     } 
     // 3) Aplicar saturación y aplicar a las ruedas
@@ -263,6 +277,7 @@ MovingState update_control_backstepping(
     last_moving_state = move_state; // Actualizar el estado de movimiento global
     return move_state;
 }
+
 
 
 bool update_control(

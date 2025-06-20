@@ -6,7 +6,7 @@
 /* ---------------- Constantes y variables sistema ------------------*/
 
 constexpr float FUSION_ALPHA_W = 0.9f; // IMU dominante (mide directo)
-constexpr float FUSION_ALPHA_THETA = 0.3f; // IMU dominante (mide directo)
+constexpr float FUSION_ALPHA_THETA = 0.0f; // IMU dominante (mide directo)
 
 constexpr float IMU_OFFSET_X = -5.0f / 100.0f; // en metros (hacia adelante del vehículo)
 constexpr float IMU_OFFSET_Y = -1.0f / 100.0f; // en metros (a la derecha del vehículo)

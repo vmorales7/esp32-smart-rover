@@ -20,8 +20,8 @@ GlobalContext ctx = {
     .evade_ptr       = &evade
 };
 
-constexpr ControlType CONTROLLER_TYPE = ControlType::PID; // Tipo de controlador a utilizar
-constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::ENCODER;
+constexpr ControlType CONTROLLER_TYPE = ControlType::BACKS;// Tipo de controlador a utilizar
+constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::COMPLEMENTARY;
 const bool INCLUDE_EVADE = true; // Habilita el controlador de evasión
 
 
@@ -49,7 +49,10 @@ void setup() {
     OS::enter_init(&ctx);
 
     // Inicializa la trayectoria (puedes agregar tus puntos de prueba aquí)
-    OS::add_waypoint(1.0, 0.0, op); 
+    OS::add_waypoint(1.0, 0.0, op);
+    OS::add_waypoint(1.0, 1.0, op);
+    OS::add_waypoint(0.0, 2.0, op);
+    OS::add_waypoint(0.0, 0.0, op);
 
     // Configurar control de evasión y estimador de pose
     ctrl.controller_type = CONTROLLER_TYPE;
