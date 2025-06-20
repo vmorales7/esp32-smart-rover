@@ -28,6 +28,7 @@ constexpr IMUdir ACCEL_DIR = IMUdir::X;
 constexpr bool INVERT_SIGN = true;
 constexpr float ACCEL_TOLERANCE = 0.03f;  // Tolerancia de aceleración para considerar ruido
 constexpr float THETA_TOLERANCE = 0.001f; // Tolerancia de orientación para considerar ruido
+constexpr float W_TOLERANCE = 0.01f;
 constexpr float MAX_DELTA_THETA = 15 * DEG_TO_RAD;
 
 /* -------------------- Módulo IMUSensor -------------------- */
