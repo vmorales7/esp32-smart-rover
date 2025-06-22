@@ -1,83 +1,54 @@
 #include "firebase_comm.h"
 
-using namespace firebase_ns;
-
-Objeto global
-static FirebaseClient fb;
-
 namespace FirebaseComm {
 
-    void init_wifi() {
-        WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-        Serial.print("Conectando a WiFi...");
-        while (WiFi.status() != WL_CONNECTED) {
-            delay(500);
-            Serial.print(".");
-        }
-        Serial.println("\n✅ WiFi conectado");
-        Serial.print("IP: ");
-        Serial.println(WiFi.localIP());
-    }
+static MyFirebase fb; // Instancia única global para el wrapper
+static bool firebase_ready = false;
 
-    void init_firebase() {
-        FirebaseConfig config;
-        config.api_key = FIREBASE_API_KEY;
-        config.database_url = FIREBASE_DATABASE_URL;
-
-        Signer signer;
-        signer.user_email = USER_EMAIL;
-        signer.user_password = USER_PASSWORD;
-
-        fb.begin(&config, &signer);
-        Serial.println("🔥 FirebaseClient inicializado");
-    }
-
-    void firebase_loop() {
-        fb.loop();  // mantiene la conexión viva
-    }
-
-    bool firebase_ready() {
-        return fb.ready();
-    }
-
-    /**
-     * @brief Lee un valor booleano desde un nodo.
-     */
-    bool read_bool(const String& path) {
-        FirebaseJson result;
-        if (fb.RTDB.get(&result, path)) {
-            return result.to<bool>();
-        }
-        return false;
-    }
-
-    /**
-     * @brief Lee un valor float desde un nodo.
-     */
-    float read_float(const String& path) {
-        FirebaseJson result;
-        if (fb.RTDB.get(&result, path)) {
-            return result.to<float>();
-        }
-        return 0.0f;
-    }
-
-    /**
-     * @brief Escribe un float en Firebase RTDB.
-     */
-    void write_float(const String& path, float value) {
-        fb.RTDB.set(path.c_str(), value);
-    }
-
-    /**
-     * @brief Sube la pose (x, y, theta) como JSON.
-     */
-    void upload_pose(const String& path, float x, float y, float theta) {
-        FirebaseJson json;
-        json.set("x", x);
-        json.set("y", y);
-        json.set("theta", theta);
-        fb.RTDB.set(path.c_str(), json);
-    }
-
+// Inicialización
+bool init(SSL_CLIENT &client) {
+    // Usa las credenciales del archivo secrets.h
+    fb.userBegin(client, FB_DATABASE_URL, FB_DATABASE_API_KEY, FB_USER_EMAIL, FB_USER_PASSWORD);
+    firebase_ready = fb.ready();
+    return firebase_ready;
 }
+
+// Loop de mantenimiento
+bool ready() {
+    return fb.ready();
+}
+
+// Set y Get para String
+bool setString(const String &path, const String &value) {
+    return fb.setString(path, value);
+}
+bool getString(const String &path, String &value) {
+    value = fb.getString(path);
+    return !fb.isError();
+}
+
+// Set y Get para Int
+bool setInt(const String &path, int value) {
+    return fb.setInt(path, value);
+}
+bool getInt(const String &path, int &value) {
+    value = fb.getInt(path);
+    return !fb.isError();
+}
+
+// Set y Get para Float
+bool setFloat(const String &path, float value) {
+    return fb.setFloat(path, value);
+}
+bool getFloat(const String &path, float &value) {
+    value = fb.getFloat(path);
+    return !fb.isError();
+}
+
+// Último error
+String lastError() {
+    return fb.errorString();
+}
+
+
+} // namespace FirebaseComm

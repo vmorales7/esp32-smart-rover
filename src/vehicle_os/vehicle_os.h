@@ -17,14 +17,12 @@
 // Control de motores
 #include "motor_drive/motor_controller.h"
 
-// Comunicación (a futuro)
-// #include "communication/firebase_comm.h" // Solo si empiezas a usar Firebase
-
 // Control de evasión de obstáculos
 #include "vehicle_os/evade_controller.h"
 
-/* ------------------------ Constantes ------------------------*/
-
+// Comunicación
+#include "communication/firebase_comm.h"
+#include "secrets.h"
 
 
 /* ------------------------ Funciones ------------------------*/
