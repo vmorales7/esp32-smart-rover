@@ -26,8 +26,8 @@ constexpr uint8_t ENCODER_RIGHT_A_PIN = 18; // Amarillo
 constexpr uint8_t ENCODER_RIGHT_B_PIN = 19; // Verde
 
 // Sensores ultrasónicos
-constexpr uint8_t US_LEFT_TRIG_PIN = 25;
-constexpr uint8_t US_LEFT_ECHO_PIN = 26;
+constexpr uint8_t US_LEFT_TRIG_PIN = 26;
+constexpr uint8_t US_LEFT_ECHO_PIN = 25;
 
 constexpr uint8_t US_MID_TRIG_PIN = 32;  
 constexpr uint8_t US_MID_ECHO_PIN = 35;
@@ -322,7 +322,7 @@ struct ControllerData {
     float y_d;
 
     /// Orientación del objetivo respecto a los ejes de referencia [rad].
-    float theta_d;
+    float   theta_d;
 
     /// Timestamp para uso de sincronización y control de tiempo
     uint64_t timestamp;

@@ -94,12 +94,16 @@ void read_data(
 
     // Se usa la velocidad pura, la corrección se hace en el estimador de pose
     float w = gyro_data.gyro.z;
+    const float abs_w= fabsf(w);
+    w= (abs_w < W_TOLERANCE) ? 0.0f : w; 
 
     // Orientacion del IMU
-    const float current_theta = orientation_data.orientation.x * DEG_TO_RAD;
+    const float current_theta = orientation_data.orientation.x*DEG_TO_RAD;
     float delta_theta = wrap_to_pi(current_theta - last_theta);
     const float abs_delta_theta = fabsf(delta_theta);
     delta_theta = (abs_delta_theta < THETA_TOLERANCE || abs_delta_theta > MAX_DELTA_THETA) ? 0.0f : delta_theta; 
+
+    Serial.println(delta_theta*RAD_TO_DEG);
 
     // Actualizar las variables globales
     global_acc = acc;

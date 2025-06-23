@@ -6,7 +6,7 @@
 /* ---------------- Constantes y variables sistema ------------------*/
 
 // Tolerancias para control de posición: evitar oscilaciones
-constexpr float DISTANCE_TOLERANCE = 0.1f;                 // 5 cm de tolerancia
+constexpr float DISTANCE_TOLERANCE = 0.07f;                 // 5 cm de tolerancia
 constexpr float ANGLE_TOLERANCE = 2.0f * DEG_TO_RAD;        // 3 grados en radianes
 constexpr float MAX_ANGLE_DEVIATION = 30.0f * DEG_TO_RAD;   // 30 grados en radianes
 
@@ -30,8 +30,8 @@ constexpr float KW_RHO = 0.1f / KI_RHO;  // Ganancia anti-windup (0.1/K_I_RHO)
 constexpr float INTEGRAL_RHO_MAX = 0.5 * V_MAX / KI_RHO; // Clamping del integrador (0.5 * V_MAX / KI_RHO)
 
 // Parámetros del controlador tipo backstepping
-constexpr float K1 = 1.0f; 
-constexpr float K2 = 4.0f; //3.0
+constexpr float K1 = 2.5f; 
+constexpr float K2 = 3.5f; //3.0
 constexpr float K3 = 0.1f; // 0.5
 
 // Estructura de datos para poder tener múltiples return
@@ -187,6 +187,14 @@ MovingState update_control_pid(
  * asegurando que no haya acumulación de errores previos que puedan afectar el control actual.
  */
 void reset_pid_state();
+
+/**
+ * @brief Reinicia el estado del Backstepping, incluyendo toos los errores.
+ *
+ * Esta función se utiliza para reiniciar los estados internos del controlador Backstepping,
+ * asegurando que no haya acumulación de errores previos que puedan afectar el control actual.
+ */
+void reset_backs();
 
 /**
  * @brief Controlador avanzado: utiliza errores (e1, e2, e3) en marco del vehículo para navegar al objetivo.
