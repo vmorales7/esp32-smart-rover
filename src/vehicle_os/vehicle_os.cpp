@@ -443,6 +443,7 @@ void clear_trajectory_with_null(volatile OperationData& os) {
     for (uint8_t i = 0; i < MAX_TRAJECTORY_POINTS; ++i) {
         os.trajectory[i].x = NULL_WAYPOINT_XY;
         os.trajectory[i].y = NULL_WAYPOINT_XY;
+        os.trajectory[i].ts = NULL_TIMESTAMP; 
     }
     os.total_targets = 0U;
 }
@@ -451,9 +452,10 @@ void clear_trajectory_with_null(volatile OperationData& os) {
 bool complete_current_waypoint(volatile OperationData& os) {
     if (os.total_targets > 0) {
         os.total_targets--;
-        for (uint8_t i = 1; i < MAX_TRAJECTORY_POINTS; ++i) {
+        for (uint8_t i = 1; i < MAX_TRAJECTORY_POINTS; ++i) { // Mover los puntos hacia adelante
             os.trajectory[i-1].x = os.trajectory[i].x;
             os.trajectory[i-1].y = os.trajectory[i].y;
+            os.trajectory[i-1].ts = os.trajectory[i].ts; 
         }
         os.trajectory[MAX_TRAJECTORY_POINTS-1].x = NULL_WAYPOINT_XY;
         os.trajectory[MAX_TRAJECTORY_POINTS-1].y = NULL_WAYPOINT_XY;
@@ -463,10 +465,11 @@ bool complete_current_waypoint(volatile OperationData& os) {
 }
 
 
-bool add_waypoint(const float x, const float y, volatile OperationData& os) {
+bool add_waypoint(const float x, const float y, const float ts, volatile OperationData& os) {
     if (os.total_targets < MAX_TRAJECTORY_POINTS) {
         os.trajectory[os.total_targets].x = x;
         os.trajectory[os.total_targets].y = y;
+        os.trajectory[os.total_targets].ts = ts;
         os.total_targets++;
         return SUCCESS;
     }

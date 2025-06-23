@@ -3,9 +3,9 @@
 
 #include <Arduino.h>
 #include "vehicle_os/general_config.h"
+#include "wifi_basic.h"
 
-// Herramientas para WiFi
-#include <WiFi.h>
+// Herramientas para generar cliente de Firebase
 #include <WiFiClientSecure.h>
 #define SSL_CLIENT WiFiClientSecure
 #include "secrets.h" // Credenciales de Firebase y WiFi
@@ -15,9 +15,6 @@
 #define ENABLE_DATABASE
 #include <FirebaseClient.h>
 // #include "MyFirebase.h"
-
-// Importar las funciones de tiempo
-#include "time_utils.h"
 
 // Extras para manejar datos
 #include <ArduinoJson.h>

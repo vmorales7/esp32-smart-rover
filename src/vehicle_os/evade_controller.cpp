@@ -22,6 +22,7 @@ void reset_evade_state(GlobalContext* ctx_ptr) {
     evade.tried_both_sides = false;
     evade.saved_waypoint.x = NULL_WAYPOINT_XY;
     evade.saved_waypoint.y = NULL_WAYPOINT_XY;
+    evade.saved_waypoint.ts = NULL_TIMESTAMP;
 }
 
 

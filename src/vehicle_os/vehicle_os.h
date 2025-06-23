@@ -21,8 +21,8 @@
 #include "vehicle_os/evade_controller.h"
 
 // Comunicación
-#include "communication/firebase_comm.h"
-#include "secrets.h"
+#include "communications/wifi_basic.h"
+#include "communications/firebase_comm.h"
 
 
 /* ------------------------ Funciones ------------------------*/
@@ -161,10 +161,11 @@ bool complete_current_waypoint(volatile OperationData& os);
  * 
  * @param x Coordenada X del nuevo waypoint [m]
  * @param y Coordenada Y del nuevo waypoint [m]
+ * @param ts Timestamp del nuevo waypoint [epoch unix timestamp]
  * @param os Referencia a la estructura de datos del sistema operativo
  * @return true si se agregó correctamente, false si la trayectoria está llena
  */
-bool add_waypoint(const float x, const float y, volatile OperationData& os);
+bool add_waypoint(const float x, const float y, const float ts, volatile OperationData& os);
 
 /**
  * @brief Tarea RTOS para el sistema operativo del vehículo

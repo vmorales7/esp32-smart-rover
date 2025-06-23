@@ -64,7 +64,7 @@ constexpr float MS_TO_S = 0.001f;
 // Puntos de trayectoria
 constexpr uint8_t MAX_TRAJECTORY_POINTS = 100; // Define máximo de puntos
 constexpr float NULL_WAYPOINT_XY = 99.9f;
-
+constexpr uint64_t NULL_TIMESTAMP = 0;
 
 /* ----------------------------- Constantes motores ----------------------------*/
 
@@ -113,6 +113,7 @@ enum class OS_State : uint8_t {
 struct TargetPoint {
     float x;
     float y;
+    uint64_t ts; // Timestamp del punto objetivo
 };
 
 // Instrucciones posibles desde Firebase o interfaz web
@@ -316,7 +317,7 @@ struct OperationData {
     uint8_t total_targets;
     TargetPoint trajectory[MAX_TRAJECTORY_POINTS];
     RemoteCommand last_command;
-    char last_log[64];  // <-- Aquí el log de transición
+    char last_log[64];
 
     // Constructor por defecto
     OperationData() : 
@@ -325,7 +326,7 @@ struct OperationData {
     last_command(RemoteCommand::STOP)
     {
         for (uint8_t i = 0; i < MAX_TRAJECTORY_POINTS; ++i) {
-            trajectory[i] = {NULL_WAYPOINT_XY, NULL_WAYPOINT_XY};
+            trajectory[i] = {NULL_WAYPOINT_XY, NULL_WAYPOINT_XY, NULL_TIMESTAMP};
         }
         last_log[0] = '\0'; // String vacío al inicio
     }
@@ -368,7 +369,7 @@ struct EvadeContext {
     int8_t direction = 0;          // +1: izquierda, -1: derecha
     float current_angle = 0.0f;     // Ángulo de evasión actual [rad]
     bool tried_both_sides = false; // Flag que indica si se intentó evasión a ambos lados
-    TargetPoint saved_waypoint = {0.0f, 0.0f};
+    TargetPoint saved_waypoint = {0.0f, 0.0f, 0U};
 };
 
 /**
