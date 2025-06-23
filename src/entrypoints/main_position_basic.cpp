@@ -86,7 +86,7 @@ void setup() {
 
     // Activar subsistemas
     EncoderReader::resume(sts.encoders);
-    if (POSE_ESTIMATOR_TYPE == PoseEstimatorType::COMPLEMENTARY) {
+    if (POSE_ESTIMATOR_TYPE == PoseEstimatorType::ENCODER) {
         IMUSensor::set_state(ACTIVE, sts.imu, sens.imu_acc, sens.imu_w, sens.imu_theta);
     }
     PoseEstimator::set_state(ACTIVE, sts.pose);
