@@ -149,6 +149,47 @@ constexpr uint16_t OS_UPDATE_PERIOD_MS = 50;
 constexpr uint16_t BASIC_STACK_SIZE = 2048; // Tamaño de stack básico para tareas RTOS
 
 
+/* -------------- Struct auxiliares --------------*/
+struct TargetPoint {
+    float x;
+    float y;
+    uint64_t ts; // Timestamp del punto objetivo
+};
+
+struct WaypointData {
+    float x;                   ///< Coordenada X del waypoint
+    float y;                   ///< Coordenada Y del waypoint
+    uint64_t input_ts;         ///< Timestamp en que se ingresó (Firebase / usuario)
+    uint64_t start_ts;         ///< Timestamp en que el vehículo comenzó a seguirlo
+    uint64_t reached_ts;       ///< Timestamp en que se alcanzó exitosamente
+    int64_t iae;               ///< Integral del error absoluto (IAE) acumulado hasta el momento
+    int64_t rmse;              ///< Raíz del error cuadrático medio (RMSE) acumulado hasta el momento
+    uint32_t trip_duration;    ///< Duración del trayecto en s
+};
+
+struct VehicleStatusData {
+    uint32_t timestamp;             ///< Timestamp actual (Unix)
+
+    int state;                      ///< Estado actual (0=IDLE, 1=STAND_BY, etc.)
+
+    float position_x;              ///< Posición actual X del vehículo
+    float position_y;              ///< Posición actual Y del vehículo
+
+    int rpm_left;                  ///< RPM actual de la rueda izquierda
+    int rpm_right;                 ///< RPM actual de la rueda derecha
+
+    String log_msg;                ///< Último mensaje de operación generado
+
+    float wp_x;                    ///< Coordenada X del waypoint actual
+    float wp_y;                    ///< Coordenada Y del waypoint actual
+    uint64_t wp_input_timestamp;   ///< Timestamp del waypoint actual
+
+    int controller_type;           ///< Tipo de controlador usado (0 = clásico, 1 = avanzado)
+    int64_t iae;                   ///< Integral absoluta del error acumulado
+    int64_t rmse;                  ///< RMSE acumulado
+};
+
+
 /* -------------------- Estructuras con la data del sistema --------------------*/
 
 /**
@@ -283,6 +324,9 @@ struct ControllerData {
     /// Orientación del objetivo respecto a los ejes de referencia [rad].
     float theta_d;
 
+    /// Timestamp para uso de sincronización y control de tiempo
+    uint64_t timestamp;
+
     /// Tipo de controlador utilizado para la posición. Puede ser PID o BACKS (Backstepping).
     ControlType controller_type;
 
@@ -293,7 +337,7 @@ struct ControllerData {
     ControllerData() 
         : w_L_ref(0.0f), w_R_ref(0.0f),
           duty_L(0.0f), duty_R(0.0f),
-          x_d(0.0f), y_d(0.0f), theta_d(0.0f),
+          x_d(0.0f), y_d(0.0f), theta_d(0.0f), timestamp(0U),
           controller_type(ControlType::PID),
           waypoint_reached(false)
     {}
@@ -307,9 +351,9 @@ struct ControllerData {
  * de estados principal (`vehicle_os`) para coordinar la lógica de navegación y comportamiento del vehículo.
  *
  * Campos clave:
- * - current_state: Estado operativo actual del sistema (ej. INIT, NAVIGATING, etc.)
- * - trajectory: Lista de puntos objetivo a seguir, en orden.
+ * - state: Estado operativo actual del sistema (ej. INIT, NAVIGATING, etc.)
  * - total_targets: Cantidad de puntos cargados actualmente en `trajectory`.
+ * - trajectory: Lista de puntos objetivo a seguir, en orden.
  * - last_remote_command: Última instrucción recibida por interfaz remota (START, STOP, etc.)
  */
 struct OperationData {
@@ -370,6 +414,14 @@ struct EvadeContext {
     float current_angle = 0.0f;     // Ángulo de evasión actual [rad]
     bool tried_both_sides = false; // Flag que indica si se intentó evasión a ambos lados
     TargetPoint saved_waypoint = {0.0f, 0.0f, 0U};
+};
+
+
+struct FirebaseData {
+    WaypointData waypoint_buffer[MAX_TRAJECTORY_POINTS]; ///< Buffer de waypoints esperando a ser enviados a Firebase
+    VehicleStatusData vehicle_status_buffer;       ///< Datos de estado del vehículo para enviar a Firebase
+    TargetPoint trayectory[MAX_TRAJECTORY_POINTS]; ///< Trayectoria pendiente en Firebase
+    uint8_t total_targets;                         ///< Total de waypoints en la trayectoria pendiente
 };
 
 /**

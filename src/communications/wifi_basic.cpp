@@ -34,7 +34,7 @@ bool check_wifi() {
     WiFi.begin(WIFI_SSID, WIFI_PASS);
     if (WIFI_DEBUG_MODE) {
         Serial.println();
-        Serial.println("Reconectando WiFi...");
+        Serial.println("Conexión a WiFi perdida, intentando reconectar...");
     }
     return false;
 }

@@ -24,7 +24,6 @@ constexpr ControlType CONTROLLER_TYPE = ControlType::PID; // Tipo de controlador
 constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::ENCODER;
 const bool INCLUDE_EVADE = true; // Habilita el controlador de evasión
 
-
 void Task_PrintWheelSpeedRef(void* pvParameters) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t period = pdMS_TO_TICKS(500);
@@ -36,7 +35,6 @@ void Task_PrintWheelSpeedRef(void* pvParameters) {
     }
 }
 
-// ====================== TAREA: Avance con trayectoria ======================
 void setup() {
     Serial.begin(115200);
     delay(1000); 
@@ -49,10 +47,10 @@ void setup() {
     OS::enter_init(&ctx);
 
     // Inicializa la trayectoria (puedes agregar tus puntos de prueba aquí)
-    OS::add_waypoint(1.0, 0.0, op); 
-    OS::add_waypoint(1.0, 1.0, op); 
-    OS::add_waypoint(2.0, 1.0, op);  
-    OS::add_waypoint(0.0, 0.0, op); 
+    OS::add_waypoint(1.0, 0.0, 0, op); 
+    OS::add_waypoint(1.0, 1.0, 0, op); 
+    OS::add_waypoint(2.0, 1.0, 0, op);  
+    OS::add_waypoint(0.0, 0.0, 0, op); 
 
     // Configurar control de evasión y estimador de pose
     ctrl.controller_type = CONTROLLER_TYPE;

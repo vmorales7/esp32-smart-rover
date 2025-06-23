@@ -24,6 +24,9 @@
 #include "communications/wifi_basic.h"
 #include "communications/firebase_comm.h"
 
+/* ------------------------ Constantes ------------------------*/
+
+constexpr bool WIFI_MODE = true;
 
 /* ------------------------ Funciones ------------------------*/
 

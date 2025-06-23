@@ -1,4 +1,4 @@
-#include "communication/firebase_comm.h"
+#include "communications/firebase_comm.h"
 
 #warning "Compilando main_firebase.cpp"
 

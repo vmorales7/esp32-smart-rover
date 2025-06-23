@@ -14,6 +14,10 @@ void update(GlobalContext* ctx_ptr) {
     bool ok = true; // Se usará para verificar si se pudo entrar a un estado
     os.last_command = RemoteCommand::START; // Por ahora se asume modo START (ya que no hay Firebase)
 
+    // Siempre se verifica si la conexión WiFi está activa
+    bool wifi_ok = true;
+    if (WIFI_MODE) wifi_ok = check_wifi(); // solo en modo WiFi podría volverse false
+
     switch (os.state) {
         case OS_State::INIT: {// Solo se ejecuta como paso hacia IDLE
             enter_idle(ctx_ptr);
@@ -23,9 +27,9 @@ void update(GlobalContext* ctx_ptr) {
             break;
         }
         case OS_State::IDLE: {
-            // Serial.printf("Estado IDLE. Cantidad de puntos %.2f\n", os.total_targets);
             // Por ahora no se hace nada en IDLE, pero luego se hará lectura de Firebase
-            if (os.total_targets > 0) {
+            // Si hay puntos pendientes y WiFi está activo, se entra a STAND_BY
+            if (wifi_ok && os.total_targets > 0) {
                 enter_stand_by(ctx_ptr);
                 os.state = OS_State::STAND_BY;
                 set_operation_log(OS_State::STAND_BY, OS_State::IDLE, ctx_ptr);
