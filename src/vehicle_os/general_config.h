@@ -3,6 +3,10 @@
 
 #include "Arduino.h"
 
+// Configuración general del proyecto
+constexpr bool GENERAL_DEBUG_MODE = true; // Habilita el modo de depuración
+
+
 /* -------------- Definiciones de los pines de la ESP32 --------------*/
 
 // Para control del L298N

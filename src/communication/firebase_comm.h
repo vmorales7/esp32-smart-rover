@@ -2,42 +2,49 @@
 #define FIREBASE_COMM_H
 
 #include <Arduino.h>
+#include "vehicle_os/general_config.h"
+
+// Herramientas para WiFi
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
+#define SSL_CLIENT WiFiClientSecure
 #include "secrets.h" // Credenciales de Firebase y WiFi
 
 // Siempre comenzar con las definiciones de preprocesador para FirebaseClient
 #define ENABLE_USER_AUTH
 #define ENABLE_DATABASE
 #include <FirebaseClient.h>
-#include "MyFirebase.h"
+// #include "MyFirebase.h"
 
-#define SSL_CLIENT WiFiClientSecure
+// Importar las funciones de tiempo
+#include "time_utils.h"
 
+// Extras para manejar datos
+#include <ArduinoJson.h>
+
+// Auxiliar para debug print
+constexpr bool FB_DEBUG_MODE = true || GENERAL_DEBUG_MODE;
+
+// Funciones para la comunicación con Firebase
 namespace FirebaseComm {
 
-// Inicialización de Firebase con autenticación por email/pass
+// ---------- Inicialización ----------
 bool init(SSL_CLIENT &client);
-
-// Estado de autenticación listo y mantenimiento en loop
 bool ready();
-
-// Escritura y lectura de string
-bool setString(const String &path, const String &value);
-bool getString(const String &path, String &value);
-
-// Escritura y lectura de int
-bool setInt(const String &path, int value);
-bool getInt(const String &path, int &value);
-
-// Escritura y lectura de float
-bool setFloat(const String &path, float value);
-bool getFloat(const String &path, float &value);
-
-// Último error
 String lastError();
+
+// ---------- Funciones específicas del proyecto ----------
+bool getCommand(int &action, int &controller_type);
+
+bool pushStatusLog(uint32_t timestamp, float x, float y, int rpm_L, int rpm_R, int state);
+bool pushWaypointPending(uint32_t input_time, float x, float y);
+bool updateCurrentWaypoint(uint32_t input_time, float x, float y);
+bool pushWaypointReached(uint32_t input_time, uint32_t reached_time, float x, float y);
+bool pushErrorLog(uint32_t timestamp, int controller_type, float rmse, float iae);
+
+// ---------- Debug ----------
+void auth_debug_print(AsyncResult &aResult);
 
 } // namespace FirebaseComm
 
-#endif
-
+#endif // FIREBASE_COMM_H
