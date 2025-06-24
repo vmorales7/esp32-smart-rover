@@ -11,9 +11,9 @@ static float last_alpha = 0.0f;
 static float integral_rho = 0.0f; 
 static float last_millis = 0.0f;
 
-static float e1= 0.0f;
-static float e2= 0.0f;
-static float e3= 0.0f;
+static float e1 = 0.0f;
+static float e2 = 0.0f;
+static float e3 = 0.0f;
 
 void init(
     volatile PositionControlMode& control_mode,
@@ -277,7 +277,6 @@ MovingState update_control_backstepping(
     last_moving_state = move_state; // Actualizar el estado de movimiento global
     return move_state;
 }
-
 
 
 bool update_control(

@@ -15,8 +15,8 @@ void update(GlobalContext* ctx_ptr) {
     os.fb_last_command = RemoteCommand::START; // Por ahora se asume modo START (ya que no hay Firebase)
 
     // Siempre se verifica si la conexión WiFi está activa
-    bool wifi_ok = true;
-    if (ONLINE_MODE) wifi_ok = check_wifi(); // solo en modo WiFi podría volverse false
+    WifiStatus wifi_status = WifiStatus::OK;
+    if (ONLINE_MODE) wifi_status = check_wifi(); // solo en modo WiFi podría volverse false
 
     switch (os.state) {
         case OS_State::INIT: {// Solo se ejecuta como paso hacia IDLE
@@ -29,7 +29,7 @@ void update(GlobalContext* ctx_ptr) {
         case OS_State::IDLE: {
             // Por ahora no se hace nada en IDLE, pero luego se hará lectura de Firebase
             // Si hay puntos pendientes y WiFi está activo, se entra a STAND_BY
-            if (wifi_ok && os.local_total_targets > 0) {
+            if (wifi_status == WifiStatus::OK && os.local_total_targets > 0) {
                 enter_stand_by(ctx_ptr);
                 os.state = OS_State::STAND_BY;
                 set_operation_log(OS_State::STAND_BY, OS_State::IDLE, ctx_ptr);
@@ -40,7 +40,7 @@ void update(GlobalContext* ctx_ptr) {
             const bool pending_targets = (os.local_total_targets > 0);
             if (os.fb_last_command == RemoteCommand::START) {    
                 // Se establece el primer waypoint de la trayectoria y limpiar la flag de waypoint alcanzado
-                ok = set_waypoint(ctx_ptr);
+                ok = set_local_waypoint(ctx_ptr);
                 if (ok) { // Si hay puntos pendientes, se entra al estado ALIGN
                     enter_align(ctx_ptr); // El controlador intentará alinear el vehículo hacia el objetivo
                     os.state = OS_State::ALIGN;
@@ -62,7 +62,7 @@ void update(GlobalContext* ctx_ptr) {
         case OS_State::ALIGN: { // Este estado se usa para alinear el vehículo hacia el objetivo
             if (ctrl.waypoint_reached) {
                 PositionController::stop_movement(pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
-                ok = set_waypoint(ctx_ptr); // Checkeo ante error y limpiar flag de waypoint alcanzado
+                ok = set_local_waypoint(ctx_ptr); // Checkeo ante error y limpiar flag de waypoint alcanzado
                 if (ok) { // Si se pudo entrar al estado MOVE, se actualiza el estado
                     enter_move(ctx_ptr);
                     os.state = OS_State::MOVE;
@@ -98,7 +98,7 @@ void update(GlobalContext* ctx_ptr) {
                 else if (os.fb_last_command == RemoteCommand::START) { // Se completó el waypoint y se sigue en START
                     // Se establece el siguiente waypoint solo si se está en START
                     // Futuro: avisar a FB que se alcanzó el waypoint
-                    ok = set_waypoint(ctx_ptr); 
+                    ok = set_local_waypoint(ctx_ptr); 
                     if (!ok) {// Si no se pudo establecer el siguiente waypoint se vuelve a STAND_BY
                         enter_stand_by(ctx_ptr);
                         os.state = OS_State::STAND_BY;
@@ -182,7 +182,7 @@ void update(GlobalContext* ctx_ptr) {
 }
 
 
-bool set_waypoint(GlobalContext* ctx_ptr) {
+bool set_local_waypoint(GlobalContext* ctx_ptr) {
     volatile SystemStates& sts = *(ctx_ptr->systems_ptr);
     volatile ControllerData& ctrl = *(ctx_ptr->control_ptr);
     volatile OperationData& os = *(ctx_ptr->os_ptr);

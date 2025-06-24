@@ -26,7 +26,7 @@
 
 /* ------------------------ Constantes ------------------------*/
 
-constexpr bool ONLINE_MODE = true;
+
 
 /* ------------------------ Funciones ------------------------*/
 
@@ -54,7 +54,7 @@ void update(GlobalContext* ctx_ptr);
  * @param ctx_ptr Puntero al contexto global con datos del sistema
  * @return true si se estableció un punto objetivo, false si no hay puntos en la trayectoria
  */
-bool set_waypoint(GlobalContext* ctx_ptr);
+bool set_local_waypoint(GlobalContext* ctx_ptr);
 
 /**
  * @brief Realiza las operaciones de inicialización del sistema

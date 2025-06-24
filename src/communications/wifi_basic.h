@@ -6,14 +6,22 @@
 #include <time.h>
 #include "secrets.h"            ///< Credenciales WiFi (WIFI_SSID, WIFI_PASS)
 
-/// @file wifi_utils.h
-/// @brief Utilidades para conexión WiFi y sincronización horaria NTP en ESP32.
+// ============================
+// Manejo básico de WiFi
+// ============================
+
+/// @brief Enum para representar el estado de la conexión WiFi.
+enum class WifiStatus : uint8_t {
+    OK = 1,
+    DISCONNECTED = 2,
+    TIMEOUT = 3
+};
 
 /// @brief Timeout máximo para la conexión WiFi (en milisegundos).
 constexpr uint32_t WIFI_TIMEOUT_MS = 10000;
 
 /// @brief Activa mensajes de depuración para WiFi.
-constexpr bool WIFI_DEBUG_MODE = true;
+constexpr bool WIFI_DEBUG_MODE = false;
 
 /// @brief Inicia la conexión WiFi con espera activa hasta lograr conexión o timeout.
 /// @return true si la conexión fue exitosa, false si falló.
@@ -21,7 +29,7 @@ bool begin_wifi();
 
 /// @brief Verifica si el WiFi está conectado. Si no, intenta reconectar sin esperar el resultado.
 /// @return true si ya estaba conectado, false si no lo estaba (aunque ya se haya iniciado reconexión).
-bool check_wifi();
+WifiStatus check_wifi();
 
 /// @brief Asegura que WiFi esté conectado. Internamente llama a check_wifi() y confirma si logró reconectar.
 /// @return true si logró conectar, false si no fue posible.

@@ -60,7 +60,7 @@ void RequestCommands() {
     if (FB_DEBUG_MODE) Serial.println("RequestCommands: solicitud enviada.");
 }
 
-FB_Get_Result ProcessRequestCommands(int &action, int &controller_type) {
+FB_Get_Result ProcessRequestCommands(volatile uint8_t &action, volatile uint8_t &controller_type) {
     // Revisar si hay un resultado disponible
     if (!async_commands.isResult()) {
         if (FB_DEBUG_MODE) Serial.println("RequestCommands: aún no se han recibido.");
@@ -84,12 +84,12 @@ FB_Get_Result ProcessRequestCommands(int &action, int &controller_type) {
     // Obtener los datos del JSON y avisar si están completos
     JsonVariant v_action = doc["action"];
     JsonVariant v_ctrl   = doc["controller_type"];
-    if (!v_action.is<int>() || !v_ctrl.is<int>()) {
+    if (!v_action.is<double>() || !v_ctrl.is<double>()) {
         if (FB_DEBUG_MODE) Serial.println("RequestCommands: faltan campos requeridos o tipo incorrecto.");
         return FB_Get_Result::MISSING_FIELDS;
     }
-    action = v_action.as<int>();
-    controller_type = v_ctrl.as<int>();
+    action = v_action.as<uint8_t>();
+    controller_type = v_ctrl.as<uint8_t>();
     return FB_Get_Result::OK;
 }
 
@@ -101,7 +101,9 @@ void RequestPendingWaypoint() {
     if (FB_DEBUG_MODE) Serial.println("RequestPendingWaypoint: solicitud enviada.");
 }
 
-FB_Get_Result ProcessPendingWaypoint(TargetPoint &target_out) {
+FB_Get_Result ProcessPendingWaypoint(
+    volatile float &target_x, volatile float &target_y, volatile uint64_t &target_ts
+) {
     // Revisar si hay un resultado disponible
     if (!async_pending_waypoints.isResult()) {
         if (FB_DEBUG_MODE) Serial.println("RequestPendingWaypoint: no hay resultado disponible.");
@@ -131,14 +133,14 @@ FB_Get_Result ProcessPendingWaypoint(TargetPoint &target_out) {
         JsonVariant v_y  = obj["wp_y"];
         JsonVariant v_ts = obj["input_timestamp"];
 
-        if (!v_x.is<float>() || !v_y.is<float>() || !v_ts.is<uint32_t>()) {
-            if (FB_DEBUG_MODE) Serial.println("RequestPendingWaypoint: faltan campos o tipos incorrectos.");
+        if (!v_x.is<double>() || !v_y.is<double>() || !v_ts.is<double>()) {
+            if (FB_DEBUG_MODE) Serial.println("RequestPendingWaypoint: faltan campos.");
             return FB_Get_Result::MISSING_FIELDS;
         }
 
-        target_out.x = v_x.as<float>();
-        target_out.y = v_y.as<float>();
-        target_out.ts = String(kv.key().c_str()).toInt();  // Clave es el timestamp
+        target_x = v_x.as<float>();
+        target_y = v_y.as<float>();
+        target_ts = v_ts.as<uint64_t>();
         return FB_Get_Result::OK;
     }
     // Si no se encuentra ningún elemento válido
@@ -148,11 +150,10 @@ FB_Get_Result ProcessPendingWaypoint(TargetPoint &target_out) {
 
 
 void PushStatus(
+    const uint8_t state, const char* log_msg, 
     const float x, const float y, const float wL, const float wR,
-    const uint8_t state, const char* log_msg, const uint8_t controller_type,
-    const float rmse, const float iae,
-    const float wp_x, const float wp_y,
-    const uint32_t wp_input_ts
+    const uint64_t wp_input_ts, const float wp_x, const float wp_y,
+    const uint8_t controller_type, const float iae, const float rmse
 ) {
     const uint32_t timestamp = get_unix_timestamp();
 
@@ -167,13 +168,12 @@ void PushStatus(
     doc["rpm_left"] = rpm_L;
     doc["rpm_right"] = rpm_R;
     doc["log_msg"] = log_msg;
-    doc["controller_type"] = controller_type;
-    doc["rmse"] = rmse;
-    doc["iae"] = iae;
-
+    doc["wp_input_timestamp"] = wp_input_ts;
     doc["wp_x"] = wp_x;
     doc["wp_y"] = wp_y;
-    doc["wp_input_timestamp"] = wp_input_ts;
+    doc["controller_type"] = controller_type;
+    doc["iae"] = iae;
+    doc["rmse"] = rmse;
 
     String path = "/status_log/" + String(timestamp);
     SetJson(path, doc, async_status);
@@ -181,16 +181,15 @@ void PushStatus(
 
 
 void PushReachedWaypoint(
-    const float wp_x, const float wp_y, const uint32_t input_timestamp, 
+    const uint64_t input_timestamp, const float wp_x, const float wp_y,  
+    const uint64_t start_timestamp, const uint64_t reached_timestamp,
     const float pos_x, const float pos_y, 
-    const uint32_t start_timestamp, const uint32_t reached_timestamp, const uint32_t trip_length_sec
+    const uint8_t controller_type, const float iae, const float rmse
 ) {
     JsonDocument doc;
     doc["input_timestamp"] = input_timestamp;
     doc["start_timestamp"] = start_timestamp;
     doc["reached_timestamp"] = reached_timestamp;
-
-    doc["trip_length_sec"] = trip_length_sec;
 
     doc["pos_x"] = pos_x;
     doc["pos_y"] = pos_y;
@@ -198,12 +197,16 @@ void PushReachedWaypoint(
     doc["wp_x"] = wp_x;
     doc["wp_y"] = wp_y;
 
+    doc["controller_type"] = controller_type;
+    doc["iae"] = iae;
+    doc["rmse"] = rmse;
+
     String path = "/waypoints_reached/" + String(reached_timestamp);
     SetJson(path, doc, async_reached_waypoints);
 }
 
 
-void RemovePendingWaypoint(const uint32_t input_timestamp) {
+void RemovePendingWaypoint(const uint64_t input_timestamp) {
     String path = "/waypoints_pending/" + String(input_timestamp);
     Database.remove(async_client, path, async_pending_waypoints);
 }
@@ -280,5 +283,27 @@ void auth_debug_print(AsyncResult &aResult) {
     }
 }
 
+void Task_FirebasePushStatus(void *pvParameters) {
+    // Configuración del periodo de muestreo
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    const TickType_t period = pdMS_TO_TICKS(FB_PUSH_STATUS_PERIOD_MS);
+    // Recuperar variables globales
+    GlobalContext* ctx_ptr = static_cast<GlobalContext*>(pvParameters);
+    volatile OperationData& os = *(ctx_ptr->os_ptr);
+    volatile PoseData& pose = *(ctx_ptr->pose_ptr);
+    volatile ControllerData& ctrl = *(ctx_ptr->control_ptr);
+    // Ejecutar tarea periodicamente
+    for (;;) {
+        vTaskDelayUntil(&xLastWakeTime, period);
+        if (os.state != OS_State::INIT && os.state != OS_State::IDLE) {
+            PushStatus(
+                static_cast<uint8_t>(os.state), (const char*) os.last_log,
+                pose.x, pose.y, pose.w_L, pose.w_R,
+                os.fb_waypoint_data.input_ts, os.fb_waypoint_data.wp_x, os.fb_waypoint_data.wp_y,
+                static_cast<uint8_t>(ctrl.controller_type), ctrl.iae, ctrl.rmse
+            );
+        }
+    }
+}
 
 } // namespace FirebaseComm

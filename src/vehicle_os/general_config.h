@@ -3,8 +3,10 @@
 
 #include "Arduino.h"
 
-// Configuración general del proyecto
+/* -------------- Configuración general --------------*/
+
 constexpr bool GENERAL_DEBUG_MODE = true; // Habilita el modo de depuración
+constexpr bool ONLINE_MODE = true; // Habilita el modo online (conexión a Firebase y WiFi)
 
 
 /* -------------- Definiciones de los pines de la ESP32 --------------*/
@@ -144,45 +146,26 @@ constexpr uint16_t BASIC_STACK_SIZE = 2048; // Tamaño de stack básico para tar
 
 
 /* -------------- Struct auxiliares --------------*/
+
+// Estructura para representar un punto objetivo con coordenadas y timestamp.
 struct TargetPoint {
     float x;
     float y;
     uint64_t ts; // Timestamp del punto objetivo
 };
 
+// Estructura para almacenar datos de un punto de trayectoria para ser enviados a Firebase.
 struct WaypointData {
-    float x;
-    float y;
-    float wp_x;                ///< Coordenada X del waypoint
-    float wp_y;                ///< Coordenada Y del waypoint
-    uint64_t input_ts;         ///< Timestamp en que se ingresó (Firebase / usuario)
-    uint64_t start_ts;         ///< Timestamp en que el vehículo comenzó a seguirlo
-    uint64_t reached_ts;       ///< Timestamp en que se alcanzó exitosamente
-    float iae;                 ///< Integral del error absoluto (IAE) acumulado hasta el momento
-    float rmse;                ///< Raíz del error cuadrático medio (RMSE) acumulado hasta el momento
-    uint32_t trip_duration;    ///< Duración del trayecto en s
-};
-
-struct VehicleStatusData {
-    uint32_t timestamp;             ///< Timestamp actual (Unix)
-
-    int state;                      ///< Estado actual (0=IDLE, 1=STAND_BY, etc.)
-
-    float position_x;              ///< Posición actual X del vehículo
-    float position_y;              ///< Posición actual Y del vehículo
-
-    int rpm_left;                  ///< RPM actual de la rueda izquierda
-    int rpm_right;                 ///< RPM actual de la rueda derecha
-
-    String log_msg;                ///< Último mensaje de operación generado
-
-    float wp_x;                    ///< Coordenada X del waypoint actual
-    float wp_y;                    ///< Coordenada Y del waypoint actual
-    uint64_t wp_input_timestamp;   ///< Timestamp del waypoint actual
-
-    int controller_type;           ///< Tipo de controlador usado (0 = clásico, 1 = avanzado)
-    int64_t iae;                   ///< Integral absoluta del error acumulado
-    int64_t rmse;                  ///< RMSE acumulado
+    uint64_t input_ts;       ///< Timestamp en que se ingresó (Firebase / usuario)
+    float wp_x;              ///< Coordenada X del waypoint
+    float wp_y;              ///< Coordenada Y del waypoint
+    uint64_t start_ts;       ///< Timestamp en que el vehículo comenzó a seguirlo
+    uint64_t reached_ts;     ///< Timestamp en que se alcanzó exitosamente
+    float pos_x;             ///< Posición X del vehículo al completar el waypoint
+    float pos_y;             ///< Posición Y del vehículo al completar el waypoint
+    uint8_t controller_type; ///< Tipo de controlador usado para alcanzar el waypoint
+    float iae;               ///< Integral del error absoluto (IAE) acumulado hasta el momento
+    float rmse;              ///< Raíz del error cuadrático medio (RMSE) acumulado hasta el momento
 };
 
 
@@ -318,13 +301,14 @@ struct ControllerData {
     float y_d;
 
     /// Orientación del objetivo respecto a los ejes de referencia [rad].
-    float   theta_d;
-
-    /// Timestamp para uso de sincronización y control de tiempo
-    uint64_t timestamp;
+    float theta_d;
 
     /// Tipo de controlador utilizado para la posición. Puede ser PID o BACKS (Backstepping).
     ControlType controller_type;
+
+    /// Medidas de error acumuladas para el controlador
+    float iae;  ///< Integral del error absoluto acumulado
+    float rmse; ///< Raíz del error cuadrático medio acumulado
 
     /// Bandera que indica si alcanzó el objetivo actual
     bool waypoint_reached;
@@ -333,8 +317,9 @@ struct ControllerData {
     ControllerData() 
         : w_L_ref(0.0f), w_R_ref(0.0f),
           duty_L(0.0f), duty_R(0.0f),
-          x_d(0.0f), y_d(0.0f), theta_d(0.0f), timestamp(0U),
+          x_d(0.0f), y_d(0.0f), theta_d(0.0f),
           controller_type(ControlType::PID),
+          iae(0.0f), rmse(0.0f),
           waypoint_reached(false)
     {}
 };
@@ -373,26 +358,26 @@ struct OperationData {
 
     // Operación en modo online
     RemoteCommand fb_last_command;
-    TargetPoint fb_current_target; // Punto objetivo actual
-    WaypointData fb_wp_ready_buffer; // Buffer para el waypoint listo a enviar a Firebase
+    TargetPoint fb_target_buffer; // Punto objetivo actual
+    WaypointData fb_waypoint_data; // Data del waypoint actual (se envia a Firebase)
 
     // Constructor por defecto
     OperationData() :
         state(OS_State::INIT),
         local_total_targets(0),
         fb_last_command(RemoteCommand::STOP),
-        fb_current_target({NULL_WAYPOINT_XY, NULL_WAYPOINT_XY, NULL_TIMESTAMP}),
-        fb_wp_ready_buffer({
-            .x = NULL_WAYPOINT_XY,
-            .y = NULL_WAYPOINT_XY,
+        fb_target_buffer({NULL_WAYPOINT_XY, NULL_WAYPOINT_XY, NULL_TIMESTAMP}),
+        fb_waypoint_data({
+            .input_ts = NULL_TIMESTAMP,
             .wp_x = NULL_WAYPOINT_XY,
             .wp_y = NULL_WAYPOINT_XY,
-            .input_ts = NULL_TIMESTAMP,
             .start_ts = NULL_TIMESTAMP,
             .reached_ts = NULL_TIMESTAMP,
+            .pos_x = NULL_WAYPOINT_XY,
+            .pos_y = NULL_WAYPOINT_XY,
+            .controller_type = static_cast<uint8_t>(ControlType::PID),
             .iae = 0.0f,
-            .rmse = 0.0f,
-            .trip_duration = 0
+            .rmse = 0.0f
         })
     {
         for (uint8_t i = 0; i < MAX_TRAJECTORY_POINTS; ++i) {
@@ -442,9 +427,6 @@ struct EvadeContext {
     TargetPoint saved_waypoint = {0.0f, 0.0f, 0U};
 };
 
-struct FirebaseData {
-
-};
 
 /**
  * @brief Estructura global de contexto que agrupa punteros a las principales estructuras de estado del sistema.
