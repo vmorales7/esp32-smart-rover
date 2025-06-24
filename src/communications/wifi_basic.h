@@ -14,7 +14,7 @@
 constexpr uint32_t WIFI_TIMEOUT_MS = 10000;
 
 /// @brief Activa mensajes de depuración para WiFi.
-constexpr bool WIFI_DEBUG_MODE = true || GENERAL_DEBUG_MODE;
+constexpr bool WIFI_DEBUG_MODE = true;
 
 /// @brief Inicia la conexión WiFi con espera activa hasta lograr conexión o timeout.
 /// @return true si la conexión fue exitosa, false si falló.
@@ -37,7 +37,7 @@ bool ensure_wifi_connected();
 constexpr uint32_t TIME_TIMEOUT_MS = 10000;
 
 /// @brief Activa mensajes de depuración para NTP y timestamp.
-constexpr bool TIME_DEBUG_MODE = true || GENERAL_DEBUG_MODE;
+constexpr bool TIME_DEBUG_MODE = true;
 
 /// @brief Inicializa la hora del sistema usando NTP.
 /// @return true si la sincronización fue exitosa, false si falló.

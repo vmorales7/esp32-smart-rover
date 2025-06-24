@@ -5,25 +5,21 @@ bool begin_wifi() {
         if (WIFI_DEBUG_MODE) Serial.println("WiFi ya está conectado.");
         return true;
     }
-    // Inicio de wifi en modo de conexión (STA)
+
     WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID, WIFI_PASS);
-    if (WIFI_DEBUG_MODE) {
-        Serial.print("Conectando a WiFi: ");
-        Serial.println(WIFI_SSID);
-    }
-    unsigned long start_time = millis();
+
+    if (WIFI_DEBUG_MODE)  Serial.print("Conectando a WiFi");
     while (WiFi.status() != WL_CONNECTED) {
-        if (millis() - start_time > WIFI_TIMEOUT_MS) {
-            if (TIME_DEBUG_MODE) Serial.println("Fallo al conectar a WiFi (timeout)");
-            return false;
-        }
         delay(500);
+        if (WIFI_DEBUG_MODE) Serial.print(".");
     }
     if (WIFI_DEBUG_MODE) {
-        Serial.println("Conectado a WiFi correctamente.");
-        Serial.print("Dirección IP: ");
+        Serial.println();
+        Serial.println("✅ Conectado a WiFi correctamente.");
+        Serial.print("IP asignada: ");
         Serial.println(WiFi.localIP());
+        Serial.println();
     }
     return true;
 }
@@ -50,29 +46,29 @@ bool ensure_wifi_connected() {
 }
 
 
-bool init_time() {    
+bool init_time() {
     configTime(0, 0, "pool.ntp.org");
     struct tm timeinfo;
-    unsigned long t0 = millis();
 
     if (TIME_DEBUG_MODE) {
         Serial.println();
-        Serial.println("Sincronizando hora con NTP...");
-        Serial.println();
+        Serial.print("Sincronizando hora con NTP");
     }
+
     while (!getLocalTime(&timeinfo)) {
-        if (millis() - t0 > TIME_TIMEOUT_MS) {
-            if (TIME_DEBUG_MODE) {Serial.println("No se pudo sincronizar la hora (timeout)");}
-            return false;
-        }
         delay(500);
+        if (TIME_DEBUG_MODE) Serial.print(".");
     }
+
     if (TIME_DEBUG_MODE) {
-        Serial.println("\nHora sincronizada correctamente.");
+        Serial.println();
+        Serial.println("Hora sincronizada correctamente con NTP.");
         Serial.println();
     }
-    return true; 
+
+    return true;
 }
+
 
 uint32_t get_unix_timestamp() {
     struct tm timeinfo;

@@ -12,11 +12,11 @@ void update(GlobalContext* ctx_ptr) {
     volatile EvadeContext& evade = *(ctx_ptr->evade_ptr);
 
     bool ok = true; // Se usará para verificar si se pudo entrar a un estado
-    os.last_command = RemoteCommand::START; // Por ahora se asume modo START (ya que no hay Firebase)
+    os.fb_last_command = RemoteCommand::START; // Por ahora se asume modo START (ya que no hay Firebase)
 
     // Siempre se verifica si la conexión WiFi está activa
     bool wifi_ok = true;
-    if (WIFI_MODE) wifi_ok = check_wifi(); // solo en modo WiFi podría volverse false
+    if (ONLINE_MODE) wifi_ok = check_wifi(); // solo en modo WiFi podría volverse false
 
     switch (os.state) {
         case OS_State::INIT: {// Solo se ejecuta como paso hacia IDLE
@@ -29,7 +29,7 @@ void update(GlobalContext* ctx_ptr) {
         case OS_State::IDLE: {
             // Por ahora no se hace nada en IDLE, pero luego se hará lectura de Firebase
             // Si hay puntos pendientes y WiFi está activo, se entra a STAND_BY
-            if (wifi_ok && os.total_targets > 0) {
+            if (wifi_ok && os.local_total_targets > 0) {
                 enter_stand_by(ctx_ptr);
                 os.state = OS_State::STAND_BY;
                 set_operation_log(OS_State::STAND_BY, OS_State::IDLE, ctx_ptr);
@@ -37,8 +37,8 @@ void update(GlobalContext* ctx_ptr) {
             break;
         }
         case OS_State::STAND_BY: {            
-            const bool pending_targets = (os.total_targets > 0);
-            if (os.last_command == RemoteCommand::START) {    
+            const bool pending_targets = (os.local_total_targets > 0);
+            if (os.fb_last_command == RemoteCommand::START) {    
                 // Se establece el primer waypoint de la trayectoria y limpiar la flag de waypoint alcanzado
                 ok = set_waypoint(ctx_ptr);
                 if (ok) { // Si hay puntos pendientes, se entra al estado ALIGN
@@ -51,9 +51,9 @@ void update(GlobalContext* ctx_ptr) {
                     enter_stand_by(ctx_ptr);
                     set_operation_log(OS_State::STAND_BY, OS_State::STAND_BY, ctx_ptr);
                 }
-            } else if (os.last_command == RemoteCommand::IDLE) {                    
+            } else if (os.fb_last_command == RemoteCommand::IDLE) {                    
                 enter_idle(ctx_ptr);
-                clear_trajectory_with_null(os); // Limpiar la trayectoria
+                clear_local_trajectory(os); // Limpiar la trayectoria
                 os.state = OS_State::IDLE; 
                 set_operation_log(OS_State::IDLE, OS_State::STAND_BY, ctx_ptr);
             }
@@ -74,7 +74,7 @@ void update(GlobalContext* ctx_ptr) {
                     set_operation_log(OS_State::STAND_BY, OS_State::ALIGN, ctx_ptr);
                 }
             } // Si se da el STOP, se frena el movimiento y se vuelve a STAND_BY cuando se detiene
-            else if (os.last_command == RemoteCommand::STOP) { 
+            else if (os.fb_last_command == RemoteCommand::STOP) { 
                 const bool stop_flag = PositionController::stop_movement(
                     pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
                 if (stop_flag) {
@@ -89,13 +89,13 @@ void update(GlobalContext* ctx_ptr) {
             if (ctrl.waypoint_reached) {
                 PositionController::stop_movement(pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
                 // Si se alcanza el objetivo y las ruedas están detenidas, se completa el waypoint
-                ok = complete_current_waypoint(os);
+                ok = complete_local_waypoint(os);
                 if (!ok) {// Si no se pudo completar el waypoint (# targets = 0), se manda todo a STAND_BY
                     enter_stand_by(ctx_ptr);
                     os.state = OS_State::STAND_BY;
                     set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
                 } 
-                else if (os.last_command == RemoteCommand::START) { // Se completó el waypoint y se sigue en START
+                else if (os.fb_last_command == RemoteCommand::START) { // Se completó el waypoint y se sigue en START
                     // Se establece el siguiente waypoint solo si se está en START
                     // Futuro: avisar a FB que se alcanzó el waypoint
                     ok = set_waypoint(ctx_ptr); 
@@ -118,12 +118,12 @@ void update(GlobalContext* ctx_ptr) {
                     set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
                 }
             } 
-            else if (os.last_command == RemoteCommand::STOP || sens.us_obstacle) {
+            else if (os.fb_last_command == RemoteCommand::STOP || sens.us_obstacle) {
                 // Si se recibe el comando STOP, se detiene el movimiento
                 const bool stop_flag = PositionController::stop_movement(
                     pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
                 if (stop_flag) {
-                    if (os.last_command == RemoteCommand::STOP) { // Si no hay obstáculo, se vuelve a STAND_BY
+                    if (os.fb_last_command == RemoteCommand::STOP) { // Si no hay obstáculo, se vuelve a STAND_BY
                         enter_stand_by(ctx_ptr);
                         os.state = OS_State::STAND_BY;
                         set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
@@ -143,7 +143,7 @@ void update(GlobalContext* ctx_ptr) {
             break;
         }
         case OS_State::EVADE: {
-            if (os.last_command == RemoteCommand::STOP) {
+            if (os.fb_last_command == RemoteCommand::STOP) {
                 // Si se recibe el comando STOP, se detiene el movimiento
                 const bool stop_flag = PositionController::stop_movement(
                     pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
@@ -163,7 +163,7 @@ void update(GlobalContext* ctx_ptr) {
                     // Si falla la evasión, se vuelve a STAND_BY
                     enter_stand_by(ctx_ptr);
                     os.state = OS_State::STAND_BY;
-                    os.last_command == RemoteCommand::STOP;
+                    os.fb_last_command == RemoteCommand::STOP;
                     set_operation_log(OS_State::STAND_BY, OS_State::EVADE, ctx_ptr);
                 }
             } else {
@@ -188,8 +188,8 @@ bool set_waypoint(GlobalContext* ctx_ptr) {
     volatile OperationData& os = *(ctx_ptr->os_ptr);
 
     // Fijar el punto objetivo a partir del primer punto en la trayectoria
-    if (os.total_targets > 0) {
-        PositionController::set_waypoint(os.trajectory[0].x, os.trajectory[0].y, 0.0f,
+    if (os.local_total_targets > 0) {
+        PositionController::set_waypoint(os.local_trajectory[0].x, os.local_trajectory[0].y, 0.0f,
             ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, sts.position);
         return SUCCESS;
     }
@@ -208,7 +208,13 @@ bool enter_init(GlobalContext* ctx_ptr) {
     // 0. Actualizar el estado del sistema a INIT
     os.state = OS_State::INIT;
 
-    // 1. Inicialización de módulos individuales
+    // 1. Inicializar WiFi y tiempo en caso de estar en modo online
+    if (ONLINE_MODE) {
+        begin_wifi();
+        init_time();
+    } // Ambas son operaciones bloqueantes, por lo que el sistema no avanzará hasta que se completen
+
+    // 2. Inicialización de módulos individuales
     if (pose.estimator_type == PoseEstimatorType::COMPLEMENTARY){
         IMUSensor::init(sens.imu_acc, sens.imu_w, sens.imu_theta, sts.imu);}
     EncoderReader::init(sens.enc_phiL, sens.enc_phiR, sens.enc_wL, sens.enc_wR, sts.encoders);
@@ -220,7 +226,7 @@ bool enter_init(GlobalContext* ctx_ptr) {
     PositionController::init(sts.position, ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, 
         ctrl.w_L_ref, ctrl.w_R_ref);
 
-    // 2. Lanzar tareas RTOS núcleo 1
+    // 3. Lanzar tareas RTOS núcleo 1
     if (pose.estimator_type == PoseEstimatorType::COMPLEMENTARY){ 
         xTaskCreatePinnedToCore(IMUSensor::Task_IMUData, "UpdateIMU", 2*BASIC_STACK_SIZE, ctx_ptr, 3, nullptr, 1);}
     xTaskCreatePinnedToCore(
@@ -232,7 +238,7 @@ bool enter_init(GlobalContext* ctx_ptr) {
     xTaskCreatePinnedToCore(
         PositionController::Task_PositionControl, "PositionControl", 3*BASIC_STACK_SIZE, ctx_ptr, 1, nullptr, 1);
         
-    // 3. Lanzar tareas RTOS núcleo 0
+    // 4. Lanzar tareas RTOS núcleo 0
     xTaskCreatePinnedToCore(
         OS::Task_VehicleOS, "VehicleOS", 3*BASIC_STACK_SIZE, ctx_ptr, 1, nullptr, 0);
     xTaskCreatePinnedToCore(
@@ -443,38 +449,38 @@ bool enter_wait_free_path(GlobalContext* ctx_ptr) {
 }
 
 
-void clear_trajectory_with_null(volatile OperationData& os) {
+void clear_local_trajectory(volatile OperationData& os) {
     for (uint8_t i = 0; i < MAX_TRAJECTORY_POINTS; ++i) {
-        os.trajectory[i].x = NULL_WAYPOINT_XY;
-        os.trajectory[i].y = NULL_WAYPOINT_XY;
-        os.trajectory[i].ts = NULL_TIMESTAMP; 
+        os.local_trajectory[i].x = NULL_WAYPOINT_XY;
+        os.local_trajectory[i].y = NULL_WAYPOINT_XY;
+        os.local_trajectory[i].ts = NULL_TIMESTAMP; 
     }
-    os.total_targets = 0U;
+    os.local_total_targets = 0U;
 }
 
 
-bool complete_current_waypoint(volatile OperationData& os) {
-    if (os.total_targets > 0) {
-        os.total_targets--;
+bool complete_local_waypoint(volatile OperationData& os) {
+    if (os.local_total_targets > 0) {
+        os.local_total_targets--;
         for (uint8_t i = 1; i < MAX_TRAJECTORY_POINTS; ++i) { // Mover los puntos hacia adelante
-            os.trajectory[i-1].x = os.trajectory[i].x;
-            os.trajectory[i-1].y = os.trajectory[i].y;
-            os.trajectory[i-1].ts = os.trajectory[i].ts; 
+            os.local_trajectory[i-1].x = os.local_trajectory[i].x;
+            os.local_trajectory[i-1].y = os.local_trajectory[i].y;
+            os.local_trajectory[i-1].ts = os.local_trajectory[i].ts; 
         }
-        os.trajectory[MAX_TRAJECTORY_POINTS-1].x = NULL_WAYPOINT_XY;
-        os.trajectory[MAX_TRAJECTORY_POINTS-1].y = NULL_WAYPOINT_XY;
+        os.local_trajectory[MAX_TRAJECTORY_POINTS-1].x = NULL_WAYPOINT_XY;
+        os.local_trajectory[MAX_TRAJECTORY_POINTS-1].y = NULL_WAYPOINT_XY;
         return SUCCESS; // Se completó el waypoint
     }
     return ERROR; // No hay waypoints para completar
 }
 
 
-bool add_waypoint(const float x, const float y, const float ts, volatile OperationData& os) {
-    if (os.total_targets < MAX_TRAJECTORY_POINTS) {
-        os.trajectory[os.total_targets].x = x;
-        os.trajectory[os.total_targets].y = y;
-        os.trajectory[os.total_targets].ts = ts;
-        os.total_targets++;
+bool add_local_waypoint(const float x, const float y, const float ts, volatile OperationData& os) {
+    if (os.local_total_targets < MAX_TRAJECTORY_POINTS) {
+        os.local_trajectory[os.local_total_targets].x = x;
+        os.local_trajectory[os.local_total_targets].y = y;
+        os.local_trajectory[os.local_total_targets].ts = ts;
+        os.local_total_targets++;
         return SUCCESS;
     }
     return ERROR; // No se pudo agregar el waypoint, lista llena

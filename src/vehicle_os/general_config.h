@@ -162,8 +162,8 @@ struct WaypointData {
     uint64_t input_ts;         ///< Timestamp en que se ingresó (Firebase / usuario)
     uint64_t start_ts;         ///< Timestamp en que el vehículo comenzó a seguirlo
     uint64_t reached_ts;       ///< Timestamp en que se alcanzó exitosamente
-    int64_t iae;               ///< Integral del error absoluto (IAE) acumulado hasta el momento
-    int64_t rmse;              ///< Raíz del error cuadrático medio (RMSE) acumulado hasta el momento
+    float iae;               ///< Integral del error absoluto (IAE) acumulado hasta el momento
+    float rmse;              ///< Raíz del error cuadrático medio (RMSE) acumulado hasta el momento
     uint32_t trip_duration;    ///< Duración del trayecto en s
 };
 
@@ -346,31 +346,59 @@ struct ControllerData {
 /**
  * @brief Contiene la información de alto nivel relacionada con la operación del vehículo autónomo.
  *
- * Esta estructura centraliza el estado actual del sistema, la trayectoria de navegación cargada,
- * y la última instrucción remota recibida (por ejemplo, desde Firebase). Se utiliza por la máquina
- * de estados principal (`vehicle_os`) para coordinar la lógica de navegación y comportamiento del vehículo.
+ * Esta estructura centraliza el estado operativo del sistema (`state`), los buffers necesarios para
+ * operación tanto en modo offline como online, y los mensajes relevantes de diagnóstico (`last_log`).
+ * Es utilizada por la máquina de estados principal (`vehicle_os`) para coordinar la lógica de navegación.
  *
  * Campos clave:
- * - state: Estado operativo actual del sistema (ej. INIT, NAVIGATING, etc.)
- * - total_targets: Cantidad de puntos cargados actualmente en `trajectory`.
- * - trajectory: Lista de puntos objetivo a seguir, en orden.
- * - last_remote_command: Última instrucción recibida por interfaz remota (START, STOP, etc.)
+ * - state: Estado operativo actual del sistema (INIT, STAND_BY, ALIGN, etc.)
+ * - last_log: Último mensaje registrado asociado a una transición o acción del sistema.
+ *
+ * Modo offline:
+ * - local_total_targets: Cantidad de puntos cargados en la trayectoria local.
+ * - local_trajectory: Lista local de puntos objetivo cargados manualmente (sin Firebase).
+ *
+ * Modo online:
+ * - fb_last_command: Último comando recibido desde Firebase (START o STOP).
+ * - fb_current_target: Punto objetivo actual obtenido desde Firebase.
+ * - fb_wp_ready_buffer: Buffer temporal para almacenar información del waypoint completado, lista para enviarse a Firebase.
+ *
+ * La estructura permite alternar entre modos de operación (online/offline) sin cambiar la lógica de control central,
+ * permitiendo mayor robustez frente a fallas de conectividad o pruebas sin red.
  */
 struct OperationData {
+    // Generales
     OS_State state;
-    uint8_t total_targets;
-    TargetPoint trajectory[MAX_TRAJECTORY_POINTS];
-    RemoteCommand last_command;
     char last_log[64];
 
+    // Operación en modo offline
+    uint8_t local_total_targets;
+    TargetPoint local_trajectory[MAX_TRAJECTORY_POINTS];
+
+    // Operación en modo online
+    RemoteCommand fb_last_command;
+    TargetPoint fb_current_target; // Punto objetivo actual
+    WaypointData fb_wp_ready_buffer; // Buffer para el waypoint listo a enviar a Firebase
+
     // Constructor por defecto
-    OperationData() : 
-    state(OS_State::INIT),
-    total_targets(0),
-    last_command(RemoteCommand::STOP)
+    OperationData() :
+        state(OS_State::INIT),
+        local_total_targets(0),
+        fb_last_command(RemoteCommand::STOP),
+        fb_current_target({NULL_WAYPOINT_XY, NULL_WAYPOINT_XY, NULL_TIMESTAMP}),
+        fb_wp_ready_buffer({
+            .x = NULL_WAYPOINT_XY,
+            .y = NULL_WAYPOINT_XY,
+            .input_ts = NULL_TIMESTAMP,
+            .start_ts = NULL_TIMESTAMP,
+            .reached_ts = NULL_TIMESTAMP,
+            .iae = 0.0f,
+            .rmse = 0.0f,
+            .trip_duration = 0
+        })
     {
         for (uint8_t i = 0; i < MAX_TRAJECTORY_POINTS; ++i) {
-            trajectory[i] = {NULL_WAYPOINT_XY, NULL_WAYPOINT_XY, NULL_TIMESTAMP};
+            local_trajectory[i] = {NULL_WAYPOINT_XY, NULL_WAYPOINT_XY, NULL_TIMESTAMP};
         }
         last_log[0] = '\0'; // String vacío al inicio
     }
@@ -416,12 +444,8 @@ struct EvadeContext {
     TargetPoint saved_waypoint = {0.0f, 0.0f, 0U};
 };
 
-
 struct FirebaseData {
-    WaypointData waypoint_buffer[MAX_TRAJECTORY_POINTS]; ///< Buffer de waypoints esperando a ser enviados a Firebase
-    VehicleStatusData vehicle_status_buffer;       ///< Datos de estado del vehículo para enviar a Firebase
-    TargetPoint trayectory[MAX_TRAJECTORY_POINTS]; ///< Trayectoria pendiente en Firebase
-    uint8_t total_targets;                         ///< Total de waypoints en la trayectoria pendiente
+
 };
 
 /**

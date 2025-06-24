@@ -26,7 +26,7 @@
 
 /* ------------------------ Constantes ------------------------*/
 
-constexpr bool WIFI_MODE = true;
+constexpr bool ONLINE_MODE = true;
 
 /* ------------------------ Funciones ------------------------*/
 
@@ -145,7 +145,7 @@ bool enter_wait_free_path(GlobalContext* ctx_ptr);
  * 
  * @param os Referencia a la estructura de datos del sistema operativo
  */
-void clear_trajectory_with_null(volatile OperationData& os);
+void clear_local_trajectory(volatile OperationData& os);
 
 /**
  * @brief Completa el waypoint actual y desplaza los siguientes en la trayectoria
@@ -155,7 +155,7 @@ void clear_trajectory_with_null(volatile OperationData& os);
  * 
  * @param os Referencia a la estructura de datos del sistema operativo
  */
-bool complete_current_waypoint(volatile OperationData& os);
+bool complete_local_waypoint(volatile OperationData& os);
 
 /**
  * @brief Agrega un nuevo waypoint al final de la trayectoria
@@ -168,7 +168,7 @@ bool complete_current_waypoint(volatile OperationData& os);
  * @param os Referencia a la estructura de datos del sistema operativo
  * @return true si se agregó correctamente, false si la trayectoria está llena
  */
-bool add_waypoint(const float x, const float y, const float ts, volatile OperationData& os);
+bool add_local_waypoint(const float x, const float y, const float ts, volatile OperationData& os);
 
 /**
  * @brief Tarea RTOS para el sistema operativo del vehículo

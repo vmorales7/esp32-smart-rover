@@ -20,7 +20,29 @@
 #include <ArduinoJson.h>
 
 // Auxiliar para debug print
-constexpr bool FB_DEBUG_MODE = true || GENERAL_DEBUG_MODE;
+constexpr bool FB_DEBUG_MODE = true;
+constexpr uint8_t PUSH_STATUS_MAX_ERRORS = 10; // Errores máximos para error crítico
+
+
+// ---------- Enum para los returns ----------
+
+enum CommandProcessResult : uint8_t {
+    CMD_OK = 0,                 // Éxito
+    CMD_ASYNC_NO_RESULT = 1,    // Aún no disponible o error general
+    CMD_ASYNC_ERROR = 2,        // Error en la operación asíncrona
+    CMD_PARSE_ERROR = 3,        // Error al parsear JSON
+    CMD_MISSING_FIELDS = 4      // Falta alguna de las claves requeridas
+};
+
+enum PushStatusResult : uint8_t {
+    PUSH_STATUS_OK = 0,              // Éxito al subir el estado
+    PUSH_STATUS_NOT_READY = 1,       // Firebase no está listo
+    PUSH_STATUS_ERROR = 2,            // Error al subir el estado
+    PUSH_STATUS_MAX_ERRORS = 3      // Se alcanzó el máximo de reintentos
+};
+
+
+
 
 // Funciones para la comunicación con Firebase
 namespace FirebaseComm {

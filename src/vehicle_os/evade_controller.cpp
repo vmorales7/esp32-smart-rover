@@ -46,7 +46,7 @@ void update_evade(GlobalContext* ctx_ptr) {
     volatile EvadeContext& evade = *(ctx_ptr->evade_ptr);
     //Serial.printf("Estado de evasion: %d\n", static_cast<int>(evade.state));
     //Serial.printf("Pose punto actual: (%f, %f)\n", pose.x, pose.y);
-    Serial.printf("Pose objetivo: (%f, %f)\n", ctrl.x_d, ctrl.y_d);
+    // Serial.printf("Pose objetivo: (%f, %f)\n", ctrl.x_d, ctrl.y_d);
     switch (evade.state) {
 
         case EvadeState::SELECT_DIR: {    
@@ -78,7 +78,7 @@ void update_evade(GlobalContext* ctx_ptr) {
                     ctrl.y_d= pose.y;
                     PositionController::set_diferential_waypoint(EVADE_ADVANCE_DIST, 0.0f, 
                         ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, sts.position);
-                    Serial.printf("Punto objetivo: (%f,%f,%f)\n",ctrl.x_d,ctrl.y_d,ctrl.theta_d);
+                    // Serial.printf("Punto objetivo: (%f,%f,%f)\n",ctrl.x_d,ctrl.y_d,ctrl.theta_d);
                     OS::enter_move(ctx_ptr);
                     evade.state = EvadeState::WAIT_ADVANCE;
                 } else {

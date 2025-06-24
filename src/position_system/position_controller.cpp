@@ -80,8 +80,8 @@ bool set_waypoint(
     reset_pid_state(); // Reiniciar el estado del PID
     reset_backs();
     waypoint_reached = false; // Reiniciar la bandera de waypoint alcanzado
-    Serial.printf("waypoint_reached = %d\n", waypoint_reached);
-    Serial.println();
+    // Serial.printf("waypoint_reached = %d\n", waypoint_reached);
+    // Serial.println();
     return SUCCESS; // Indicar que se estableció el waypoint correctamente
 }
 
@@ -310,7 +310,7 @@ bool update_control(
         waypoint_reached = false; // Si no se detuvo, no se alcanzó el waypoint
     }
     last_moving_state = state; // Actualizar el estado de movimiento global
-    if (waypoint_reached) Serial.printf("Objetivo alcanzado: (x = %.2f, y = %.2f). Estamos: (x = %.2f, y = %.2f)\n", x_d, y_d, x, y);
+    // if (waypoint_reached) Serial.printf("Objetivo alcanzado: (x = %.2f, y = %.2f). Estamos: (x = %.2f, y = %.2f)\n", x_d, y_d, x, y);
     return waypoint_reached; // Retorna true si se alcanzó el objetivo y el vehículo está detenido
 }
 
