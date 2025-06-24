@@ -138,6 +138,7 @@ constexpr uint16_t OBSTACLE_CHECK_PERIOD_MS = 100;
 constexpr uint16_t POSE_ESTIMATOR_PERIOD_MS = 10; 
 constexpr uint16_t POSITION_CONTROL_PERIOD_MS = 50;
 constexpr uint16_t OS_UPDATE_PERIOD_MS = 50; 
+constexpr uint16_t FB_PUSH_STATUS_PERIOD_MS = 1000; // Periodo de subida de estado a Firebase
 
 constexpr uint16_t BASIC_STACK_SIZE = 2048; // Tamaño de stack básico para tareas RTOS
 

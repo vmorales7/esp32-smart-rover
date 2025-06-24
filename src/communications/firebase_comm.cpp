@@ -23,11 +23,19 @@ AsyncResult async_pending_waypoints;
 AsyncResult async_reached_waypoints;
 
 
-bool SetupClientObjects() {
+bool SetupFirebaseConnect() {
+    if (FB_DEBUG_MODE) Serial.println("\nSetupFirebaseConnect: Iniciando conexión a Firebase...");
     ssl_client.setInsecure();
     initializeApp(async_client, app, getAuth(user_auth), auth_debug_print, "authTask");
     app.getApp<RealtimeDatabase>(Database);
     Database.url(FB_DATABASE_URL);
+    
+    // Esperar conexión y autenticación
+    while (!ready()) {
+        if (FB_DEBUG_MODE) Serial.print(".");
+        delay(1000);
+    }
+    if (FB_DEBUG_MODE) Serial.println("\nSetupFirebaseConnect: Conexión a Firebase establecida.");
     return ready();
 }
 
@@ -53,16 +61,18 @@ void RequestCommands() {
 }
 
 FB_Get_Result ProcessRequestCommands(int &action, int &controller_type) {
+    // Revisar si hay un resultado disponible
     if (!async_commands.isResult()) {
         if (FB_DEBUG_MODE) Serial.println("RequestCommands: aún no se han recibido.");
         return FB_Get_Result::NO_RESULT;
     }
+    // Hubo resultado, revisar si hay error
     if (async_commands.isError()) {
         if (FB_DEBUG_MODE) Serial.println("RequestCommands: error al recibir.");
         return FB_Get_Result::ERROR;
     } 
-
-    StaticJsonDocument<64> doc;
+    // No hay error, deserializar y revisar si hay datos
+    JsonDocument doc;
     DeserializationError err = deserializeJson(doc, async_commands.c_str());
     if (err) {
         if (FB_DEBUG_MODE) {
@@ -71,14 +81,15 @@ FB_Get_Result ProcessRequestCommands(int &action, int &controller_type) {
         }
         return FB_Get_Result::PARSE_ERROR;
     }
-
-    if (!doc.containsKey("action") || !doc.containsKey("controller_type")) {
-        if (FB_DEBUG_MODE) Serial.println("RequestCommands: Faltan campos requeridos.");
+    // Obtener los datos del JSON y avisar si están completos
+    JsonVariant v_action = doc["action"];
+    JsonVariant v_ctrl   = doc["controller_type"];
+    if (!v_action.is<int>() || !v_ctrl.is<int>()) {
+        if (FB_DEBUG_MODE) Serial.println("RequestCommands: faltan campos requeridos o tipo incorrecto.");
         return FB_Get_Result::MISSING_FIELDS;
     }
-
-    action = doc["action"].as<int>();
-    controller_type = doc["controller_type"].as<int>();
+    action = v_action.as<int>();
+    controller_type = v_ctrl.as<int>();
     return FB_Get_Result::OK;
 }
 
@@ -102,7 +113,7 @@ FB_Get_Result ProcessPendingWaypoint(TargetPoint &target_out) {
         return FB_Get_Result::ERROR;
     }
     // No hay error, deserializar y revisar si hay datos
-    StaticJsonDocument<512> doc;
+    JsonDocument doc;
     DeserializationError err = deserializeJson(doc, async_pending_waypoints.c_str());
     if (err) {
         if (FB_DEBUG_MODE) {
@@ -113,18 +124,26 @@ FB_Get_Result ProcessPendingWaypoint(TargetPoint &target_out) {
     }
     // Obtener los datos del JSON y avisar si están completos
     JsonObject root = doc.as<JsonObject>();
-    for (JsonPair kv : root) {
+     for (JsonPair kv : root) {
         JsonObject obj = kv.value().as<JsonObject>();
-        if (!obj.containsKey("wp_x") || !obj.containsKey("wp_y") || !obj.containsKey("input_timestamp") || 
-                    obj["wp_x"].isNull() || obj["wp_y"].isNull() || obj["input_timestamp"].isNull()) {
-            if (FB_DEBUG_MODE) Serial.println("RequestPendingWaypoint: faltan campos requeridos.");
+
+        JsonVariant v_x  = obj["wp_x"];
+        JsonVariant v_y  = obj["wp_y"];
+        JsonVariant v_ts = obj["input_timestamp"];
+
+        if (!v_x.is<float>() || !v_y.is<float>() || !v_ts.is<uint32_t>()) {
+            if (FB_DEBUG_MODE) Serial.println("RequestPendingWaypoint: faltan campos o tipos incorrectos.");
             return FB_Get_Result::MISSING_FIELDS;
         }
-        target_out.x = obj["wp_x"];
-        target_out.y = obj["wp_y"];
-        target_out.ts = String(kv.key().c_str()).toInt();
+
+        target_out.x = v_x.as<float>();
+        target_out.y = v_y.as<float>();
+        target_out.ts = String(kv.key().c_str()).toInt();  // Clave es el timestamp
         return FB_Get_Result::OK;
     }
+    // Si no se encuentra ningún elemento válido
+    if (FB_DEBUG_MODE) Serial.println("RequestPendingWaypoint: JSON vacío o sin elementos válidos.");
+    return FB_Get_Result::MISSING_FIELDS;
 }
 
 
@@ -136,15 +155,12 @@ void PushStatus(
     const uint32_t wp_input_ts
 ) {
     const uint32_t timestamp = get_unix_timestamp();
-    const String time_str = timestamp_to_string(timestamp);
-    const String wp_input_time = timestamp_to_string(wp_input_ts);
 
     const int rpm_L = round(wL * 60.0 / (2 * 3.14)) + 0.5;
     const int rpm_R = round(wR * 60.0 / (2 * 3.14)) + 0.5;
 
-    StaticJsonDocument<384> doc;
+    JsonDocument doc;
     doc["timestamp"] = timestamp;
-    doc["time"] = time_str;
     doc["state"] = state;
     doc["pos_x"] = x;
     doc["pos_y"] = y;
@@ -158,7 +174,6 @@ void PushStatus(
     doc["wp_x"] = wp_x;
     doc["wp_y"] = wp_y;
     doc["wp_input_timestamp"] = wp_input_ts;
-    doc["wp_input_time"] = wp_input_time;
 
     String path = "/status_log/" + String(timestamp);
     SetJson(path, doc, async_status);
@@ -170,18 +185,10 @@ void PushReachedWaypoint(
     const float pos_x, const float pos_y, 
     const uint32_t start_timestamp, const uint32_t reached_timestamp, const uint32_t trip_length_sec
 ) {
-    const String input_time = timestamp_to_string(input_timestamp);
-    const String start_time = timestamp_to_string(start_timestamp);
-    const String reached_time = timestamp_to_string(reached_timestamp);
-
-    StaticJsonDocument<384> doc;
+    JsonDocument doc;
     doc["input_timestamp"] = input_timestamp;
     doc["start_timestamp"] = start_timestamp;
     doc["reached_timestamp"] = reached_timestamp;
-
-    doc["input_time"] = input_time;
-    doc["start_time"] = start_time;
-    doc["reached_time"] = reached_time;
 
     doc["trip_length_sec"] = trip_length_sec;
 
@@ -235,6 +242,8 @@ FB_Push_Result ProcessPush(const FB_PushType type) {
             return FB_Push_Result::FATAL_ERROR;
     }
 
+    FirebaseComm::ready();
+
     if (async_result_ptr->isResult()) {
         if (!async_result_ptr->isError()) {
             *error_counter = 0;
@@ -257,17 +266,19 @@ FB_Push_Result ProcessPush(const FB_PushType type) {
 }
 
 
-void auth_debug_print(AsyncResult &aResult)
-{
-    if (aResult.isEvent()) {
-        Firebase.printf("Event task: %s, msg: %s, code: %d\n", aResult.uid().c_str(), aResult.eventLog().message().c_str(), aResult.eventLog().code());
-    }
-    if (aResult.isDebug()) {
-        Firebase.printf("Debug task: %s, msg: %s\n", aResult.uid().c_str(), aResult.debug().c_str());
-    }
-    if (aResult.isError()) {
-        Firebase.printf("Error task: %s, msg: %s, code: %d\n", aResult.uid().c_str(), aResult.error().message().c_str(), aResult.error().code());
+void auth_debug_print(AsyncResult &aResult) {
+    if (FB_DEBUG_MODE) {    
+        if (aResult.isEvent()) {
+            Firebase.printf("Event task: %s, msg: %s, code: %d\n", aResult.uid().c_str(), aResult.eventLog().message().c_str(), aResult.eventLog().code());
+        }
+        if (aResult.isDebug()) {
+            Firebase.printf("Debug task: %s, msg: %s\n", aResult.uid().c_str(), aResult.debug().c_str());
+        }
+        if (aResult.isError()) {
+            Firebase.printf("Error task: %s, msg: %s, code: %d\n", aResult.uid().c_str(), aResult.error().message().c_str(), aResult.error().code());
+        }
     }
 }
+
 
 } // namespace FirebaseComm

@@ -20,7 +20,7 @@
 #include <ArduinoJson.h>
 
 // Auxiliar para debug print
-constexpr bool FB_DEBUG_MODE = true;
+constexpr bool FB_DEBUG_MODE = false;
 
 
 // ---------- Enum para los returns ----------
@@ -46,9 +46,9 @@ enum class FB_Push_Result : uint8_t {
     FATAL_ERROR = 3      // Se alcanzó el máximo de reintentos
 };
 
-constexpr uint8_t PUSH_STATUS_MAX_ERRORS = 10;  
-constexpr uint8_t PUSH_REACHED_MAX_ERRORS = 10; 
-constexpr uint8_t PUSH_REMOVE_MAX_ERRORS = 10; 
+constexpr uint8_t PUSH_STATUS_MAX_ERRORS = 100;  
+constexpr uint8_t PUSH_REACHED_MAX_ERRORS = 100; 
+constexpr uint8_t PUSH_REMOVE_MAX_ERRORS = 100; 
 
 
 // ---------- Funciones para la comunicación con Firebase ----------
@@ -60,7 +60,7 @@ namespace FirebaseComm {
  * 
  * @return true si se inicializó correctamente.
  */
-bool SetupClientObjects();
+bool SetupFirebaseConnect();
 
 /**
  * @brief Verifica si la app Firebase está lista para operar.

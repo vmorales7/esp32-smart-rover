@@ -1,11 +1,10 @@
-#ifndef WIFI_UTILS_H
-#define WIFI_UTILS_H
+#ifndef WIFI_BASIC_H
+#define WIFI_BASIC_H
 
 #include <Arduino.h>
 #include <WiFi.h>
 #include <time.h>
-#include "secrets.h"                ///< Credenciales WiFi (WIFI_SSID, WIFI_PASS)
-#include "vehicle_os/general_config.h"
+#include "secrets.h"            ///< Credenciales WiFi (WIFI_SSID, WIFI_PASS)
 
 /// @file wifi_utils.h
 /// @brief Utilidades para conexión WiFi y sincronización horaria NTP en ESP32.
@@ -52,4 +51,4 @@ uint32_t get_unix_timestamp();
 /// @return Fecha y hora como string legible. Si falla, retorna "0000-00-00 00:00:00".
 String timestamp_to_string(uint32_t ts);
 
-#endif // WIFI_UTILS_H
+#endif // WIFI_BASIC_H

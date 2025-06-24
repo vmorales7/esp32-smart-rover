@@ -16,10 +16,9 @@ bool begin_wifi() {
     }
     if (WIFI_DEBUG_MODE) {
         Serial.println();
-        Serial.println("✅ Conectado a WiFi correctamente.");
+        Serial.println("Conectado a WiFi correctamente.");
         Serial.print("IP asignada: ");
         Serial.println(WiFi.localIP());
-        Serial.println();
     }
     return true;
 }
@@ -51,8 +50,7 @@ bool init_time() {
     struct tm timeinfo;
 
     if (TIME_DEBUG_MODE) {
-        Serial.println();
-        Serial.print("Sincronizando hora con NTP");
+        Serial.print("\nSincronizando hora con NTP");
     }
 
     while (!getLocalTime(&timeinfo)) {
@@ -63,20 +61,15 @@ bool init_time() {
     if (TIME_DEBUG_MODE) {
         Serial.println();
         Serial.println("Hora sincronizada correctamente con NTP.");
-        Serial.println();
+        Serial.print("Hora actual: ");
+        Serial.println(timestamp_to_string(mktime(&timeinfo)));
     }
-
     return true;
 }
 
-
 uint32_t get_unix_timestamp() {
-    struct tm timeinfo;
-    if (!getLocalTime(&timeinfo)) {
-        if (TIME_DEBUG_MODE) Serial.println("Fallo al obtener hora");
-        return 0;
-    }
-    return mktime(&timeinfo);
+    // Usar directamente el reloj del sistema una vez sincronizado
+    return static_cast<uint32_t>(time(nullptr));
 }
 
 String timestamp_to_string(uint32_t timestamp) {
