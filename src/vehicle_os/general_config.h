@@ -109,13 +109,6 @@ enum class OS_State : uint8_t {
     EVADE              // Evasión de obstáculo
 };
 
-// Estructura de punto
-struct TargetPoint {
-    float x;
-    float y;
-    uint64_t ts; // Timestamp del punto objetivo
-};
-
 // Instrucciones posibles desde Firebase o interfaz web
 enum class RemoteCommand : uint8_t {
     STOP = 0,
@@ -157,13 +150,15 @@ struct TargetPoint {
 };
 
 struct WaypointData {
-    float x;                   ///< Coordenada X del waypoint
-    float y;                   ///< Coordenada Y del waypoint
+    float x;
+    float y;
+    float wp_x;                ///< Coordenada X del waypoint
+    float wp_y;                ///< Coordenada Y del waypoint
     uint64_t input_ts;         ///< Timestamp en que se ingresó (Firebase / usuario)
     uint64_t start_ts;         ///< Timestamp en que el vehículo comenzó a seguirlo
     uint64_t reached_ts;       ///< Timestamp en que se alcanzó exitosamente
-    float iae;               ///< Integral del error absoluto (IAE) acumulado hasta el momento
-    float rmse;              ///< Raíz del error cuadrático medio (RMSE) acumulado hasta el momento
+    float iae;                 ///< Integral del error absoluto (IAE) acumulado hasta el momento
+    float rmse;                ///< Raíz del error cuadrático medio (RMSE) acumulado hasta el momento
     uint32_t trip_duration;    ///< Duración del trayecto en s
 };
 
@@ -389,6 +384,8 @@ struct OperationData {
         fb_wp_ready_buffer({
             .x = NULL_WAYPOINT_XY,
             .y = NULL_WAYPOINT_XY,
+            .wp_x = NULL_WAYPOINT_XY,
+            .wp_y = NULL_WAYPOINT_XY,
             .input_ts = NULL_TIMESTAMP,
             .start_ts = NULL_TIMESTAMP,
             .reached_ts = NULL_TIMESTAMP,
