@@ -25,7 +25,7 @@
 
 /* ------------------------ Constantes ------------------------*/
 
-
+constexpr float DIST_DEBUGGEO_PUNTO_EVASION= 0.5f;
 
 /* ------------------------ Funciones ------------------------*/
 

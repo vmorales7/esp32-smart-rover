@@ -20,7 +20,7 @@ constexpr float US_CM_PER_US = 0.01715f;
  * 
  * Si la distancia medida es menor a este valor, se considera que hay un obstáculo.
  */
-constexpr uint8_t OBSTACLE_THRESHOLD_CM = 45U;
+constexpr uint8_t OBSTACLE_THRESHOLD_CM = 40U;
 
 /**
  * @brief Distancia máxima considerada válida para el sensor [cm].

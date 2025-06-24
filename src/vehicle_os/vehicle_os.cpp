@@ -125,9 +125,15 @@ void update(GlobalContext* ctx_ptr) {
                         set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
                     } 
                     else { // Si se detecta un obstáculo, se entra al estado EVADE
+                        float rhoev= sqrt((pose.x-ctrl.x_d)*(pose.x-ctrl.x_d) + (pose.y-ctrl.y_d)*(pose.y-ctrl.y_d));
                         if (evade.include_evade) {
-                            EvadeController::start_evade(ctx_ptr);
-                            enter_evade(ctx_ptr);
+                            if (rhoev>DIST_DEBUGGEO_PUNTO_EVASION) {
+                                EvadeController::start_evade(ctx_ptr);
+                                enter_evade(ctx_ptr);
+                            }
+                            else {
+                                ctrl.waypoint_reached=true;
+                            };
                         } else {
                             enter_wait_free_path(ctx_ptr);
                         }
