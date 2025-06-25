@@ -29,18 +29,6 @@ const bool INCLUDE_EVADE = true; // Habilita el controlador de evasión
 // =================== Operación del sistema ====================
 
 void setup() {
-
-    // Comenzar serial
-    Serial.begin(115200);
-    delay(1000); 
-    Serial.println();
-    Serial.println("Iniciando prueba Avance 3...");
-    Serial.println();
-    delay(5000);
-
-    // Comenzar el WiFi (no avanza hasta terminar)
-    begin_wifi();
-
     // Inicializar hardware y lanzar todas las tareas RTOS
     OS::enter_init(&ctx);
 

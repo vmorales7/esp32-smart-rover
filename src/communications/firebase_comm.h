@@ -25,12 +25,6 @@ constexpr bool FB_DEBUG_MODE = false;
 
 // ---------- Enum para los returns ----------
 
-enum class FB_PushType : uint8_t {
-    STATUS,
-    REACHED,
-    REMOVE_PENDING
-};
-
 enum class FB_Get_Result : uint8_t {
     OK = 0,              // Éxito: datos recibidos y parseados correctamente
     NO_RESULT = 1,       // Aún no disponible o no ejecutado
@@ -39,12 +33,20 @@ enum class FB_Get_Result : uint8_t {
     MISSING_FIELDS = 4,  // El JSON está incompleto (faltan claves requeridas)
 };
 
-enum class FB_Push_Result : uint8_t {
-    OK = 0,              // Éxito al subir 
-    NOT_READY = 1,       // Firebase no está listo
-    ERROR = 2,           // Error al subir 
-    FATAL_ERROR = 3      // Se alcanzó el máximo de reintentos
-};
+
+// ---------- Constantes y configuraciones ----------
+
+constexpr uint32_t FB_COMMANDS_TIMEOUT_MS = 5000;
+constexpr uint8_t FB_COMMANDS_MAX_ERRORS = 2; 
+
+constexpr uint32_t FB_PENDING_TIMEOUT_MS = 5000;
+constexpr uint8_t FB_PENDING_MAX_ERRORS = 2;
+
+constexpr uint32_t FB_PUSH_REACHED_TIMEOUT_MS = 5000;
+constexpr uint8_t FB_PUSH_REACHED_MAX_ERRORS = 2; 
+
+constexpr uint32_t FB_PUSH_REMOVE_TIMEOUT_MS = 5000;
+constexpr uint8_t FB_PUSH_REMOVE_ERRORS = 2; 
 
 constexpr uint8_t PUSH_STATUS_MAX_ERRORS = 100;  
 constexpr uint8_t PUSH_REACHED_MAX_ERRORS = 100; 
@@ -60,7 +62,7 @@ namespace FirebaseComm {
  * 
  * @return true si se inicializó correctamente.
  */
-bool SetupFirebaseConnect();
+bool ConnectFirebase();
 
 /**
  * @brief Verifica si la app Firebase está lista para operar.
@@ -93,6 +95,19 @@ void RequestCommands();
 FB_Get_Result ProcessRequestCommands(volatile uint8_t &action, volatile uint8_t &controller_type);
 
 /**
+ * @brief Actualiza el estado del sistema al obtener comandos desde Firebase.
+ *        Internamente gestiona la solicitud, espera y procesamiento de los datos recibidos.
+ * 
+ * @param action Referencia donde se almacenará el comando recibido (0=STOP, 1=START).
+ * @param controller_type Referencia donde se almacenará el tipo de controlador (0=PID, 1=LQR).
+ * @param fb_state Referencia al estado global de la comunicación Firebase (se actualiza en caso de error).
+ * @return FB_State Estado de la operación: OK, PENDING o ERROR.
+ */
+FB_State UpdateCommands(
+    volatile uint8_t &action, volatile uint8_t &controller_type, volatile FB_State &fb_state
+);
+
+/**
  * @brief Solicita el waypoint pendiente más antiguo desde Firebase.
  */
 void RequestPendingWaypoint();
@@ -108,6 +123,80 @@ void RequestPendingWaypoint();
 FB_Get_Result ProcessPendingWaypoint(
     volatile float &target_x, volatile float &target_y, volatile uint64_t &target_ts
 );
+
+/**
+ * @brief Actualiza el estado al obtener el waypoint pendiente desde Firebase.
+ *        Maneja internamente los reintentos y errores.
+ * 
+ * @param target_x Referencia para almacenar la coordenada X del waypoint.
+ * @param target_y Referencia para almacenar la coordenada Y del waypoint.
+ * @param target_ts Referencia para almacenar el timestamp del waypoint.
+ * @param fb_state Referencia al estado global de Firebase (se actualiza si hay error).
+ * @return FB_State Estado actual de la operación.
+ */
+FB_State UpdatePendingWaypoint(
+    volatile float &target_x, volatile float &target_y, volatile uint64_t &target_ts, volatile FB_State &fb_state
+);
+
+/**
+ * @brief Sube a Firebase la información de un waypoint alcanzado al nodo /waypoints_reached.
+ * 
+ * @param input_timestamp Timestamp original de entrada del waypoint.
+ * @param wp_x Coordenada X del waypoint.
+ * @param wp_y Coordenada Y del waypoint.
+ * @param start_timestamp Timestamp en que se inició el movimiento.
+ * @param reached_timestamp Timestamp en que se alcanzó el waypoint.
+ * @param pos_x Posición X alcanzada.
+ * @param pos_y Posición Y alcanzada.
+ */
+void PushReachedWaypoint(
+    const uint64_t input_timestamp, const float wp_x, const float wp_y,  
+    const uint64_t start_timestamp, const uint64_t reached_timestamp,
+    const float pos_x, const float pos_y,
+    const uint8_t controller_type, const float iae, const float rmse
+);
+
+/**
+ * @brief Sube información de un waypoint alcanzado a Firebase con control de errores y tiempo.
+ *        Esta función debe ser llamada periódicamente hasta que retorne OK o ERROR.
+ * 
+ * @param input_timestamp Timestamp original del waypoint.
+ * @param wp_x Coordenada X del waypoint.
+ * @param wp_y Coordenada Y del waypoint.
+ * @param start_timestamp Timestamp de inicio de ejecución del waypoint.
+ * @param reached_timestamp Timestamp en que fue alcanzado.
+ * @param pos_x Posición X real alcanzada.
+ * @param pos_y Posición Y real alcanzada.
+ * @param controller_type Tipo de controlador utilizado.
+ * @param iae Error absoluto integral.
+ * @param rmse Error cuadrático medio.
+ * @param fb_state Referencia al estado global de Firebase (se actualiza si hay error).
+ * @return FB_State Estado de la operación (OK, PENDING o ERROR).
+ */
+FB_State ControlledPushReachedWaypoint(
+    const uint64_t input_timestamp, const float wp_x, const float wp_y,  
+    const uint64_t start_timestamp, const uint64_t reached_timestamp,
+    const float pos_x, const float pos_y, 
+    const uint8_t controller_type, const float iae, const float rmse,
+    volatile FB_State &fb_state
+);
+
+/**
+ * @brief Elimina de Firebase un waypoint pendiente por su timestamp de entrada.
+ * 
+ * @param input_timestamp Timestamp del waypoint que será eliminado.
+ */
+void RemovePendingWaypoint(const uint64_t input_timestamp);
+
+/**
+ * @brief Elimina de Firebase un waypoint pendiente con control de tiempo y errores.
+ *        Esta función debe ser llamada periódicamente hasta completar o fallar.
+ * 
+ * @param input_timestamp Timestamp del waypoint a eliminar.
+ * @param fb_state Referencia al estado global de Firebase (se actualiza si hay error).
+ * @return FB_State Estado de la operación (OK, PENDING o ERROR).
+ */
+FB_State ControlledRemovePendingWaypoint(const uint64_t input_timestamp, volatile FB_State &fb_state);
 
 /**
  * @brief Envía un estado de posición, velocidad, error y estado del vehículo al nodo /status_log.
@@ -133,44 +222,24 @@ void PushStatus(
 );
 
 /**
- * @brief Sube a Firebase la información de un waypoint alcanzado al nodo /waypoints_reached.
- * 
- * @param input_timestamp Timestamp original de entrada del waypoint.
- * @param wp_x Coordenada X del waypoint.
- * @param wp_y Coordenada Y del waypoint.
- * @param start_timestamp Timestamp en que se inició el movimiento.
- * @param reached_timestamp Timestamp en que se alcanzó el waypoint.
- * @param pos_x Posición X alcanzada.
- * @param pos_y Posición Y alcanzada.
- */
-void PushReachedWaypoint(
-    const uint64_t input_timestamp, const float wp_x, const float wp_y,  
-    const uint64_t start_timestamp, const uint64_t reached_timestamp,
-    const float pos_x, const float pos_y,
-    const uint8_t controller_type, const float iae, const float rmse
-);
-
-/**
- * @brief Elimina de Firebase un waypoint pendiente por su timestamp de entrada.
- * 
- * @param input_timestamp Timestamp del waypoint que será eliminado.
- */
-void RemovePendingWaypoint(const uint64_t input_timestamp);
-
-/**
- * @brief Procesa de forma genérica un resultado de subida asíncrona (status, reached, remove).
- * 
- * @param type Tipo de operación a verificar.
- * @return FB_Push_Result Estado del resultado (OK, ERROR, NOT_READY, FATAL).
- */
-FB_Push_Result ProcessPush(const FB_PushType type);
-
-/**
  * @brief Imprime en consola los logs de depuración y errores de Firebase si están disponibles.
  * 
  * @param aResult Resultado asíncrono a inspeccionar.
  */
 void auth_debug_print(AsyncResult &aResult);
+
+/**
+ * @brief Tarea que envía periódicamente el estado del vehículo a Firebase.
+ */
+void Task_PushStatus(void *pvParameters);
+
+/**
+ * @brief Tarea que obtiene comandos desde Firebase periódicamente.
+ * 
+ * Esta tarea se encarga de solicitar y procesar los comandos de control del vehículo
+ * desde Firebase, actualizando el estado del sistema según corresponda.
+ */
+void Task_GetCommands(void *pvParameters);
 
 } // namespace FirebaseComm
 

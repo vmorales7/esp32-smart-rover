@@ -1,6 +1,6 @@
 #include "communications/firebase_comm.h"
 
-#warning "Compilando main_firebase.cpp"
+#warning "Compilando main_firebase_basic.cpp"
 
 AsyncResult async_aux;
 
@@ -11,9 +11,12 @@ void setup() {
 
     begin_wifi(); 
     init_time(); // Sincronizar hora con NTP
-    FirebaseComm::SetupFirebaseConnect(); // Iniciar conexión Firebase
+    FirebaseComm::ConnectFirebase(); // Iniciar conexión Firebase
 
     for (int i = 0; i < 5; i++) {
+
+        Serial.printf("== Enviando datos dummy %d ==\n", i);
+
         // Timestamps base
         uint64_t now = get_unix_timestamp();
         uint64_t input_ts   = now - 300;
@@ -28,13 +31,6 @@ void setup() {
             0, 0.1f * i, 0.2f * i                       // controller_type, iae, rmse
         );
         delay(1000);
-        FB_Push_Result r1 = FB_Push_Result::NOT_READY;
-        while (true) {
-            FirebaseComm::ready();
-            r1 = FirebaseComm::ProcessPush(FB_PushType::STATUS);
-            if (r1 != FB_Push_Result::NOT_READY) break;
-            delay(100);
-        }
 
         // Push WAYPOINT_REACHED
         FirebaseComm::PushReachedWaypoint(
@@ -44,16 +40,6 @@ void setup() {
             0, 0.1f * i, 0.2f * i                        // controller_type, iae, rmse
         );
         delay(1000);
-        FB_Push_Result r2 = FB_Push_Result::NOT_READY;
-        while (true) {
-            FirebaseComm::ready();
-            r2 = FirebaseComm::ProcessPush(FB_PushType::REACHED);
-            if (r2 != FB_Push_Result::NOT_READY) break;
-            delay(100);
-        }
-
-        // Mostrar resultados
-        Serial.printf("Status push = %d, Reached push = %d\n", (int)r1, (int)r2);
 
         // Push WAYPOINT_PENDING
         now = get_unix_timestamp();

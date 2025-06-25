@@ -97,3 +97,19 @@ String timestamp_to_string(uint32_t timestamp) {
     strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", timeinfo);
     return String(buffer);
 }
+
+
+void Task_CheckWifi(void *pvParameters) {
+    // Configuración del periodo de muestreo
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    const TickType_t period = pdMS_TO_TICKS(WIFI_CHECK_PERIOD_MS);
+    // Recuperar variables globales
+    GlobalContext* ctx_ptr = static_cast<GlobalContext*>(pvParameters);
+    volatile OperationData& os = *(ctx_ptr->os_ptr);
+    // Ejecutar tarea periodicamente
+    vTaskDelay(pdMS_TO_TICKS(5000));  // desfase inicial
+    for (;;) {
+        vTaskDelayUntil(&xLastWakeTime, period);
+        os.wifi_status = check_wifi();
+    }
+}

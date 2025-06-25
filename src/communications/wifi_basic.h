@@ -5,17 +5,11 @@
 #include <WiFi.h>
 #include <time.h>
 #include "secrets.h"            ///< Credenciales WiFi (WIFI_SSID, WIFI_PASS)
+#include "vehicle_os/general_config.h" ///< Configuración general del vehículo
 
 // ============================
 // Manejo básico de WiFi
 // ============================
-
-/// @brief Enum para representar el estado de la conexión WiFi.
-enum class WifiStatus : uint8_t {
-    OK = 1,
-    DISCONNECTED = 2,
-    TIMEOUT = 3
-};
 
 /// @brief Timeout máximo para la conexión WiFi (en milisegundos).
 constexpr uint32_t WIFI_TIMEOUT_MS = 10000;
@@ -23,7 +17,7 @@ constexpr uint32_t WIFI_TIMEOUT_MS = 10000;
 /// @brief Activa mensajes de depuración para WiFi.
 constexpr bool WIFI_DEBUG_MODE = false;
 
-/// @brief Inicia la conexión WiFi con espera activa hasta lograr conexión o timeout.
+/// @brief Inicia la conexión WiFi con bloqueo hasta lograr conexión.
 /// @return true si la conexión fue exitosa, false si falló.
 bool begin_wifi();
 
@@ -35,6 +29,9 @@ WifiStatus check_wifi();
 /// @return true si logró conectar, false si no fue posible.
 bool ensure_wifi_connected();
 
+/// @brief Tarea que verifica el estado del WiFi, actualiza la variable global de estado de WiFi
+void Task_CheckWifi(void* pvParameters);
+
 
 // ============================
 //        Sincronización NTP
@@ -44,7 +41,7 @@ bool ensure_wifi_connected();
 constexpr uint32_t TIME_TIMEOUT_MS = 10000;
 
 /// @brief Activa mensajes de depuración para NTP y timestamp.
-constexpr bool TIME_DEBUG_MODE = true;
+constexpr bool TIME_DEBUG_MODE = false;
 
 /// @brief Inicializa la hora del sistema usando NTP.
 /// @return true si la sincronización fue exitosa, false si falló.

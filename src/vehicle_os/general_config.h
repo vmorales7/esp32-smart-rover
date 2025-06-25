@@ -112,7 +112,7 @@ enum class OS_State : uint8_t {
 };
 
 // Instrucciones posibles desde Firebase o interfaz web
-enum class RemoteCommand : uint8_t {
+enum class UserCommand : uint8_t {
     STOP = 0,
     START,
     IDLE
@@ -130,6 +130,19 @@ enum class EvadeState : uint8_t {
     FINISHED
 };
 
+/// @brief Enum para representar el estado de la conexión WiFi.
+enum class WifiStatus : uint8_t {
+    OK = 1,
+    DISCONNECTED = 2,
+    TIMEOUT = 3
+};
+
+enum class FB_State : uint8_t {
+    OK,
+    PENDING,
+    ERROR
+};
+
 
 /* -------------- Tiempos de poleo para tareas RTOS --------------*/
 
@@ -140,7 +153,10 @@ constexpr uint16_t OBSTACLE_CHECK_PERIOD_MS = 100;
 constexpr uint16_t POSE_ESTIMATOR_PERIOD_MS = 10; 
 constexpr uint16_t POSITION_CONTROL_PERIOD_MS = 50;
 constexpr uint16_t OS_UPDATE_PERIOD_MS = 50; 
-constexpr uint16_t FB_PUSH_STATUS_PERIOD_MS = 1000; // Periodo de subida de estado a Firebase
+constexpr uint16_t WIFI_CHECK_PERIOD_MS = 1000;
+constexpr uint16_t FB_PUSH_STATUS_PERIOD_MS = 500;
+constexpr uint16_t FB_GET_COMMANDS_PERIOD_MS = 500;
+constexpr uint16_t FB_LOOP_PERIOD_MS = 1000;
 
 constexpr uint16_t BASIC_STACK_SIZE = 2048; // Tamaño de stack básico para tareas RTOS
 
@@ -166,6 +182,19 @@ struct WaypointData {
     uint8_t controller_type; ///< Tipo de controlador usado para alcanzar el waypoint
     float iae;               ///< Integral del error absoluto (IAE) acumulado hasta el momento
     float rmse;              ///< Raíz del error cuadrático medio (RMSE) acumulado hasta el momento
+
+    WaypointData() :
+        input_ts(NULL_TIMESTAMP),
+        wp_x(NULL_WAYPOINT_XY),
+        wp_y(NULL_WAYPOINT_XY),
+        start_ts(NULL_TIMESTAMP),
+        reached_ts(NULL_TIMESTAMP),
+        pos_x(NULL_WAYPOINT_XY),
+        pos_y(NULL_WAYPOINT_XY),
+        controller_type(0),
+        iae(0.0f),
+        rmse(0.0f)
+    {}
 };
 
 
@@ -357,7 +386,10 @@ struct OperationData {
     TargetPoint local_trajectory[MAX_TRAJECTORY_POINTS];
 
     // Operación en modo online
-    RemoteCommand fb_last_command;
+    FB_State fb_state; // Estado de la comunicación con Firebase
+    WifiStatus wifi_status; // Estado de la conexión WiFi
+    UserCommand fb_last_command;
+    ControlType fb_controller_type; // Tipo de controlador usado en el último comando
     TargetPoint fb_target_buffer; // Punto objetivo actual
     WaypointData fb_waypoint_data; // Data del waypoint actual (se envia a Firebase)
 
@@ -365,20 +397,11 @@ struct OperationData {
     OperationData() :
         state(OS_State::INIT),
         local_total_targets(0),
-        fb_last_command(RemoteCommand::STOP),
+        
+        wifi_status(WifiStatus::DISCONNECTED),
+        fb_last_command(UserCommand::STOP),
         fb_target_buffer({NULL_WAYPOINT_XY, NULL_WAYPOINT_XY, NULL_TIMESTAMP}),
-        fb_waypoint_data({
-            .input_ts = NULL_TIMESTAMP,
-            .wp_x = NULL_WAYPOINT_XY,
-            .wp_y = NULL_WAYPOINT_XY,
-            .start_ts = NULL_TIMESTAMP,
-            .reached_ts = NULL_TIMESTAMP,
-            .pos_x = NULL_WAYPOINT_XY,
-            .pos_y = NULL_WAYPOINT_XY,
-            .controller_type = static_cast<uint8_t>(ControlType::PID),
-            .iae = 0.0f,
-            .rmse = 0.0f
-        })
+        fb_waypoint_data()
     {
         for (uint8_t i = 0; i < MAX_TRAJECTORY_POINTS; ++i) {
             local_trajectory[i] = {NULL_WAYPOINT_XY, NULL_WAYPOINT_XY, NULL_TIMESTAMP};

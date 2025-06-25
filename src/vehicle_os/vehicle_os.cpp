@@ -12,7 +12,7 @@ void update(GlobalContext* ctx_ptr) {
     volatile EvadeContext& evade = *(ctx_ptr->evade_ptr);
 
     bool ok = true; // Se usará para verificar si se pudo entrar a un estado
-    os.fb_last_command = RemoteCommand::START; // Por ahora se asume modo START (ya que no hay Firebase)
+    os.fb_last_command = UserCommand::START; // Por ahora se asume modo START (ya que no hay Firebase)
 
     // Siempre se verifica si la conexión WiFi está activa
     WifiStatus wifi_status = WifiStatus::OK;
@@ -38,7 +38,7 @@ void update(GlobalContext* ctx_ptr) {
         }
         case OS_State::STAND_BY: {            
             const bool pending_targets = (os.local_total_targets > 0);
-            if (os.fb_last_command == RemoteCommand::START) {    
+            if (os.fb_last_command == UserCommand::START) {    
                 // Se establece el primer waypoint de la trayectoria y limpiar la flag de waypoint alcanzado
                 ok = set_local_waypoint(ctx_ptr);
                 if (ok) { // Si hay puntos pendientes, se entra al estado ALIGN
@@ -51,7 +51,7 @@ void update(GlobalContext* ctx_ptr) {
                     enter_stand_by(ctx_ptr);
                     set_operation_log(OS_State::STAND_BY, OS_State::STAND_BY, ctx_ptr);
                 }
-            } else if (os.fb_last_command == RemoteCommand::IDLE) {                    
+            } else if (os.fb_last_command == UserCommand::IDLE) {                    
                 enter_idle(ctx_ptr);
                 clear_local_trajectory(os); // Limpiar la trayectoria
                 os.state = OS_State::IDLE; 
@@ -74,7 +74,7 @@ void update(GlobalContext* ctx_ptr) {
                     set_operation_log(OS_State::STAND_BY, OS_State::ALIGN, ctx_ptr);
                 }
             } // Si se da el STOP, se frena el movimiento y se vuelve a STAND_BY cuando se detiene
-            else if (os.fb_last_command == RemoteCommand::STOP) { 
+            else if (os.fb_last_command == UserCommand::STOP) { 
                 const bool stop_flag = PositionController::stop_movement(
                     pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
                 if (stop_flag) {
@@ -95,7 +95,7 @@ void update(GlobalContext* ctx_ptr) {
                     os.state = OS_State::STAND_BY;
                     set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
                 } 
-                else if (os.fb_last_command == RemoteCommand::START) { // Se completó el waypoint y se sigue en START
+                else if (os.fb_last_command == UserCommand::START) { // Se completó el waypoint y se sigue en START
                     // Se establece el siguiente waypoint solo si se está en START
                     // Futuro: avisar a FB que se alcanzó el waypoint
                     ok = set_local_waypoint(ctx_ptr); 
@@ -118,12 +118,12 @@ void update(GlobalContext* ctx_ptr) {
                     set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
                 }
             } 
-            else if (os.fb_last_command == RemoteCommand::STOP || sens.us_obstacle) {
+            else if (os.fb_last_command == UserCommand::STOP || sens.us_obstacle) {
                 // Si se recibe el comando STOP, se detiene el movimiento
                 const bool stop_flag = PositionController::stop_movement(
                     pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
                 if (stop_flag) {
-                    if (os.fb_last_command == RemoteCommand::STOP) { // Si no hay obstáculo, se vuelve a STAND_BY
+                    if (os.fb_last_command == UserCommand::STOP) { // Si no hay obstáculo, se vuelve a STAND_BY
                         enter_stand_by(ctx_ptr);
                         os.state = OS_State::STAND_BY;
                         set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
@@ -143,7 +143,7 @@ void update(GlobalContext* ctx_ptr) {
             break;
         }
         case OS_State::EVADE: {
-            if (os.fb_last_command == RemoteCommand::STOP) {
+            if (os.fb_last_command == UserCommand::STOP) {
                 // Si se recibe el comando STOP, se detiene el movimiento
                 const bool stop_flag = PositionController::stop_movement(
                     pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
@@ -163,7 +163,7 @@ void update(GlobalContext* ctx_ptr) {
                     // Si falla la evasión, se vuelve a STAND_BY
                     enter_stand_by(ctx_ptr);
                     os.state = OS_State::STAND_BY;
-                    os.fb_last_command == RemoteCommand::STOP;
+                    os.fb_last_command == UserCommand::STOP;
                     set_operation_log(OS_State::STAND_BY, OS_State::EVADE, ctx_ptr);
                 }
             } else {
@@ -208,10 +208,17 @@ bool enter_init(GlobalContext* ctx_ptr) {
     // 0. Actualizar el estado del sistema a INIT
     os.state = OS_State::INIT;
 
-    // 1. Inicializar WiFi y tiempo en caso de estar en modo online
+    // 1. Iniciar serial para depuración y retardo de inicio
+    Serial.begin(115200);
+    delay(1000); 
+    Serial.println("\nIniciando operación del vehículo...");
+    delay(5000);
+
+    // 1. Inicializar WiFi, tiempo y firebase si es necesario. No permiten avanzar hasta que se completen.
     if (ONLINE_MODE) {
         begin_wifi();
         init_time();
+        FirebaseComm::ConnectFirebase();
     } // Ambas son operaciones bloqueantes, por lo que el sistema no avanzará hasta que se completen
 
     // 2. Inicialización de módulos individuales
@@ -243,6 +250,7 @@ bool enter_init(GlobalContext* ctx_ptr) {
         OS::Task_VehicleOS, "VehicleOS", 3*BASIC_STACK_SIZE, ctx_ptr, 1, nullptr, 0);
     xTaskCreatePinnedToCore(
         DistanceSensors::Task_CheckObstacle, "CheckObstacles", 2*BASIC_STACK_SIZE, ctx_ptr, 2, &(task_handlers.obstacle_handle), 0);
+    if (ONLINE_MODE) xTaskCreatePinnedToCore( Task_CheckWifi, "CheckWifi", 2*BASIC_STACK_SIZE, ctx_ptr, 2, nullptr, 0);
 
     return SUCCESS; // Estado INIT alcanzado
 }
