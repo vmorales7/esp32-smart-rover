@@ -35,7 +35,7 @@ void setup() {
         // Push WAYPOINT_REACHED
         FirebaseComm::PushReachedWaypoint(
             input_ts, 10.0f + i, 20.0f + i,              // input_timestamp, wp_x, wp_y
-            start_ts, reached_ts,                       // start, reached
+            start_ts, reached_ts, true,
             10.0f + i + 0.1f, 20.0f + i + 0.1f,          // pos_x, pos_y
             0, 0.1f * i, 0.2f * i                        // controller_type, iae, rmse
         );
