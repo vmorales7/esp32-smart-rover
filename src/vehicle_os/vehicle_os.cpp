@@ -188,6 +188,7 @@ void update_online(GlobalContext* ctx_ptr) {
     volatile EvadeContext& evade = *(ctx_ptr->evade_ptr);
 
     bool ok = true; // Se usará para verificar si se pudo entrar a un estado
+    FB_State fb_result = FB_State::OK; // Estado de la comunicación con Firebase
 
     switch (os.state) {
         case OS_State::INIT: {// Solo se ejecuta como paso hacia IDLE
@@ -197,12 +198,9 @@ void update_online(GlobalContext* ctx_ptr) {
             break;
         }
         case OS_State::IDLE: {
-            // Si no hay conexión WiFi o Firebase no está verificado, se espera a que se conecte
-            if (check_wifi() != WifiStatus::OK || !FirebaseComm::ready()) {
-                break;
-            }
+            // Si no hay conexión WiFi o Firebase no está verificado, se pasa a STAND_BY para detener el vehículo
             // Si se da un start desde Firebase, se entra a STAND_BY sin importar si hay puntos pendientes
-            if (os.fb_last_command == UserCommand::START) {
+            if (os.fb_last_command == UserCommand::START || CheckOnlineStatus(ctx_ptr) == false){
                 enter_stand_by(ctx_ptr);
                 os.state = OS_State::STAND_BY;
                 set_operation_log(OS_State::STAND_BY, OS_State::IDLE, ctx_ptr);
@@ -211,73 +209,50 @@ void update_online(GlobalContext* ctx_ptr) {
         }
         case OS_State::STAND_BY: {
             // Si no hay conexión WiFi o Firebase no está verificado, se espera a que se conecte
-            if (check_wifi() != WifiStatus::OK || !FirebaseComm::ready()) {
-                break;
+            if (CheckOnlineStatus(ctx_ptr) == false) {
+                // A futuro añadir aviso de error de conexión
+                set_operation_log(OS_State::STAND_BY, OS_State::STAND_BY, ctx_ptr);
             }
-            // Cuando hay start se va a buscar puntos pendientes            
-            if (os.fb_last_command == UserCommand::START) {    
-                if (os.fb_completed_but_not_sent) {
-                    if (CompleteWaypoint(ctx_ptr) == FB_State::OK) {// Completar el waypoint pendiente
-                        os.fb_completed_but_not_sent = false; // Limpiar la flag de waypoint completado pero no enviado
-                    } else {
-                        break; // Si no se pudo completar, se espera a que se pueda enviar
-                    }
+            // Siempre se verifica si el último punto completado fue enviado a Firebase
+            else if (os.fb_completed_but_not_sent) {
+                fb_result = SendReachedWaypoint(ctx_ptr); // Completar el waypoint pendiente
+                if (fb_result == FB_State::OK) {
+                    os.fb_completed_but_not_sent = false; // Limpiar la flag
                 }
+            }           
+            // Si hay punto enviado. Cuando hay start se va a buscar puntos pendientes            
+            else if (os.fb_last_command == UserCommand::START) {    
                 // Hay que pedir el waypoint pendiente mas antiguo a Firebase
-                FB_State res = FirebaseComm::UpdatePendingWaypoint(
+                fb_result = FirebaseComm::UpdatePendingWaypoint(
                     os.fb_target_buffer.x, os.fb_target_buffer.y, os.fb_target_buffer.ts, os.fb_state);
-                // Va a quedar detenido acá hasta que se reciba el waypoint
-                if (res == FB_State::OK) {
-
-                    // Guardar datos iniciales del waypoint en el buffer
-                    os.fb_waypoint_data.input_ts = os.fb_target_buffer.ts;
-                    os.fb_waypoint_data.wp_x = os.fb_target_buffer.x;
-                    os.fb_waypoint_data.wp_y = os.fb_target_buffer.y;
-                    os.fb_waypoint_data.start_ts = get_unix_timestamp();
-                    
-                    // Establecer el objetivo del controlador
-                    ctrl.x_d = os.fb_waypoint_data.wp_x; 
-                    ctrl.y_d = os.fb_waypoint_data.wp_y;
-
-
-
-                }
-                ok = set_local_waypoint(ctx_ptr);
-                if (ok) { // Si hay puntos pendientes, se entra al estado ALIGN
-                    enter_align(ctx_ptr); // El controlador intentará alinear el vehículo hacia el objetivo
+                // Si se recibe podemos fijar el waypoint en el controlador y pasar a ALIGN
+                if (fb_result == FB_State::OK) {
+                    set_online_waypoint(ctx_ptr); 
+                    enter_align(ctx_ptr);
                     os.state = OS_State::ALIGN;
                     set_operation_log(OS_State::ALIGN, OS_State::STAND_BY, ctx_ptr);
                     EvadeController::reset_evade_state(ctx_ptr);
-                    // Avisar a FB que se estableció el waypoint
-                } else { // Si no se pudo, nos quedamos en STAND_BY
-                    enter_stand_by(ctx_ptr);
-                    set_operation_log(OS_State::STAND_BY, OS_State::STAND_BY, ctx_ptr);
                 }
-            } else if (os.fb_last_command == UserCommand::IDLE) {                    
+            } // Último punto alcanzado fue enviado + comando IDLE
+            else if (os.fb_last_command == UserCommand::IDLE) {                    
                 enter_idle(ctx_ptr);
-                clear_local_trajectory(os); // Limpiar la trayectoria
                 os.state = OS_State::IDLE; 
                 set_operation_log(OS_State::IDLE, OS_State::STAND_BY, ctx_ptr);
             }
             break;
         }
         case OS_State::ALIGN: { // Este estado se usa para alinear el vehículo hacia el objetivo
+            // Si ya se alcanza el waypoint, se detiene el movimiento y se pasa a MOVE
             if (ctrl.waypoint_reached) {
                 PositionController::stop_movement(pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
-                ok = set_local_waypoint(ctx_ptr); // Checkeo ante error y limpiar flag de waypoint alcanzado
-                if (ok) { // Si se pudo entrar al estado MOVE, se actualiza el estado
-                    enter_move(ctx_ptr);
-                    os.state = OS_State::MOVE;
-                    set_operation_log(OS_State::MOVE, OS_State::ALIGN, ctx_ptr);
-
-                } else {// Si no se pudo entrar al estado MOVE, se vuelve a STAND_BY
-                    enter_stand_by(ctx_ptr);
-                    os.state = OS_State::STAND_BY;
-                    set_operation_log(OS_State::STAND_BY, OS_State::ALIGN, ctx_ptr);
-                }
-            } // Si se da el STOP, se frena el movimiento y se vuelve a STAND_BY cuando se detiene
-            else if (os.fb_last_command == UserCommand::STOP) { 
-                const bool stop_flag = PositionController::stop_movement(
+                ctrl.waypoint_reached = false; // Limpiar la flag de waypoint alcanzado para el controlador
+                enter_move(ctx_ptr);
+                os.state = OS_State::MOVE;
+                set_operation_log(OS_State::MOVE, OS_State::ALIGN, ctx_ptr);
+            } 
+            // Si se da el STOP/IDLE o falla la conexión, se frena el movimiento y se vuelve a STAND_BY cuando se detiene
+            else if (CheckOnlineStatus(ctx_ptr) == false || os.fb_last_command != UserCommand::START) {
+                bool stop_flag = PositionController::stop_movement(
                     pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
                 if (stop_flag) {
                     enter_stand_by(ctx_ptr);
@@ -288,58 +263,37 @@ void update_online(GlobalContext* ctx_ptr) {
             break;
         }
         case OS_State::MOVE: {
+            // Si se alcanza el waypoint, se detiene y se registra
             if (ctrl.waypoint_reached) {
                 PositionController::stop_movement(pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
-                // Si se alcanza el objetivo y las ruedas están detenidas, se completa el waypoint
-                ok = complete_local_waypoint(os);
-                if (!ok) {// Si no se pudo completar el waypoint (# targets = 0), se manda todo a STAND_BY
-                    enter_stand_by(ctx_ptr);
-                    os.state = OS_State::STAND_BY;
-                    set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
-                } 
-                else if (os.fb_last_command == UserCommand::START) { // Se completó el waypoint y se sigue en START
-                    // Se establece el siguiente waypoint solo si se está en START
-                    // Futuro: avisar a FB que se alcanzó el waypoint
-                    ok = set_local_waypoint(ctx_ptr); 
-                    if (!ok) {// Si no se pudo establecer el siguiente waypoint se vuelve a STAND_BY
-                        enter_stand_by(ctx_ptr);
-                        os.state = OS_State::STAND_BY;
-                        set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
-                    } else { // Si se pudo establecer el siguiente waypoint, se vuelve a ALIGN
-                        // Futuro: avisar a FB que se estableció el nuevo waypoint
-                        enter_align(ctx_ptr);
-                        EvadeController::reset_evade_state(ctx_ptr); // Reiniciar el estado de evasión en cada waypoint nuevo
-                        os.state = OS_State::ALIGN;
-                        set_operation_log(OS_State::ALIGN, OS_State::MOVE, ctx_ptr);
-                    }
-                } 
-                else { // Si no hay más puntos o se dio el stop, se vuelve a STAND_BY
-                    // Futuro: avisar a FB que se alcanzó el waypoint
+                register_finished_waypoint_data(ctx_ptr); // Registrar datos del waypoint alcanzado
+                enter_stand_by(ctx_ptr);
+                os.state = OS_State::STAND_BY;
+                set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
+            }
+            // Si se da el STOP/IDLE o falla la conexión, se detiene el movimiento
+            else if (os.fb_last_command != UserCommand::START || !CheckOnlineStatus(ctx_ptr)) {
+                bool stop_flag = PositionController::stop_movement(
+                    pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
+                if (stop_flag) {
                     enter_stand_by(ctx_ptr);
                     os.state = OS_State::STAND_BY;
                     set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
                 }
-            } 
-            else if (os.fb_last_command == UserCommand::STOP || sens.us_obstacle) {
-                // Si se recibe el comando STOP, se detiene el movimiento
-                const bool stop_flag = PositionController::stop_movement(
+            }
+            // Si hay obstáculo y seguimos en START + conexión OK, se detiene y entra a evasión
+            else if (sens.us_obstacle) {
+                bool stop_flag = PositionController::stop_movement(
                     pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
                 if (stop_flag) {
-                    if (os.fb_last_command == UserCommand::STOP) { // Si no hay obstáculo, se vuelve a STAND_BY
-                        enter_stand_by(ctx_ptr);
-                        os.state = OS_State::STAND_BY;
-                        set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
-                    } 
-                    else { // Si se detecta un obstáculo, se entra al estado EVADE
-                        if (evade.include_evade) {
-                            EvadeController::start_evade(ctx_ptr);
-                            enter_evade(ctx_ptr);
-                        } else {
-                            enter_wait_free_path(ctx_ptr);
-                        }
-                        set_operation_log(OS_State::EVADE, OS_State::MOVE, ctx_ptr);
-                        os.state = OS_State::EVADE;
+                    if (evade.include_evade) {
+                        EvadeController::start_evade(ctx_ptr);
+                        enter_evade(ctx_ptr);
+                    } else {
+                        enter_wait_free_path(ctx_ptr);
                     }
+                    set_operation_log(OS_State::EVADE, OS_State::MOVE, ctx_ptr);
+                    os.state = OS_State::EVADE;
                 }
             }
             break;
@@ -382,7 +336,6 @@ void update_online(GlobalContext* ctx_ptr) {
         }
     }
 }
-
 
 
 bool enter_init(GlobalContext* ctx_ptr) {
@@ -493,7 +446,7 @@ bool enter_stand_by(GlobalContext* ctx_ptr) {
     EncoderReader::resume(sts.encoders);
     PoseEstimator::set_state(ACTIVE, sts.pose);
 
-    // Mantener control de posición en modo pasivo, con velocidad de referencia 0
+    // Mantener control de posición en modo manual, con velocidad de referencia 0
     PositionController::stop_movement(pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
     MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
 
@@ -699,7 +652,12 @@ bool add_local_waypoint(const float x, const float y, const float ts, volatile O
 }
 
 
-FB_State CompleteWaypoint(GlobalContext* ctx_ptr) {
+bool CheckOnlineStatus(GlobalContext* ctx_ptr) {
+    volatile OperationData& os = *(ctx_ptr->os_ptr);
+    return os.fb_state == FB_State::ERROR || check_wifi() != WifiStatus::OK || !FirebaseComm::ready();
+}
+
+FB_State SendReachedWaypoint(GlobalContext* ctx_ptr) {
     volatile OperationData& os = *(ctx_ptr->os_ptr);
 
     WaypointData wp;
@@ -721,6 +679,39 @@ FB_State CompleteWaypoint(GlobalContext* ctx_ptr) {
     );
 }
 
+void set_online_waypoint(GlobalContext* ctx_ptr) {
+    volatile SystemStates& sts = *(ctx_ptr->systems_ptr);
+    volatile OperationData& os = *(ctx_ptr->os_ptr);
+    volatile ControllerData& ctrl = *(ctx_ptr->control_ptr);
+
+    // Guardar datos iniciales del waypoint en el buffer
+    os.fb_waypoint_data.input_ts = os.fb_target_buffer.ts;
+    os.fb_waypoint_data.wp_x = os.fb_target_buffer.x;
+    os.fb_waypoint_data.wp_y = os.fb_target_buffer.y;
+    os.fb_waypoint_data.start_ts = get_unix_timestamp();
+    
+    // Establecer el objetivo del controlador
+    PositionController::set_waypoint(
+        os.fb_target_buffer.x, os.fb_target_buffer.y, 0.0f,
+        ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, sts.position);
+}
+
+void register_finished_waypoint_data(GlobalContext* ctx_ptr) {
+    volatile OperationData& os = *(ctx_ptr->os_ptr);
+    volatile PoseData& pose = *(ctx_ptr->pose_ptr);
+    volatile ControllerData& ctrl = *(ctx_ptr->control_ptr);
+
+    // Guardar datos del waypoint alcanzado
+    os.fb_waypoint_data.reached_ts = get_unix_timestamp();
+    os.fb_waypoint_data.pos_x = pose.x;
+    os.fb_waypoint_data.pos_y = pose.y;
+    os.fb_waypoint_data.controller_type = static_cast<uint8_t>(ctrl.controller_type);
+    os.fb_waypoint_data.iae = ctrl.iae;
+    os.fb_waypoint_data.rmse = ctrl.rmse;
+
+    // Avisar que se alcanzó un waypoint y que falta enviar
+    os.fb_completed_but_not_sent = true; // Marcar que se alcanzó un waypoint pero no se envió
+}
 
 void Task_VehicleOS(void* pvParameters) {
     TickType_t xLastWakeTime = xTaskGetTickCount();

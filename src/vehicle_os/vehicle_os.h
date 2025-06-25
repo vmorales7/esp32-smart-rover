@@ -70,6 +70,7 @@ bool enter_idle(GlobalContext* ctx);
  * 
  * Mantiene el vehículo con referencia 0 de velocidad, pero con sensores y estimación de posición activados.
  * Se desactivan los sensores de distancia y se limpian (forzadamente) las banderas de obstáculos.
+ * Se deja el modo de control de posición en manual, con velocidad de referencia 0 -> permite fijar referencia de posición.
  * 
  * @param ctx Puntero al contexto global con datos del sistema
  */
@@ -170,6 +171,9 @@ bool complete_local_waypoint(volatile OperationData& os);
  */
 bool add_local_waypoint(const float x, const float y, const float ts, volatile OperationData& os);
 
+
+bool CheckOnlineStatus(GlobalContext* ctx_ptr);
+
 /**
  * @brief Ejecuta el flujo completo para marcar como completado un waypoint en Firebase.
  *
@@ -189,8 +193,27 @@ bool add_local_waypoint(const float x, const float y, const float ts, volatile O
  *         - `FB_State::OK` si se completaron exitosamente ambas acciones.
  *         - `FB_State::ERROR` si ocurrió un error permanente.
  */
-FB_State CompleteWaypoint(GlobalContext* ctx_ptr);
+FB_State SendReachedWaypoint(GlobalContext* ctx_ptr);
 
+/**
+ * @brief Estalece el waypoint desde la data recibida de Firebase y guarda los datos iniciales
+ * 
+ * Configura el waypoint actual en el controlador de posición a partir de los datos recibidos de Firebase.
+ * Guarda los datos iniciales del waypoint en el buffer de datos del sistema operativo.
+ * @param ctx_ptr Puntero al contexto global con datos del sistema
+ * 
+ */
+void set_online_waypoint(GlobalContext* ctx_ptr);
+
+/**
+ * @brief Registra los datos del waypoint alcanzado en la estructura de datos del sistema operativo
+ * 
+ * Guarda los datos del waypoint alcanzado, incluyendo timestamp, posición y tipo de controlador.
+ * Estos datos se utilizan para enviar información a Firebase sobre el waypoint completado.
+ * 
+ * @param ctx_ptr Puntero al contexto global con datos del sistema
+ */
+void register_finished_waypoint_data(GlobalContext* ctx_ptr);
 
 /**
  * @brief Tarea RTOS para el sistema operativo del vehículo

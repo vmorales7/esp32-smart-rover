@@ -195,6 +195,7 @@ FB_State UpdatePendingWaypoint(
     static uint32_t time_request_sent = 0;
     static uint8_t error_count = 0;
 
+    // Si no hay solicitud en curso, iniciar una nueva y marcar el tiempo
     if (!request_in_flight) {
         FirebaseComm::RequestPendingWaypoint();
         request_in_flight = true;
@@ -202,23 +203,37 @@ FB_State UpdatePendingWaypoint(
         return FB_State::PENDING;
     }
 
+    // Si ya hay una solicitud en curso, procesar el resultado
     FB_Get_Result result = FirebaseComm::ProcessPendingWaypoint(target_x, target_y, target_ts);
 
+    // Resultado ok
     if (result == FB_Get_Result::OK) {
         request_in_flight = false;
         error_count = 0;
+        // Validar que los datos no sean nulos o inválidos
+        const bool invalid_data = (
+            target_ts == NULL_TIMESTAMP || target_x == NULL_WAYPOINT_XY || target_y == NULL_WAYPOINT_XY);
+        if (invalid_data) {
+            if (FB_DEBUG_MODE) Serial.println("UpdatePendingWaypoint: datos nulos, removiendo...");
+            FirebaseComm::RemovePendingWaypoint(target_ts); // Intentar remover el punto inválido
+            return FB_State::PENDING; // Se vuelve a intentar en el siguiente ciclo
+        }
         return FB_State::OK;
-    } 
+    }
+    // No hay resultado aún
     else if (result == FB_Get_Result::NO_RESULT) {
+        // Si hay timeout en la solicitud, incrementar el contador de errores
         if (millis() - time_request_sent > FB_PENDING_TIMEOUT_MS) {
             error_count++;
             request_in_flight = false;
         }
-    } else {
+    } 
+    // Resultado con error: se suma un error y se fuerza una nueva solicitud
+    else {
         error_count++;
         request_in_flight = false;
     }
-
+    // Verificar si se alcanzó el máximo de errores
     if (error_count >= FB_PENDING_MAX_ERRORS) {
         if (FB_DEBUG_MODE) Serial.println("UpdatePendingWaypoint: se alcanzó el máximo de errores.");
         fb_state = FB_State::ERROR;
@@ -226,6 +241,7 @@ FB_State UpdatePendingWaypoint(
         request_in_flight = false;
         return FB_State::ERROR;
     }
+    // Si no es error ni ok, se mantiene en espera
     return FB_State::PENDING;
 }
 
