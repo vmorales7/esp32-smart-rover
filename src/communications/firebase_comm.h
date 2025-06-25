@@ -145,13 +145,14 @@ FB_State UpdatePendingWaypoint(
  * @param wp_x Coordenada X del waypoint.
  * @param wp_y Coordenada Y del waypoint.
  * @param start_timestamp Timestamp en que se inició el movimiento.
- * @param reached_timestamp Timestamp en que se alcanzó el waypoint.
+ * @param end_timestamp Timestamp en que se terminó el movimiento hacia el waypoint.
+ * @param reached_flag Flag que indica si fue alcanzado o no.
  * @param pos_x Posición X alcanzada.
  * @param pos_y Posición Y alcanzada.
  */
 void PushReachedWaypoint(
     const uint64_t input_timestamp, const float wp_x, const float wp_y,  
-    const uint64_t start_timestamp, const uint64_t reached_timestamp,
+    const uint64_t start_timestamp, const uint64_t end_timestamp, const bool reached_flag,
     const float pos_x, const float pos_y,
     const uint8_t controller_type, const float iae, const float rmse
 );
@@ -164,7 +165,8 @@ void PushReachedWaypoint(
  * @param wp_x Coordenada X del waypoint.
  * @param wp_y Coordenada Y del waypoint.
  * @param start_timestamp Timestamp de inicio de ejecución del waypoint.
- * @param reached_timestamp Timestamp en que fue alcanzado.
+ * @param end_timestamp Timestamp en que se terminó el movimiento hacia el waypoint.
+ * @param reached_flag Flag que indica si fue alcanzado o no.
  * @param pos_x Posición X real alcanzada.
  * @param pos_y Posición Y real alcanzada.
  * @param controller_type Tipo de controlador utilizado.
@@ -175,7 +177,7 @@ void PushReachedWaypoint(
  */
 FB_State ControlledPushReachedWaypoint(
     const uint64_t input_timestamp, const float wp_x, const float wp_y,  
-    const uint64_t start_timestamp, const uint64_t reached_timestamp,
+    const uint64_t start_timestamp, const uint64_t end_timestamp, const bool reached_flag,
     const float pos_x, const float pos_y, 
     const uint8_t controller_type, const float iae, const float rmse,
     volatile FB_State &fb_state
@@ -213,7 +215,8 @@ FB_State ControlledRemovePendingWaypoint(const uint64_t input_timestamp, volatil
  * @param wp_x Coordenada X del waypoint objetivo.
  * @param wp_y Coordenada Y del waypoint objetivo.
  * @param start_ts Timestamp en que comenzó el seguimiento de este waypoint.
- * @param reached_ts Timestamp en que se alcanzó efectivamente el waypoint.
+ * @param end_ts Timestamp en que se terminó el movimiento hacia el waypoint.
+ * @param reached_flag Flag que indica si fue alcanzado o no.
  * @param pos_x Posición X real alcanzada al llegar al waypoint.
  * @param pos_y Posición Y real alcanzada al llegar al waypoint.
  * @param controller_type Tipo de controlador utilizado (0=PID, 1=BACKS, etc.).
@@ -228,7 +231,7 @@ FB_State ControlledRemovePendingWaypoint(const uint64_t input_timestamp, volatil
  */
 FB_State CompleteWaypoint(
     const uint64_t input_ts, const float wp_x, const float wp_y,
-    const uint64_t start_ts, const uint64_t reached_ts,
+    const uint64_t start_ts, const uint64_t end_ts, const bool reached_flag,
     const float pos_x, const float pos_y,
     const uint8_t controller_type, const float iae, const float rmse,
     volatile FB_State& fb_state

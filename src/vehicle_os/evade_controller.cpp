@@ -32,10 +32,17 @@ void start_evade(GlobalContext* ctx_ptr) {
     volatile PoseData& pose = *(ctx_ptr->pose_ptr);
     volatile ControllerData& ctrl = *(ctx_ptr->control_ptr);
     volatile EvadeContext& evade = *(ctx_ptr->evade_ptr);
-
+    
+    // Guardar waypoint objetivo actual
+    evade.saved_waypoint.ts = ctx_ptr->os_ptr->fb_target_buffer.ts;
     evade.saved_waypoint.x = ctrl.x_d;
     evade.saved_waypoint.y = ctrl.y_d;
+
+    // Inicializar estado de evasión
     evade.state = EvadeState::SELECT_DIR;
+    evade.direction = 0;
+    evade.current_angle = 0.0f;
+    evade.tried_both_sides = false;
 }
 
 void update_evade(GlobalContext* ctx_ptr) {
@@ -92,7 +99,9 @@ void update_evade(GlobalContext* ctx_ptr) {
                                 ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, sts.position);
                             evade.current_angle = evade.direction * EVADE_DELTA_THETA;
                         } else {
+                            // En caso fail corremos igual enter evade para detener vehiculo
                             OS::enter_evade(ctx_ptr);
+                            reset_evade_state(ctx_ptr);
                             PositionController::set_waypoint(evade.saved_waypoint.x, evade.saved_waypoint.y, 0.0f, 
                                 ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, sts.position);
                             evade.state = EvadeState::FAIL;

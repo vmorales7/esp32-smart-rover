@@ -176,7 +176,8 @@ struct WaypointData {
     float wp_x;              ///< Coordenada X del waypoint
     float wp_y;              ///< Coordenada Y del waypoint
     uint64_t start_ts;       ///< Timestamp en que el vehículo comenzó a seguirlo
-    uint64_t reached_ts;     ///< Timestamp en que se alcanzó exitosamente
+    uint64_t end_ts;         ///< Timestamp en que se alcanzó exitosamente
+    bool reached_flag;       ///< Flag que define si se alcanzó con éxito o hubo fallo
     float pos_x;             ///< Posición X del vehículo al completar el waypoint
     float pos_y;             ///< Posición Y del vehículo al completar el waypoint
     uint8_t controller_type; ///< Tipo de controlador usado para alcanzar el waypoint
@@ -188,7 +189,8 @@ struct WaypointData {
         wp_x(NULL_WAYPOINT_XY),
         wp_y(NULL_WAYPOINT_XY),
         start_ts(NULL_TIMESTAMP),
-        reached_ts(NULL_TIMESTAMP),
+        end_ts(NULL_TIMESTAMP),
+        reached_flag(true),
         pos_x(NULL_WAYPOINT_XY),
         pos_y(NULL_WAYPOINT_XY),
         controller_type(0),

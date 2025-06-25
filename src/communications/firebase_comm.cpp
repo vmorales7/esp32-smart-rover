@@ -248,32 +248,32 @@ FB_State UpdatePendingWaypoint(
 
 void PushReachedWaypoint(
     const uint64_t input_timestamp, const float wp_x, const float wp_y,  
-    const uint64_t start_timestamp, const uint64_t reached_timestamp,
+    const uint64_t start_timestamp, const uint64_t end_timestamp, const bool reached_flag,
     const float pos_x, const float pos_y, 
     const uint8_t controller_type, const float iae, const float rmse
 ) {
     JsonDocument doc;
     doc["input_timestamp"] = input_timestamp;
-    doc["start_timestamp"] = start_timestamp;
-    doc["reached_timestamp"] = reached_timestamp;
-
-    doc["pos_x"] = pos_x;
-    doc["pos_y"] = pos_y;
-
     doc["wp_x"] = wp_x;
     doc["wp_y"] = wp_y;
+
+    doc["start_timestamp"] = start_timestamp;
+    doc["end_timestamp"] = end_timestamp;
+    doc["reached"] = reached_flag;
+    doc["pos_x"] = pos_x;
+    doc["pos_y"] = pos_y;
 
     doc["controller_type"] = controller_type;
     doc["iae"] = iae;
     doc["rmse"] = rmse;
 
-    String path = "/waypoints_reached/" + String(reached_timestamp);
+    String path = "/waypoints_finalized/" + String(end_timestamp);
     SetJson(path, doc, async_reached_waypoints);
 }
 
 FB_State ControlledPushReachedWaypoint(
     const uint64_t input_timestamp, const float wp_x, const float wp_y,  
-    const uint64_t start_timestamp, const uint64_t reached_timestamp,
+    const uint64_t start_timestamp, const uint64_t end_timestamp, const bool reached_flag,
     const float pos_x, const float pos_y, 
     const uint8_t controller_type, const float iae, const float rmse,
     volatile FB_State &fb_state
@@ -285,8 +285,8 @@ FB_State ControlledPushReachedWaypoint(
     // Iniciar push si no hay operación en curso
     if (!in_flight) {
         PushReachedWaypoint(
-            input_timestamp, wp_x, wp_y, start_timestamp, reached_timestamp,
-            pos_x, pos_y, controller_type, iae, rmse
+            input_timestamp, wp_x, wp_y, start_timestamp, end_timestamp,
+            reached_flag, pos_x, pos_y, controller_type, iae, rmse
         );
         time_sent = millis();
         in_flight = true;
@@ -367,7 +367,7 @@ FB_State ControlledRemovePendingWaypoint(
 
 FB_State CompleteWaypoint(
     const uint64_t input_ts, const float wp_x, const float wp_y,
-    const uint64_t start_ts, const uint64_t reached_ts,
+    const uint64_t start_ts, const uint64_t end_ts, const bool reached_flag,
     const float pos_x, const float pos_y,
     const uint8_t controller_type, const float iae, const float rmse,
     volatile FB_State& fb_state
@@ -379,11 +379,8 @@ FB_State CompleteWaypoint(
     switch (step) {
         case InternalStep::PUSH_REACHED:
             push_state = ControlledPushReachedWaypoint(
-                input_ts, wp_x, wp_y,
-                start_ts, reached_ts,
-                pos_x, pos_y,
-                controller_type, iae, rmse,
-                fb_state
+                input_ts, wp_x, wp_y, start_ts, end_ts, reached_flag,
+                pos_x, pos_y, controller_type, iae, rmse, fb_state
             );
             if (push_state == FB_State::OK) {
                 step = InternalStep::REMOVE_PENDING;

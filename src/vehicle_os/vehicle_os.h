@@ -177,20 +177,22 @@ bool CheckOnlineStatus(GlobalContext* ctx_ptr);
 /**
  * @brief Ejecuta el flujo completo para marcar como completado un waypoint en Firebase.
  *
- * Esta función extrae una copia de los datos actuales del waypoint (`fb_waypoint_data`)
- * almacenado en `OperationData`, y luego ejecuta secuencialmente las siguientes acciones:
- * 1. Realiza un push al nodo `/waypoints_reached/` con la información del waypoint completado.
- * 2. Elimina el mismo waypoint desde `/waypoints_pending/` utilizando su timestamp de entrada.
+ * Esta función extrae los datos actuales del waypoint (`fb_waypoint_data`) almacenado en
+ * `OperationData`, y ejecuta el flujo `CompleteWaypoint()` del módulo `FirebaseComm`.
+ * Este flujo realiza las siguientes acciones en orden:
+ * 1. Realiza un push del waypoint al nodo `/waypoints_finalized/`, incluyendo si fue alcanzado o fallado.
+ * 2. Elimina el waypoint correspondiente del nodo `/waypoints_pending/` usando su timestamp de entrada.
  *
- * Este proceso se realiza de forma controlada, manejando los estados internos y errores posibles.
  * La función está diseñada para ser llamada repetidamente desde el Vehicle OS durante el estado
- * `STAND_BY`, y solo retornará `FB_State::OK` una vez que ambas operaciones (push y delete)
- * hayan sido completadas exitosamente.
+ * `STAND_BY`. El estado retornado indicará el progreso o errores del proceso.
+ *
+ * Si el flujo se completa con éxito (`FB_State::OK`), se limpia automáticamente la bandera
+ * `fb_completed_but_not_sent` para evitar intentos de reenvío.
  *
  * @param ctx_ptr Puntero al contexto global del sistema (`GlobalContext`).
  * @return FB_State Estado actual del proceso:
- *         - `FB_State::PENDING` si alguna acción sigue en curso.
- *         - `FB_State::OK` si se completaron exitosamente ambas acciones.
+ *         - `FB_State::PENDING` si alguna operación sigue en curso.
+ *         - `FB_State::OK` si ambas acciones fueron completadas exitosamente.
  *         - `FB_State::ERROR` si ocurrió un error permanente.
  */
 FB_State SendReachedWaypoint(GlobalContext* ctx_ptr);
@@ -206,14 +208,22 @@ FB_State SendReachedWaypoint(GlobalContext* ctx_ptr);
 void set_online_waypoint(GlobalContext* ctx_ptr);
 
 /**
- * @brief Registra los datos del waypoint alcanzado en la estructura de datos del sistema operativo
+ * @brief Registra los datos del waypoint finalizado en la estructura de datos del sistema operativo.
  * 
- * Guarda los datos del waypoint alcanzado, incluyendo timestamp, posición y tipo de controlador.
- * Estos datos se utilizan para enviar información a Firebase sobre el waypoint completado.
+ * Esta función guarda la información del waypoint al momento de ser completado o fallado, incluyendo:
+ * - Timestamp de finalización (end_ts)
+ * - Posición actual del vehículo (pos_x, pos_y)
+ * - Tipo de controlador utilizado
+ * - Métricas de desempeño (IAE, RMSE)
+ * - Indicador de éxito (reached_flag)
  * 
- * @param ctx_ptr Puntero al contexto global con datos del sistema
+ * Estos datos son utilizados posteriormente para ser enviados a Firebase mediante el nodo
+ * `/waypoints_finalized/`.
+ * 
+ * @param reached_flag Indica si el waypoint fue exitosamente alcanzado (`true`) o fallado (`false`)
+ * @param ctx_ptr Puntero al contexto global del sistema
  */
-void register_finished_waypoint_data(GlobalContext* ctx_ptr);
+void register_finished_waypoint_data(const bool reached_flag, GlobalContext* ctx_ptr);
 
 /**
  * @brief Tarea RTOS para el sistema operativo del vehículo
