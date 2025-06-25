@@ -43,18 +43,7 @@ namespace OS {
  *
  * @param ctx_ptr Puntero al contexto global con datos del sistema
  */
-void update(GlobalContext* ctx_ptr);
-
-/**
- * @brief Establece el siguiente punto objetivo desde la trayectoria
- * 
- * Extrae el primer punto de la trayectoria y lo asigna como punto objetivo.
- * Reinicia la bandera de objetivo alcanzado.
- * 
- * @param ctx_ptr Puntero al contexto global con datos del sistema
- * @return true si se estableció un punto objetivo, false si no hay puntos en la trayectoria
- */
-bool set_local_waypoint(GlobalContext* ctx_ptr);
+void update_local(GlobalContext* ctx_ptr);
 
 /**
  * @brief Realiza las operaciones de inicialización del sistema
@@ -138,6 +127,17 @@ bool enter_rotate(GlobalContext* ctx_ptr);
 bool enter_wait_free_path(GlobalContext* ctx_ptr);
 
 /**
+ * @brief Establece el siguiente punto objetivo desde la trayectoria
+ * 
+ * Extrae el primer punto de la trayectoria y lo asigna como punto objetivo.
+ * Reinicia la bandera de objetivo alcanzado.
+ * 
+ * @param ctx_ptr Puntero al contexto global con datos del sistema
+ * @return true si se estableció un punto objetivo, false si no hay puntos en la trayectoria
+ */
+bool set_local_waypoint(GlobalContext* ctx_ptr);
+
+/**
  * @brief Inicializa la trayectoria con valores nulos
  * 
  * Establece todos los puntos de la trayectoria con valores NULL_WAYPOINT_XY
@@ -169,6 +169,28 @@ bool complete_local_waypoint(volatile OperationData& os);
  * @return true si se agregó correctamente, false si la trayectoria está llena
  */
 bool add_local_waypoint(const float x, const float y, const float ts, volatile OperationData& os);
+
+/**
+ * @brief Ejecuta el flujo completo para marcar como completado un waypoint en Firebase.
+ *
+ * Esta función extrae una copia de los datos actuales del waypoint (`fb_waypoint_data`)
+ * almacenado en `OperationData`, y luego ejecuta secuencialmente las siguientes acciones:
+ * 1. Realiza un push al nodo `/waypoints_reached/` con la información del waypoint completado.
+ * 2. Elimina el mismo waypoint desde `/waypoints_pending/` utilizando su timestamp de entrada.
+ *
+ * Este proceso se realiza de forma controlada, manejando los estados internos y errores posibles.
+ * La función está diseñada para ser llamada repetidamente desde el Vehicle OS durante el estado
+ * `STAND_BY`, y solo retornará `FB_State::OK` una vez que ambas operaciones (push y delete)
+ * hayan sido completadas exitosamente.
+ *
+ * @param ctx_ptr Puntero al contexto global del sistema (`GlobalContext`).
+ * @return FB_State Estado actual del proceso:
+ *         - `FB_State::PENDING` si alguna acción sigue en curso.
+ *         - `FB_State::OK` si se completaron exitosamente ambas acciones.
+ *         - `FB_State::ERROR` si ocurrió un error permanente.
+ */
+FB_State CompleteWaypoint(GlobalContext* ctx_ptr);
+
 
 /**
  * @brief Tarea RTOS para el sistema operativo del vehículo

@@ -152,10 +152,10 @@ constexpr uint16_t IMU_READ_PERIOD_MS = 10;
 constexpr uint16_t OBSTACLE_CHECK_PERIOD_MS = 100;
 constexpr uint16_t POSE_ESTIMATOR_PERIOD_MS = 10; 
 constexpr uint16_t POSITION_CONTROL_PERIOD_MS = 50;
-constexpr uint16_t OS_UPDATE_PERIOD_MS = 50; 
+constexpr uint16_t OS_UPDATE_PERIOD_MS = 100; 
 constexpr uint16_t WIFI_CHECK_PERIOD_MS = 1000;
 constexpr uint16_t FB_PUSH_STATUS_PERIOD_MS = 500;
-constexpr uint16_t FB_GET_COMMANDS_PERIOD_MS = 500;
+constexpr uint16_t FB_GET_COMMANDS_PERIOD_MS = 200;
 constexpr uint16_t FB_LOOP_PERIOD_MS = 1000;
 
 constexpr uint16_t BASIC_STACK_SIZE = 2048; // Tamaño de stack básico para tareas RTOS
@@ -392,6 +392,7 @@ struct OperationData {
     ControlType fb_controller_type; // Tipo de controlador usado en el último comando
     TargetPoint fb_target_buffer; // Punto objetivo actual
     WaypointData fb_waypoint_data; // Data del waypoint actual (se envia a Firebase)
+    bool fb_completed_but_not_sent; // Indica si el waypoint fue completado pero no enviado a Firebase
 
     // Constructor por defecto
     OperationData() :
@@ -400,8 +401,9 @@ struct OperationData {
         
         wifi_status(WifiStatus::DISCONNECTED),
         fb_last_command(UserCommand::STOP),
-        fb_target_buffer({NULL_WAYPOINT_XY, NULL_WAYPOINT_XY, NULL_TIMESTAMP}),
-        fb_waypoint_data()
+        // fb_target_buffer({NULL_WAYPOINT_XY, NULL_WAYPOINT_XY, NULL_TIMESTAMP}),
+        fb_waypoint_data(),
+        fb_completed_but_not_sent(false)
     {
         for (uint8_t i = 0; i < MAX_TRAJECTORY_POINTS; ++i) {
             local_trajectory[i] = {NULL_WAYPOINT_XY, NULL_WAYPOINT_XY, NULL_TIMESTAMP};

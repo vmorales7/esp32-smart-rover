@@ -199,6 +199,42 @@ void RemovePendingWaypoint(const uint64_t input_timestamp);
 FB_State ControlledRemovePendingWaypoint(const uint64_t input_timestamp, volatile FB_State &fb_state);
 
 /**
+ * @brief Completa el procesamiento de un waypoint alcanzado: primero lo registra en Firebase y luego lo elimina de los pendientes.
+ * 
+ * Esta función debe ser llamada periódicamente dentro del ciclo operativo. Internamente controla el estado del proceso en dos pasos:
+ * 
+ * 1. **PUSH_REACHED**: sube la información del waypoint alcanzado a `/waypoints_reached/`.
+ * 2. **REMOVE_PENDING**: elimina el waypoint correspondiente desde `/waypoints_pending/` usando su timestamp de entrada.
+ * 
+ * La función mantiene su estado entre llamadas y sólo retorna `FB_State::OK` cuando ambos pasos se completan con éxito. 
+ * Si ocurre un error en cualquier etapa, se reinicia el flujo.
+ * 
+ * @param input_ts Timestamp original con que se ingresó el waypoint (clave en Firebase).
+ * @param wp_x Coordenada X del waypoint objetivo.
+ * @param wp_y Coordenada Y del waypoint objetivo.
+ * @param start_ts Timestamp en que comenzó el seguimiento de este waypoint.
+ * @param reached_ts Timestamp en que se alcanzó efectivamente el waypoint.
+ * @param pos_x Posición X real alcanzada al llegar al waypoint.
+ * @param pos_y Posición Y real alcanzada al llegar al waypoint.
+ * @param controller_type Tipo de controlador utilizado (0=PID, 1=BACKS, etc.).
+ * @param iae Integral del error absoluto (IAE) acumulado en el control.
+ * @param rmse Raíz del error cuadrático medio (RMSE) durante el control.
+ * @param fb_state Referencia al estado global de comunicación con Firebase (se actualiza si hay errores permanentes).
+ * 
+ * @return FB_State Estado del flujo de control: 
+ * - `OK` si ambas operaciones fueron exitosas. 
+ * - `PENDING` si aún hay operaciones en curso. 
+ * - `ERROR` si ocurrió un fallo permanente.
+ */
+FB_State CompleteWaypoint(
+    const uint64_t input_ts, const float wp_x, const float wp_y,
+    const uint64_t start_ts, const uint64_t reached_ts,
+    const float pos_x, const float pos_y,
+    const uint8_t controller_type, const float iae, const float rmse,
+    volatile FB_State& fb_state
+);
+
+/**
  * @brief Envía un estado de posición, velocidad, error y estado del vehículo al nodo /status_log.
  * 
  * @param state Estado del sistema.
@@ -240,6 +276,11 @@ void Task_PushStatus(void *pvParameters);
  * desde Firebase, actualizando el estado del sistema según corresponda.
  */
 void Task_GetCommands(void *pvParameters);
+
+/**
+ * @brief Tarea que mantiene la conexión con Firebase.
+ */
+void Task_Loop(void *pvParameters);
 
 } // namespace FirebaseComm
 

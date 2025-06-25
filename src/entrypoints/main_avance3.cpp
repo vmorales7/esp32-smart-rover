@@ -54,6 +54,7 @@ void setup() {
 
     // Configurar control de evasión y estimador de pose
     ctrl.controller_type = CONTROLLER_TYPE;
+    op.fb_controller_type = CONTROLLER_TYPE;
     evade.include_evade = INCLUDE_EVADE;
     pose.estimator_type = POSE_ESTIMATOR_TYPE; 
     

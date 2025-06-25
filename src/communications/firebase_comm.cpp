@@ -223,6 +223,7 @@ FB_State UpdatePendingWaypoint(
         if (FB_DEBUG_MODE) Serial.println("UpdatePendingWaypoint: se alcanzó el máximo de errores.");
         fb_state = FB_State::ERROR;
         error_count = 0;
+        request_in_flight = false;
         return FB_State::ERROR;
     }
     return FB_State::PENDING;
@@ -348,6 +349,49 @@ FB_State ControlledRemovePendingWaypoint(
 }
 
 
+FB_State CompleteWaypoint(
+    const uint64_t input_ts, const float wp_x, const float wp_y,
+    const uint64_t start_ts, const uint64_t reached_ts,
+    const float pos_x, const float pos_y,
+    const uint8_t controller_type, const float iae, const float rmse,
+    volatile FB_State& fb_state
+) {
+    static enum class InternalStep : uint8_t { PUSH_REACHED, REMOVE_PENDING } step = InternalStep::PUSH_REACHED;
+    static FB_State push_state = FB_State::PENDING;
+    static FB_State remove_state = FB_State::PENDING;
+
+    switch (step) {
+        case InternalStep::PUSH_REACHED:
+            push_state = ControlledPushReachedWaypoint(
+                input_ts, wp_x, wp_y,
+                start_ts, reached_ts,
+                pos_x, pos_y,
+                controller_type, iae, rmse,
+                fb_state
+            );
+            if (push_state == FB_State::OK) {
+                step = InternalStep::REMOVE_PENDING;
+            } else if (push_state == FB_State::ERROR) {
+                step = InternalStep::PUSH_REACHED;
+                return FB_State::ERROR;
+            }
+            return FB_State::PENDING;
+
+        case InternalStep::REMOVE_PENDING:
+            remove_state = ControlledRemovePendingWaypoint(input_ts, fb_state);
+            if (remove_state == FB_State::OK) {
+                step = InternalStep::PUSH_REACHED;
+                return FB_State::OK;  // Se completó correctamente
+            } else if (remove_state == FB_State::ERROR) {
+                step = InternalStep::PUSH_REACHED;
+                return FB_State::ERROR;
+            }
+            return FB_State::PENDING;
+    }
+    return FB_State::ERROR;
+}
+
+
 void PushStatus(
     const uint8_t state, const char* log_msg, 
     const float x, const float y, const float wL, const float wR,
@@ -452,7 +496,7 @@ void Task_GetCommands(void *pvParameters) {
     }
 }
 
-void Task_FirebaseLoop(void *pvParameters) {
+void Task_Loop(void *pvParameters) {
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t period = pdMS_TO_TICKS(FB_LOOP_PERIOD_MS);
     for (;;) {
