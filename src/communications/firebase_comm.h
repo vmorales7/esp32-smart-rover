@@ -20,7 +20,7 @@
 #include <ArduinoJson.h>
 
 // Auxiliar para debug print
-constexpr bool FB_DEBUG_MODE = false;
+constexpr bool FB_DEBUG_MODE = true;
 
 
 // ---------- Enum para los returns ----------

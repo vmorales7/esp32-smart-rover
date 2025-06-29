@@ -22,7 +22,7 @@ GlobalContext ctx = {
 
 // ====================== CONSTANTES DE CONFIGURACIÓN ======================
 
-constexpr ControlType CONTROLLER_TYPE = ControlType::BACKS;// Tipo de controlador a utilizar
+constexpr ControlType CONTROLLER_TYPE = ControlType::PID;// Tipo de controlador a utilizar
 constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::COMPLEMENTARY;
 const bool INCLUDE_EVADE = true; // Habilita el controlador de evasión
 
@@ -36,8 +36,6 @@ void setup() {
     op.fb_controller_type = CONTROLLER_TYPE;
     evade.include_evade = INCLUDE_EVADE;
     pose.estimator_type = POSE_ESTIMATOR_TYPE; 
-    
-    
 }
 
 void loop() {

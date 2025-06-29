@@ -21,12 +21,12 @@
 #include "vehicle_os/evade_controller.h"
 
 // Comunicación
-#include "communications/wifi_basic.h"
 #include "communications/firebase_comm.h"
+#include "communications/wifi_basic.h"
 
 /* ------------------------ Constantes ------------------------*/
 
-
+constexpr bool OS_DEBUG_MODE = true;
 
 /* ------------------------ Funciones ------------------------*/
 

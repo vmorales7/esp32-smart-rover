@@ -1,0 +1,13 @@
+- botones para estado (stop, start, idle) ✅
+    - cuando pase de idle a start, que se borren las cosas de la db
+- boton para tipo control ✅
+- cambiarle el font para que se vea más bonito ✅
+- hacerlo más aesthetic ✅
+- agregarle un gráfico de:
+    - trayectoria historica
+    - punto pasados (waypoints) -> distinguir entre exito y fallo
+    - ver como hacer para que se ajusten solos los ejes (grafico crece a medida que pasa el tiempo)
+    - curvas que grafiquen el rmse acumulados
+- Borrar la tabla de los waypoints pasados
+- botón para borrar waypoints desde la lista (no en un input como está ahora)
+- dos columnas

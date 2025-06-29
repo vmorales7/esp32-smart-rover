@@ -4,16 +4,18 @@
 static uint32_t last_wifi_ok_ms = 0;
 
 bool begin_wifi() {
+    WiFi.disconnect(true);  
+    delay(100);            
     if (WiFi.status() == WL_CONNECTED) {
         last_wifi_ok_ms = millis();
         if (WIFI_DEBUG_MODE) Serial.println("WiFi ya está conectado.");
         return true;
     }
-
+    if (WIFI_DEBUG_MODE) Serial.println("Iniciando WiFi...");
     WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID, WIFI_PASS);
 
-    if (WIFI_DEBUG_MODE) Serial.print("Conectando a WiFi");
+    if (WIFI_DEBUG_MODE) Serial.print("Esperando conexión a WiFi");
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
         if (WIFI_DEBUG_MODE) Serial.print(".");

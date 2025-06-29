@@ -356,10 +356,16 @@ bool enter_init(GlobalContext* ctx_ptr) {
 
     // 1. Inicializar WiFi, tiempo y firebase si es necesario. No permiten avanzar hasta que se completen.
     if (ONLINE_MODE) {
+        Serial.println("\nIniciando WiFi...");
         begin_wifi();
+        Serial.println("\nIniciando conexión a time...");
         init_time();
+        Serial.println("\nIniciando Firebase...");
         FirebaseComm::ConnectFirebase();
+        delay(10000);
     } // Ambas son operaciones bloqueantes, por lo que el sistema no avanzará hasta que se completen
+    Serial.println("\n COsas wifi listas...");
+    delay(1000);
 
     // 2. Inicialización de módulos individuales
     if (pose.estimator_type == PoseEstimatorType::COMPLEMENTARY){
@@ -392,11 +398,15 @@ bool enter_init(GlobalContext* ctx_ptr) {
         DistanceSensors::Task_CheckObstacle, "CheckObstacles", 2*BASIC_STACK_SIZE, ctx_ptr, 3, &(task_handlers.obstacle_handle), 0);
     if (ONLINE_MODE) {
         xTaskCreatePinnedToCore(Task_CheckWifi, "CheckWifi", 2*BASIC_STACK_SIZE, ctx_ptr, 1, nullptr, 0);
+        if (OS_DEBUG_MODE) Serial.println("Check wifi listo.");
         xTaskCreatePinnedToCore(FirebaseComm::Task_PushStatus, "FirebasePushStatus", 4*BASIC_STACK_SIZE, ctx_ptr, 1, nullptr, 0);
+        if (OS_DEBUG_MODE) Serial.println("PushStatus listo.");
         xTaskCreatePinnedToCore(FirebaseComm::Task_GetCommands, "FirebaseGetCommands", 4*BASIC_STACK_SIZE, ctx_ptr, 1, nullptr, 0);
+        if (OS_DEBUG_MODE) Serial.println("GetCommands listo.");
         xTaskCreatePinnedToCore(FirebaseComm::Task_Loop, "FirebaseLoop", 2*BASIC_STACK_SIZE, ctx_ptr, 1, nullptr, 0);
+        if (OS_DEBUG_MODE) Serial.println("FirebaseLoop listo.");
     }
-
+    if (OS_DEBUG_MODE) Serial.println("Tareas RTOS iniciadas.");
     return SUCCESS; // Estado INIT alcanzado
 }
 

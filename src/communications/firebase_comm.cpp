@@ -462,7 +462,7 @@ void Task_PushStatus(void *pvParameters) {
     // Ejecutar tarea periodicamente
     for (;;) {
         vTaskDelayUntil(&xLastWakeTime, period);
-        if (os.state != OS_State::INIT && os.state != OS_State::IDLE) {
+        if (os.state != OS_State::INIT) {
             PushStatus(
                 static_cast<uint8_t>(os.state), (const char*) os.last_log,
                 pose.x, pose.y, pose.w_L, pose.w_R,
