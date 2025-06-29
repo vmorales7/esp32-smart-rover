@@ -1,64 +1,70 @@
-# Proyecto Vehículo Autónomo - ESP32
+# Autonomous Vehicle Project - ESP32
 
-Este repositorio contiene el código fuente para un vehículo autónomo controlado por una ESP32, desarrollado como parte del curso **IEE2913 - Diseño Eléctrico**. El sistema implementa navegación autónoma con control de posición (X, Y), estimación de pose mediante encoders e IMU, evasión de obstáculos y estructura multitarea utilizando RTOS (FreeRTOS sobre ESP32).
+This repository contains the source code for an autonomous vehicle controlled by an ESP32, developed as part of the **IEE2913 - Electrical Design** course. The system implements autonomous navigation with position control (X, Y), pose estimation using encoders and an IMU, obstacle avoidance, and a multitasking structure using RTOS (FreeRTOS on ESP32).
 
 ---
 
-## 🌐 Estructura del Proyecto
+## 🌐 Project Structure
 
-La estructura del código sigue una arquitectura modular, que separa claramente las funcionalidades por capas.
+The code follows a modular architecture that clearly separates functionalities by layer.
 
 ```text
 📁 src/
-├── motor_drive/         # Control de driver L298N por PWM, y control PI de velocidad de ruedas
-├── sensors_firmware/    # Módulos para leer encoders, sensores ultrasónicos, e IMU
-├── position_system/     # Estimadores de pose y controladores de posición
-├── communication/       # Conexión a Firebase, WiFi y mensajería
-├── vehicle_os/          # Módulo de lógica de operación del vehículo y lógica de evasión de obstáculos
-├── entrypoints/         # Archivos main.cpp individuales para pruebas específicas
-├── main.cpp             # Main por defecto (no usado)
-└── main_selector.h      # Selector de archivo main activo para compilar desde PlatformIO
+├── motor_drive/         # PWM-based driver control (L298N) and wheel speed PI controller
+├── sensors_firmware/    # Modules for reading encoders, ultrasonic sensors, and IMU
+├── position_system/     # Pose estimators and position controllers
+├── communication/       # WiFi, Firebase connection and messaging
+├── vehicle_os/          # Vehicle operation logic and obstacle avoidance state machine
+├── entrypoints/         # Individual main.cpp files for specific test scenarios
+├── main.cpp             # Default main (not used directly)
+├── main_selector.h      # Selector to choose the active main.cpp file for compilation
+└── secrets.h            # Stores WiFi and API credentials (not uploaded to GitHub)
+
+📁 web_dashboard/
+├── index.html           # Web app (plain HTML) for control and data display
+└── config.js            # Stores API credentials (not uploaded to GitHub)
 ```
+
 ---
 
-## 📁 Detalle por carpeta
+## 📁 Folder Details
 
 ### `/motor_drive/`
-Contiene el `MotorController`, encargado de:
-- Ejecutar control de velocidad de rueda mediante PI
-- Traducir referencia angular (`w_ref`) a `duty cycle` para los motores
-- Aplicar frenado activo o inversión controlada
+Contains the `MotorController`, responsible for:
+- Executing wheel speed control using a PI algorithm
+- Translating angular reference (`w_ref`) to motor `duty cycle`
+- Applying active braking or controlled inversion
 
 ### `/sensors_firmware/`
-Incluye:
-- Lectura de **encoders incrementales**
-- Lectura de **sensores ultrasónicos (HC-SR04)** para detección de obstáculos
-- Lectura de IMU (BNO)
+Includes modules for:
+- **Incremental encoder** reading
+- **Ultrasonic sensors (HC-SR04)** for obstacle detection
+- **IMU (BNO)** readings
 
 ### `/position_system/`
-Implementa:
-- Estimador de posición y velocidad (pose)
-- Controlador de posición con dos modos:
-  - `PID`: algoritmo clásico con PID en ángulo
-  - `BACKS`: ley de control tipo backstepping
+Implements:
+- Position and velocity (pose) estimator
+- Position controller with two modes:
+  - `PID`: Classic PID angle control
+  - `BACKS`: Backstepping-type control law
 
 ### `/communication/`
-Reservado para futura implementación de conexión con Firebase (vía WiFi).
+Includes WiFi connection setup and Firebase asynchronous communication.
 
 ### `/vehicle_os/`
-Implementa máquina de estados general del sistema. Incluye:
-- Lógica de control
-- Lógica de evasión.
-- Archivo con configuraciones generales del sistema, constantes físicas y pines
+Implements the main system state machine. Includes:
+- Operating logic for movement
+- Obstacle avoidance logic
+- Global configuration and constants for system setup
 
 ### `/entrypoints/`
-Cada archivo `main_*.cpp` corresponde a una **prueba específica**, como por ejemplo:
-- `main_pose.cpp`: estimación de pose
-- `main_wheel_speed.cpp`: prueba del control de velocidad por rueda
-- `main_distance_sensors.cpp`: verificación de lógica para detectar obstáculos
+Each `main_*.cpp` file corresponds to a **specific test**, for example:
+- `main_pose.cpp`: pose estimation
+- `main_wheel_speed.cpp`: wheel speed control test
+- `main_distance_sensors.cpp`: obstacle detection logic test
 
 ---
 
-## 🔀 Selección del archivo main (con `main_selector.h`)
+## 🔀 Selecting the active main file (via `main_selector.h`)
 
-El archivo `main_selector.h` permite compilar dinámicamente diferentes `main_*.cpp` ubicados en `/entrypoints/`, sin necesidad de cambiar el archivo `platformio.ini`. En main_selector.h, descomenta el #include del main_*.cpp que deseas compilar y comenta el resto.
+The `main_selector.h` file allows you to dynamically choose which `main_*.cpp` file in `/entrypoints/` to compile, without modifying `platformio.ini`. Just uncomment the corresponding `#include` line in `main_selector.h` and comment out the rest.
