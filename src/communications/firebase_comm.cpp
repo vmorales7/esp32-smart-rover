@@ -355,7 +355,7 @@ FB_State ControlledRemovePendingWaypoint(
     }
 
     // Evaluar si se alcanzó el máximo de errores
-    if (error_count >= FB_PUSH_REMOVE_ERRORS) {
+    if (error_count >= FB_PUSH_REMOVE_MAX_ERRORS) {
         error_count = 0;
         if (FB_DEBUG_MODE) Serial.println("ControlledRemovePendingWaypoint: error permanente.");
         fb_state = FB_State::ERROR;
@@ -372,35 +372,27 @@ FB_State CompleteWaypoint(
     const uint8_t controller_type, const float iae, const float rmse,
     volatile FB_State& fb_state
 ) {
-    static enum class InternalStep : uint8_t { PUSH_REACHED, REMOVE_PENDING } step = InternalStep::PUSH_REACHED;
     static FB_State push_state = FB_State::PENDING;
     static FB_State remove_state = FB_State::PENDING;
 
-    switch (step) {
-        case InternalStep::PUSH_REACHED:
-            push_state = ControlledPushReachedWaypoint(
-                input_ts, wp_x, wp_y, start_ts, end_ts, reached_flag,
-                pos_x, pos_y, controller_type, iae, rmse, fb_state
-            );
-            if (push_state == FB_State::OK) {
-                step = InternalStep::REMOVE_PENDING;
-            } else if (push_state == FB_State::ERROR) {
-                step = InternalStep::PUSH_REACHED;
-                return FB_State::ERROR;
-            }
-            return FB_State::PENDING;
+    // Llamar a ambos controlled en cada ciclo — ellos manejan sus propios in_flight y retries
+    push_state = ControlledPushReachedWaypoint(
+        input_ts, wp_x, wp_y, start_ts, end_ts, reached_flag,
+        pos_x, pos_y, controller_type, iae, rmse, fb_state
+    );
+    remove_state = ControlledRemovePendingWaypoint(input_ts, fb_state);
 
-        case InternalStep::REMOVE_PENDING:
-            remove_state = ControlledRemovePendingWaypoint(input_ts, fb_state);
-            if (remove_state == FB_State::OK) {
-                step = InternalStep::PUSH_REACHED;
-                return FB_State::OK;  // Se completó correctamente
-            } else if (remove_state == FB_State::ERROR) {
-                step = InternalStep::PUSH_REACHED;
-                return FB_State::ERROR;
-            }
-            return FB_State::PENDING;
+    // Esperar a que ambas operaciones terminen
+    if (push_state == FB_State::PENDING || remove_state == FB_State::PENDING) return FB_State::PENDING;
+
+    // Evaluar resultado
+    if (remove_state == FB_State::OK &&
+        (push_state == FB_State::OK || push_state == FB_State::ERROR)) {
+        fb_state = FB_State::OK;
+        return FB_State::OK;
     }
+
+    fb_state = FB_State::ERROR;
     return FB_State::ERROR;
 }
 
@@ -433,6 +425,135 @@ void PushStatus(
 
     String path = "/status_log/" + String(timestamp);
     SetJson(path, doc, async_status);
+}
+
+
+FB_State ClearAllLogs(volatile FB_State& fb_state) {
+    static bool request_sent = false;
+    static bool status_done = false;
+    static bool finalized_done = false;
+    static uint32_t time_sent = 0;
+    static uint8_t error_count = 0;
+
+    // 1. Iniciar operación si no se ha enviado aún
+    if (!request_sent) {
+        if (FB_DEBUG_MODE) Serial.println("ClearAllLogs: Enviando solicitudes de eliminación...");
+
+        Database.remove(async_client, "/status_log", async_status);
+        Database.remove(async_client, "/waypoints_finalized", async_reached_waypoints);
+        request_sent = true;
+        status_done = false;
+        finalized_done = false;
+        time_sent = millis();
+        return FB_State::PENDING;
+    }
+
+    // 2. Revisar resultado de /status_log
+    if (!status_done && async_status.isResult()) {
+        if (async_status.isError()) {
+            if (FB_DEBUG_MODE) {
+                Serial.print("ClearAllLogs: Error al eliminar /status_log -> ");
+                Serial.println(async_status.error().message().c_str());
+            }
+            error_count++;
+        } else {
+            if (FB_DEBUG_MODE) Serial.println("ClearAllLogs: /status_log eliminado correctamente.");
+        }
+        status_done = true;
+    }
+
+    // 3. Revisar resultado de /waypoints_finalized
+    if (!finalized_done && async_reached_waypoints.isResult()) {
+        if (async_reached_waypoints.isError()) {
+            if (FB_DEBUG_MODE) {
+                Serial.print("ClearAllLogs: Error al eliminar /waypoints_finalized -> ");
+                Serial.println(async_reached_waypoints.error().message().c_str());
+            }
+            error_count++;
+        } else {
+            if (FB_DEBUG_MODE) Serial.println("ClearAllLogs: /waypoints_finalized eliminado correctamente.");
+        }
+        finalized_done = true;
+    }
+
+    // 4. Evaluar si ambas terminaron
+    if (status_done && finalized_done) {
+        request_sent = false;
+
+        if (error_count > FB_PUSH_CLEAR_MAX_ERRORS) {
+            fb_state = FB_State::ERROR;
+            error_count = 0;
+            if (FB_DEBUG_MODE) Serial.println("ClearAllLogs: Eliminación fallida.");
+            return FB_State::ERROR;
+        } else {
+            fb_state = FB_State::OK;
+            if (FB_DEBUG_MODE) Serial.println("ClearAllLogs: Eliminación completada con éxito.");
+            return FB_State::OK;
+        }
+    }
+
+    // 5. Timeout global
+    if (millis() - time_sent > FB_PUSH_CLEAR_TIMEOUT_MS) {
+        error_count++;
+        request_sent = false;
+
+        if (FB_DEBUG_MODE) Serial.println("ClearAllLogs: Timeout alcanzado. Reintentando...");
+
+        if (error_count >= FB_PUSH_CLEAR_MAX_ERRORS) {
+            fb_state = FB_State::ERROR;
+            error_count = 0;
+            if (FB_DEBUG_MODE) Serial.println("ClearAllLogs: Demasiados errores acumulados. Abortando.");
+            return FB_State::ERROR;
+        }
+    }
+
+    return FB_State::PENDING;
+}
+
+FB_State ClearPendingWaypoints(volatile FB_State& fb_state) {
+    static bool request_sent = false;
+    static uint32_t time_sent = 0;
+    static uint8_t error_count = 0;
+
+    if (!request_sent) {
+        if (FB_DEBUG_MODE) Serial.println("ClearPendingWaypoints: Enviando solicitud de eliminación...");
+        Database.remove(async_client, "/waypoints_pending", async_pending_waypoints);
+        request_sent = true;
+        time_sent = millis();
+        return FB_State::PENDING;
+    }
+
+    if (async_pending_waypoints.isResult()) {
+        request_sent = false;
+
+        if (async_pending_waypoints.isError()) {
+            error_count++;
+            if (FB_DEBUG_MODE) {
+                Serial.print("ClearPendingWaypoints: Error -> ");
+                Serial.println(async_pending_waypoints.error().message().c_str());
+            }
+        } else {
+            if (FB_DEBUG_MODE) Serial.println("ClearPendingWaypoints: Eliminación exitosa.");
+            fb_state = FB_State::OK;
+            error_count = 0;
+            return FB_State::OK;
+        }
+    }
+
+    if (millis() - time_sent > FB_PUSH_CLEAR_TIMEOUT_MS) {
+        request_sent = false;
+        error_count++;
+        if (FB_DEBUG_MODE) Serial.println("ClearPendingWaypoints: Timeout alcanzado. Reintentando...");
+    }
+
+    if (error_count >= FB_PUSH_CLEAR_MAX_ERRORS) {
+        error_count = 0;
+        fb_state = FB_State::ERROR;
+        if (FB_DEBUG_MODE) Serial.println("ClearPendingWaypoints: Demasiados errores. Abortando.");
+        return FB_State::ERROR;
+    }
+
+    return FB_State::PENDING;
 }
 
 
@@ -510,11 +631,15 @@ void Task_GetCommands(void *pvParameters) {
 }
 
 void Task_Loop(void *pvParameters) {
+    // Configuración del periodo de muestreo
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t period = pdMS_TO_TICKS(FB_LOOP_PERIOD_MS);
+    // Recuperar variables globales
+    GlobalContext* ctx_ptr = static_cast<GlobalContext*>(pvParameters);
+    volatile OperationData& os = *(ctx_ptr->os_ptr);
     for (;;) {
         vTaskDelayUntil(&xLastWakeTime, period);
-        ready(); // Llamar a ready() para mantener la conexión activa
+        if(!ready()) os.fb_state = FB_State::CONNECTION_ERROR;
     }
 }
 

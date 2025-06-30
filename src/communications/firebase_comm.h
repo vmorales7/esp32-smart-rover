@@ -37,20 +37,19 @@ enum class FB_Get_Result : uint8_t {
 // ---------- Constantes y configuraciones ----------
 
 constexpr uint32_t FB_COMMANDS_TIMEOUT_MS = 5000;
-constexpr uint8_t FB_COMMANDS_MAX_ERRORS = 2; 
+constexpr uint8_t FB_COMMANDS_MAX_ERRORS = 3; 
 
 constexpr uint32_t FB_PENDING_TIMEOUT_MS = 5000;
-constexpr uint8_t FB_PENDING_MAX_ERRORS = 2;
+constexpr uint8_t FB_PENDING_MAX_ERRORS = 3;
 
 constexpr uint32_t FB_PUSH_REACHED_TIMEOUT_MS = 5000;
-constexpr uint8_t FB_PUSH_REACHED_MAX_ERRORS = 2; 
+constexpr uint8_t FB_PUSH_REACHED_MAX_ERRORS = 3; 
 
 constexpr uint32_t FB_PUSH_REMOVE_TIMEOUT_MS = 5000;
-constexpr uint8_t FB_PUSH_REMOVE_ERRORS = 2; 
+constexpr uint8_t FB_PUSH_REMOVE_MAX_ERRORS = 3; 
 
-constexpr uint8_t PUSH_STATUS_MAX_ERRORS = 100;  
-constexpr uint8_t PUSH_REACHED_MAX_ERRORS = 100; 
-constexpr uint8_t PUSH_REMOVE_MAX_ERRORS = 100; 
+constexpr uint32_t FB_PUSH_CLEAR_TIMEOUT_MS = 5000;
+constexpr uint8_t FB_PUSH_CLEAR_MAX_ERRORS = 3;
 
 
 // ---------- Funciones para la comunicación con Firebase ----------
@@ -201,33 +200,38 @@ void RemovePendingWaypoint(const uint64_t input_timestamp);
 FB_State ControlledRemovePendingWaypoint(const uint64_t input_timestamp, volatile FB_State &fb_state);
 
 /**
- * @brief Completa el procesamiento de un waypoint alcanzado: primero lo registra en Firebase y luego lo elimina de los pendientes.
+ * @brief Ejecuta el flujo completo para registrar un waypoint alcanzado y eliminarlo de la cola de pendientes en Firebase.
  * 
- * Esta función debe ser llamada periódicamente dentro del ciclo operativo. Internamente controla el estado del proceso en dos pasos:
+ * Esta función implementa un proceso asíncrono que realiza en paralelo las siguientes dos operaciones:
  * 
- * 1. **PUSH_REACHED**: sube la información del waypoint alcanzado a `/waypoints_reached/`.
- * 2. **REMOVE_PENDING**: elimina el waypoint correspondiente desde `/waypoints_pending/` usando su timestamp de entrada.
+ * 1. **Push a `/waypoints_finalized/`**: Sube los datos del waypoint completado para registro y análisis posterior.
+ *    - Utiliza `ControlledPushReachedWaypoint()`, que gestiona sus propios reintentos y errores internos.
+ *    - Si esta operación falla, no bloquea el sistema: se permite continuar mientras se elimine el waypoint pendiente.
  * 
- * La función mantiene su estado entre llamadas y sólo retorna `FB_State::OK` cuando ambos pasos se completan con éxito. 
- * Si ocurre un error en cualquier etapa, se reinicia el flujo.
+ * 2. **Eliminación de `/waypoints_pending/`**: Borra el waypoint desde la cola de pendientes usando su `input_timestamp`.
+ *    - Utiliza `ControlledRemovePendingWaypoint()`.
+ *    - Esta etapa es crítica. Si falla, la función seguirá intentando hasta completarla correctamente.
  * 
- * @param input_ts Timestamp original con que se ingresó el waypoint (clave en Firebase).
+ * La función debe ser llamada periódicamente desde el ciclo principal (`VehicleOS`) cuando el campo 
+ * `fb_completed_but_not_sent` esté en `true`. Cada llamada evalúa el estado actual de ambas operaciones.
+ * 
+ * @param input_ts Timestamp de entrada del waypoint (clave en `/waypoints_pending/`).
  * @param wp_x Coordenada X del waypoint objetivo.
  * @param wp_y Coordenada Y del waypoint objetivo.
- * @param start_ts Timestamp en que comenzó el seguimiento de este waypoint.
- * @param end_ts Timestamp en que se terminó el movimiento hacia el waypoint.
- * @param reached_flag Flag que indica si fue alcanzado o no.
- * @param pos_x Posición X real alcanzada al llegar al waypoint.
- * @param pos_y Posición Y real alcanzada al llegar al waypoint.
- * @param controller_type Tipo de controlador utilizado (0=PID, 1=BACKS, etc.).
- * @param iae Integral del error absoluto (IAE) acumulado en el control.
- * @param rmse Raíz del error cuadrático medio (RMSE) durante el control.
- * @param fb_state Referencia al estado global de comunicación con Firebase (se actualiza si hay errores permanentes).
+ * @param start_ts Timestamp cuando comenzó el seguimiento del waypoint.
+ * @param end_ts Timestamp cuando finalizó el seguimiento del waypoint.
+ * @param reached_flag Indica si el waypoint fue efectivamente alcanzado (`true`) o descartado/lógico (`false`).
+ * @param pos_x Posición X real del vehículo al finalizar el trayecto.
+ * @param pos_y Posición Y real del vehículo al finalizar el trayecto.
+ * @param controller_type Tipo de controlador usado (0 = clásico, 1 = avanzado).
+ * @param iae Integral del error absoluto (IAE) durante el trayecto.
+ * @param rmse Raíz del error cuadrático medio (RMSE) durante el trayecto.
+ * @param fb_state Referencia al estado global de Firebase (puede actualizarse si ocurre un error permanente).
  * 
- * @return FB_State Estado del flujo de control: 
- * - `OK` si ambas operaciones fueron exitosas. 
- * - `PENDING` si aún hay operaciones en curso. 
- * - `ERROR` si ocurrió un fallo permanente.
+ * @return FB_State Estado actual del proceso:
+ * - `FB_State::OK`: ambas operaciones completadas (push y eliminación).
+ * - `FB_State::PENDING`: al menos una operación sigue en curso, debe volver a llamarse en el siguiente ciclo.
+ * - `FB_State::ERROR`: ocurrió un error permanente al eliminar el waypoint pendiente.
  */
 FB_State CompleteWaypoint(
     const uint64_t input_ts, const float wp_x, const float wp_y,
@@ -259,6 +263,40 @@ void PushStatus(
     const uint64_t wp_input_ts, const float wp_x, const float wp_y,
     const uint8_t controller_type, const float iae, const float rmse
 );
+
+/**
+ * @brief Elimina todos los registros de estado y waypoints finalizados en Firebase.
+ *
+ * Esta función envía solicitudes asíncronas para eliminar los nodos `/status_log` y 
+ * `/waypoints_finalized` de la base de datos Firebase. Se debe invocar periódicamente hasta 
+ * que retorne un estado distinto de `FB_State::PENDING`.
+ * 
+ * Internamente, la función realiza:
+ * - Solicitud asíncrona de eliminación si no hay una en curso.
+ * - Verificación de resultados de las operaciones previas (éxito o error).
+ * - Control de errores y reintentos en caso de fallas o timeout.
+ * 
+ * El resultado final puede ser:
+ * - `FB_State::OK`: ambos nodos fueron eliminados correctamente.
+ * - `FB_State::ERROR`: ocurrió un error en al menos una de las eliminaciones, o se alcanzó el máximo de errores.
+ * - `FB_State::PENDING`: operación en curso; se debe seguir llamando hasta resolver.
+ *
+ * @param fb_state Referencia al estado de comunicación general con Firebase, que será actualizado.
+ * 
+ * @return FB_State Estado actual de la operación: OK, PENDING o ERROR.
+ */
+FB_State ClearAllLogs(volatile FB_State &fb_state);
+
+/**
+ * @brief Elimina todos los waypoints pendientes en Firebase.
+ * 
+ * Realiza una operación asíncrona `remove()` sobre el nodo `/waypoints_pending/`.
+ * Esta función es no bloqueante: debes llamarla repetidamente hasta que retorne OK o ERROR.
+ * 
+ * @param fb_state Variable de estado que será actualizada según el progreso.
+ * @return FB_State Estado de la operación: OK, PENDING o ERROR.
+ */
+FB_State ClearPendingWaypoints(volatile FB_State& fb_state);
 
 /**
  * @brief Imprime en consola los logs de depuración y errores de Firebase si están disponibles.

@@ -140,11 +140,14 @@ enum class WifiStatus : uint8_t {
 enum class FB_State : uint8_t {
     OK,
     PENDING,
-    ERROR
+    ERROR,
+    CONNECTION_ERROR
 };
 
 
 /* -------------- Tiempos de poleo para tareas RTOS --------------*/
+
+// Operación general
 
 constexpr uint16_t WHEEL_CONTROL_PERIOD_MS = 10;
 constexpr uint16_t ENCODER_READ_PERIOD_MS = 10;
@@ -152,13 +155,25 @@ constexpr uint16_t IMU_READ_PERIOD_MS = 10;
 constexpr uint16_t OBSTACLE_CHECK_PERIOD_MS = 100;
 constexpr uint16_t POSE_ESTIMATOR_PERIOD_MS = 10; 
 constexpr uint16_t POSITION_CONTROL_PERIOD_MS = 50;
-constexpr uint16_t OS_UPDATE_PERIOD_MS = 100; 
+
+
+// Firebase y WiFi
+
 constexpr uint16_t WIFI_CHECK_PERIOD_MS = 1000;
 constexpr uint16_t FB_PUSH_STATUS_PERIOD_MS = 500;
 constexpr uint16_t FB_GET_COMMANDS_PERIOD_MS = 200;
 constexpr uint16_t FB_LOOP_PERIOD_MS = 1000;
 
-constexpr uint16_t BASIC_STACK_SIZE = 2048; // Tamaño de stack básico para tareas RTOS
+
+// Sistema operativo y evasión
+
+constexpr uint16_t OS_CHECK_STOP_PERIOD_MS = 50; // Verifica flags de obstaculo y comando de parada
+constexpr uint16_t OS_UPDATE_PERIOD_MS = 500;
+
+// Tamaño de stack básico para tareas RTOS
+
+constexpr uint16_t BASIC_STACK_SIZE = 2048; 
+
 
 
 /* -------------- Struct auxiliares --------------*/
@@ -168,35 +183,48 @@ struct TargetPoint {
     float x;
     float y;
     uint64_t ts; // Timestamp del punto objetivo
+
+    TargetPoint() : x(NULL_WAYPOINT_XY), y(NULL_WAYPOINT_XY), ts(NULL_TIMESTAMP) {}
+
+    /// Reinicia el punto a valores nulos.
+    void reset() volatile {
+        x = NULL_WAYPOINT_XY;
+        y = NULL_WAYPOINT_XY;
+        ts = NULL_TIMESTAMP;
+    }
 };
 
 // Estructura para almacenar datos de un punto de trayectoria para ser enviados a Firebase.
 struct WaypointData {
-    uint64_t input_ts;       ///< Timestamp en que se ingresó (Firebase / usuario)
-    float wp_x;              ///< Coordenada X del waypoint
-    float wp_y;              ///< Coordenada Y del waypoint
-    uint64_t start_ts;       ///< Timestamp en que el vehículo comenzó a seguirlo
-    uint64_t end_ts;         ///< Timestamp en que se alcanzó exitosamente
-    bool reached_flag;       ///< Flag que define si se alcanzó con éxito o hubo fallo
-    float pos_x;             ///< Posición X del vehículo al completar el waypoint
-    float pos_y;             ///< Posición Y del vehículo al completar el waypoint
-    uint8_t controller_type; ///< Tipo de controlador usado para alcanzar el waypoint
-    float iae;               ///< Integral del error absoluto (IAE) acumulado hasta el momento
-    float rmse;              ///< Raíz del error cuadrático medio (RMSE) acumulado hasta el momento
+    uint64_t input_ts;
+    float wp_x;
+    float wp_y;
+    uint64_t start_ts;
+    uint64_t end_ts;
+    bool reached_flag;
+    float pos_x;
+    float pos_y;
+    uint8_t controller_type;
+    float iae;
+    float rmse;
 
-    WaypointData() :
-        input_ts(NULL_TIMESTAMP),
-        wp_x(NULL_WAYPOINT_XY),
-        wp_y(NULL_WAYPOINT_XY),
-        start_ts(NULL_TIMESTAMP),
-        end_ts(NULL_TIMESTAMP),
-        reached_flag(true),
-        pos_x(NULL_WAYPOINT_XY),
-        pos_y(NULL_WAYPOINT_XY),
-        controller_type(0),
-        iae(0.0f),
-        rmse(0.0f)
-    {}
+    // Constructor por defecto
+    WaypointData() { reset();}
+
+    /// Reinicia todos los campos del waypoint a valores por defecto.
+    void reset() volatile {
+        input_ts = NULL_TIMESTAMP;
+        wp_x = NULL_WAYPOINT_XY;
+        wp_y = NULL_WAYPOINT_XY;
+        start_ts = NULL_TIMESTAMP;
+        end_ts = NULL_TIMESTAMP;
+        reached_flag = true;
+        pos_x = NULL_WAYPOINT_XY;
+        pos_y = NULL_WAYPOINT_XY;
+        controller_type = 0;
+        iae = 0.0f;
+        rmse = 0.0f;
+    }
 };
 
 
@@ -358,25 +386,27 @@ struct ControllerData {
 /**
  * @brief Contiene la información de alto nivel relacionada con la operación del vehículo autónomo.
  *
- * Esta estructura centraliza el estado operativo del sistema (`state`), los buffers necesarios para
- * operación tanto en modo offline como online, y los mensajes relevantes de diagnóstico (`last_log`).
- * Es utilizada por la máquina de estados principal (`vehicle_os`) para coordinar la lógica de navegación.
+ * Esta estructura centraliza el estado operativo del sistema, buffers de trayectoria y la comunicación
+ * con Firebase, permitiendo una gestión unificada de la lógica de navegación y control.
+ * Es utilizada directamente por la máquina de estados principal (`vehicle_os`) y otros módulos.
  *
- * Campos clave:
- * - state: Estado operativo actual del sistema (INIT, STAND_BY, ALIGN, etc.)
- * - last_log: Último mensaje registrado asociado a una transición o acción del sistema.
+ * ### Campos clave:
+ * - `state`: Estado actual del sistema (INIT, STAND_BY, ALIGN, MOVE, etc.).
+ * - `last_log`: Último mensaje de estado o transición del sistema, para fines de depuración o registro.
  *
- * Modo offline:
- * - local_total_targets: Cantidad de puntos cargados en la trayectoria local.
- * - local_trajectory: Lista local de puntos objetivo cargados manualmente (sin Firebase).
+ * ### Modo Offline:
+ * - `local_total_targets`: Número total de puntos objetivo definidos localmente.
+ * - `local_trajectory[]`: Lista de puntos (x, y, timestamp) que conforman la trayectoria local.
  *
- * Modo online:
- * - fb_last_command: Último comando recibido desde Firebase (START o STOP).
- * - fb_current_target: Punto objetivo actual obtenido desde Firebase.
- * - fb_wp_ready_buffer: Buffer temporal para almacenar información del waypoint completado, lista para enviarse a Firebase.
+ * ### Modo Online (vía Firebase):
+ * - `fb_state`: Estado actual de la comunicación con Firebase (OK, PENDING, ERROR).
+ * - `wifi_status`: Estado de la conexión WiFi (OK, DISCONNECTED, TIMEOUT).
+ * - `fb_last_command`: Último comando recibido por el usuario (START, STOP).
+ * - `fb_controller_type`: Tipo de controlador usado en el último movimiento (PID, BACKS, etc.).
+ * - `fb_target_buffer`: Punto objetivo actual recibido desde Firebase.
+ * - `fb_waypoint_data`: Información completa del waypoint en curso (usada para envío de métricas).
+ * - `fb_completed_but_not_sent`: Flag que indica si hay un waypoint completado pero aún no enviado a Firebase.
  *
- * La estructura permite alternar entre modos de operación (online/offline) sin cambiar la lógica de control central,
- * permitiendo mayor robustez frente a fallas de conectividad o pruebas sin red.
  */
 struct OperationData {
     // Generales
@@ -400,16 +430,14 @@ struct OperationData {
     OperationData() :
         state(OS_State::INIT),
         local_total_targets(0),
-        
+        fb_state(FB_State::OK),
         wifi_status(WifiStatus::DISCONNECTED),
         fb_last_command(UserCommand::STOP),
-        // fb_target_buffer({NULL_WAYPOINT_XY, NULL_WAYPOINT_XY, NULL_TIMESTAMP}),
+        fb_controller_type(ControlType::PID),
+        fb_target_buffer(),
         fb_waypoint_data(),
         fb_completed_but_not_sent(false)
     {
-        for (uint8_t i = 0; i < MAX_TRAJECTORY_POINTS; ++i) {
-            local_trajectory[i] = {NULL_WAYPOINT_XY, NULL_WAYPOINT_XY, NULL_TIMESTAMP};
-        }
         last_log[0] = '\0'; // String vacío al inicio
     }
 };
@@ -451,7 +479,7 @@ struct EvadeContext {
     int8_t direction = 0;          // +1: izquierda, -1: derecha
     float current_angle = 0.0f;     // Ángulo de evasión actual [rad]
     bool tried_both_sides = false; // Flag que indica si se intentó evasión a ambos lados
-    TargetPoint saved_waypoint = {0.0f, 0.0f, 0U};
+    TargetPoint saved_waypoint;
 };
 
 

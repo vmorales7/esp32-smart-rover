@@ -38,7 +38,7 @@ constexpr float MAX_EVADE_SKIP_DIST = 0.5f; // Distancia máxima para saltar un 
 namespace OS {
 
 /**
- * @brief Actualiza el sistema operativo según el estado actual
+ * @brief Actualiza el sistema operativo según el estado actual, para operación local
  * 
  * Esta función implementa la máquina de estados principal del sistema operativo.
  * Se encarga de gestionar las transiciones entre estados y ejecutar las accionescorrespondientes a cada estado.
@@ -46,6 +46,16 @@ namespace OS {
  * @param ctx_ptr Puntero al contexto global con datos del sistema
  */
 void update_local(GlobalContext* ctx_ptr);
+
+/**
+ * @brief Actualiza el sistema operativo según el estado actual, para operación online
+ * 
+ * Esta función implementa la máquina de estados principal del sistema operativo.
+ * Se encarga de gestionar las transiciones entre estados y ejecutar las accionescorrespondientes a cada estado.
+ *
+ * @param ctx_ptr Puntero al contexto global con datos del sistema
+ */
+void update_online(GlobalContext* ctx_ptr);
 
 /**
  * @brief Realiza las operaciones de inicialización del sistema
@@ -129,6 +139,26 @@ bool enter_rotate(GlobalContext* ctx_ptr);
  */
 bool enter_wait_free_path(GlobalContext* ctx_ptr);
 
+
+/**
+ * @brief Resetea parcialmente el estado interno del vehículo autónomo.
+ *
+ * Esta función reinicia la estimación de pose, los datos de control y las banderas de obstáculos,
+ * además de reiniciar el estado de evasión. Se utiliza principalmente **al salir del estado `IDLE`
+ * hacia `STAND_BY`**, con el objetivo de mantener los últimos valores de sensores y control al entrar
+ * a `IDLE`, y preparar correctamente el sistema para reanudar la operación.
+ *
+ * Acciones que realiza:
+ * - Reinicia la pose estimada del vehículo (posición, orientación y velocidades).
+ * - Fija un waypoint nulo (0,0) y reinicia las referencias internas del controlador.
+ * - Limpia las banderas de detección de obstáculos de todos los sensores ultrasónicos.
+ * - Reinicia el estado del sistema de evasión (`EvadeController`).
+ *
+ * @param ctx_ptr Puntero al contexto global del sistema (`GlobalContext`).
+ * @return true si se ejecutó exitosamente (siempre retorna `true`).
+ */
+bool reset_local_status(GlobalContext *ctx_ptr);
+
 /**
  * @brief Establece el siguiente punto objetivo desde la trayectoria
  * 
@@ -174,7 +204,62 @@ bool complete_local_waypoint(volatile OperationData& os);
 bool add_local_waypoint(const float x, const float y, const float ts, volatile OperationData& os);
 
 
-bool CheckOnlineStatus(GlobalContext* ctx_ptr);
+/**
+ * @brief Verifies whether the system is considered online based on WiFi and Firebase status.
+ *
+ * This function checks two conditions to determine if the system can operate online:
+ * - WiFi connection must not be in TIMEOUT state.
+ * - Firebase must not be in CONNECTION_ERROR state.
+ *
+ * Both conditions are evaluated using flags (`wifi_status` and `fb_state`) updated by independent RTOS tasks.
+ * This approach ensures a non-blocking and fast response suitable for real-time systems.
+ *
+ * @param ctx_ptr Pointer to the global system context (`GlobalContext*`).
+ * @return true if both WiFi and Firebase are considered online.
+ * @return false if either condition indicates offline status.
+ */
+bool CheckOnlineStatus(GlobalContext *ctx_ptr);
+
+/**
+ * @brief Resets the vehicle's operational state when transitioning to online mode.
+ *
+ * This function performs a complete reset of both local and remote (Firebase) status data. 
+ * It ensures that local reset operations (e.g., control buffers, waypoint tracking flags) 
+ * are executed only once per reset attempt, and avoids repeated resets until Firebase deletion completes.
+ *
+ * The remote reset involves deleting the `/status_log` and `/waypoints_finalized` nodes from Firebase 
+ * by calling `FirebaseComm::ClearAllLogs()`. The operation is asynchronous and may require multiple 
+ * calls until it completes or fails.
+ *
+ * This function must be called repeatedly (e.g., during IDLE state) until it returns `FB_State::OK` 
+ * or `FB_State::ERROR`. It returns `FB_State::PENDING` if the Firebase operation is still in progress.
+ *
+ * @param ctx_ptr Pointer to the global system context (`GlobalContext*`).
+ * @return FB_State
+ * - `FB_State::OK`: Reset completed successfully.
+ * - `FB_State::PENDING`: Firebase deletion still in progress.
+ * - `FB_State::ERROR`: Firebase deletion failed.
+ */
+FB_State reset_online_status(GlobalContext *ctx_ptr);
+
+/**
+ * @brief Determines whether the current waypoint should be skipped due to obstacle proximity.
+ *
+ * This function compares the distance to the current waypoint against the minimum distance
+ * reported by the ultrasonic sensors. If the waypoint is very close and directly blocked 
+ * by an obstacle with little space behind it, the waypoint is considered unreachable and 
+ * should be skipped.
+ *
+ * Conditions for skipping:
+ * - Waypoint is closer than `MAX_EVADE_SKIP_DIST`
+ * - Obstacle is closer than the waypoint
+ * - The space behind the obstacle is less than `MIN_EVADE_BEHIND_DIST`
+ *
+ * @param ctx_ptr Pointer to the global system context (`GlobalContext*`)
+ * @return true if the waypoint should be skipped due to blockage
+ * @return false if the system should attempt obstacle evasion
+ */
+bool check_skip_evade(GlobalContext *ctx_ptr);
 
 /**
  * @brief Ejecuta el flujo completo para marcar como completado un waypoint en Firebase.
@@ -235,6 +320,23 @@ void register_finished_waypoint_data(const bool reached_flag, GlobalContext* ctx
  * @param pvParameters Puntero a los parámetros de la tarea (GlobalContext)
  */
 void Task_VehicleOS(void* pvParameters);
+
+/**
+ * @brief Tarea periódica para detener el movimiento del vehículo ante condiciones de riesgo.
+ * 
+ * Esta tarea se ejecuta en segundo plano cada `OS_CHECK_STOP_PERIOD_MS` milisegundos y supervisa condiciones críticas
+ * que requieren una detención inmediata del vehículo. No realiza transiciones de estado, solo fuerza `stop_movement()`
+ * para bloquear las referencias del controlador de posición y mantener el vehículo quieto hasta que el sistema principal
+ * (`VehicleOS::update`) tome una decisión.
+ * 
+ * Se evalúan las siguientes condiciones:
+ * - Si el vehículo está en estado `MOVE` y se detecta un obstáculo (`us_obstacle == true`), se detiene.
+ * - Si el vehículo está en `MOVE` o `ALIGN` y el comando desde Firebase no es `START`, se detiene.
+ * - Si el vehículo está en `MOVE` o `ALIGN`, y se encuentra en modo `ONLINE`, y se detecta pérdida de conexión (`wifi_status == TIMEOUT`), se detiene.
+ * 
+ * @param pvParameters Puntero al `GlobalContext` del sistema.
+ */
+void Task_StopOnRiskFlags(void *pvParameters);
 
 /**
  * @brief Establece un mensaje de log en la estructura de datos del sistema operativo

@@ -14,27 +14,96 @@
 
   <!-- Estilos -->
   <style>
+    /* === GENERAL === */
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f4f6f8;
+      margin: 0;
+      padding: 2rem;
+      color: #333;
+    }
+
+    h2 {
+      margin-top: 2rem;
+      color: #005a8d;
+    }
+
+    label {
+      font-weight: 600;
+      margin-right: 0.3rem;
+    }
+
+    select,
+    input[type="number"],
+    button {
+      margin: 0.5rem 0.5rem 0.5rem 0;
+      padding: 0.4rem;
+      font-size: 1rem;
+    }
+
+    input[type="number"] {
+      width: 6rem;
+    }
+
+    button {
+      background-color: #007acc;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    button:hover {
+      background-color: #005f99;
+    }
+
+    ul {
+      background-color: white;
+      padding: 1rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      list-style: none;
+    }
+
+    li {
+      padding: 0.3rem 0;
+    }
+
+    /* === HEADER === */
     .header-banner {
       background-color: #007acc;
       color: white;
-      padding: 1.2rem 2rem 0.5rem 2rem;
+      padding: 0.5rem 2rem;
       border-radius: 6px;
-      margin-bottom: 0.1rem;
+      margin: 0 0 0.5rem 0;
       position: relative;
     }
 
     .header-banner .project-title {
-      font-size: 2rem;
+      font-size: 2.5rem;
       font-weight: 700;
+      font-style: italic;
     }
 
     .header-banner .subtitle {
       position: absolute;
       bottom: 0.5rem;
       right: 2rem;
-      font-size: 1.2rem;
+      font-size: 1.5rem;
       font-style: italic;
-      opacity: 0.9;
+    }
+
+    /* === LAYOUT === */
+    .main-container {
+      display: flex;
+      flex-direction: row;
+      gap: 2rem;
+      align-items: flex-start;
+    }
+
+    .column {
+      flex: 1;
     }
 
     .grid-container {
@@ -48,7 +117,15 @@
       align-items: start;
     }
 
-    /* Áreas del grid */
+    .section {
+      background-color: transparent;
+    }
+
+    .section.control-status>div {
+      margin-bottom: 1.2rem;
+    }
+
+    /* === GRID AREAS === */
     .control-panel {
       grid-area: control;
     }
@@ -73,63 +150,7 @@
       grid-area: finalizados;
     }
 
-    .section {
-      background-color: transparent;
-    }
-
-    .centered-table th,
-    .centered-table td {
-      text-align: center;
-      vertical-align: middle;
-    }
-
-
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #f4f6f8;
-      margin: 0;
-      padding: 2rem;
-      color: #333;
-    }
-
-    h2 {
-      margin-top: 2rem;
-      color: #005a8d;
-    }
-
-    canvas#rmseChart,
-    canvas#iaeChart {
-      height: 250px !important;
-      max-height: 250px;
-    }
-
-
-    select,
-    input[type="number"],
-    button {
-      margin: 0.5rem 0.5rem 0.5rem 0;
-      padding: 0.4rem;
-      font-size: 1rem;
-    }
-
-    button {
-      background-color: #007acc;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: background-color 0.2s;
-    }
-
-    button:hover {
-      background-color: #005f99;
-    }
-
-    label {
-      font-weight: 600;
-      margin-right: 0.3rem;
-    }
-
+    /* === TABLES === */
     table {
       width: 100%;
       border-collapse: collapse;
@@ -150,39 +171,14 @@
       font-weight: bold;
     }
 
-    ul {
-      background-color: white;
-      padding: 1rem;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      list-style: none;
+    .centered-table th,
+    .centered-table td {
+      text-align: center;
+      vertical-align: middle;
     }
 
-    li {
-      padding: 0.3rem 0;
-    }
-
-    input[type="number"] {
-      width: 6rem;
-    }
-
-    .main-container {
-      display: flex;
-      flex-direction: row;
-      gap: 2rem;
-      align-items: flex-start;
-    }
-
-    .column {
-      flex: 1;
-    }
-
-    canvas {
-      width: 100%;
-      margin-top: 1rem;
-      background-color: #fff;
-      border: 1px solid #ccc;
-      border-radius: 6px;
+    #waypointTable td {
+      padding: 0.05rem 0.1rem;
     }
 
     td.button-cell {
@@ -192,16 +188,24 @@
       height: 100%;
     }
 
-    .section.control-status>div {
-      margin-bottom: 1.2rem;
+    /* === CHARTS === */
+    canvas {
+      width: 100%;
+      margin-top: 1rem;
+      background-color: #fff;
+      border: 1px solid #ccc;
+      border-radius: 6px;
     }
 
-    #waypointTable td {
-      padding: 0.05rem 0.1rem;
+    canvas#rmseChart,
+    canvas#iaeChart {
+      height: 250px !important;
+      max-height: 250px;
     }
   </style>
 </head>
 
+  <!-- Formato -->
 <body>
   <div class="header-banner">
     <div class="project-title">RoboNauta Alpha</div>
@@ -303,7 +307,6 @@
   </div>
 </body>
 
-
 <!-- Scripts -->
 <script src="config.js"></script>
 <script>
@@ -354,6 +357,7 @@
 
     const data = snapshot.val();
     const pendientes = [];
+    const timestampsToIgnore = ["0000000000"];
 
     if (!data) {
       // Limpiar también del gráfico si no hay datos
@@ -364,7 +368,9 @@
       return;
     }
 
-    const entries = Object.entries(data).sort((a, b) => a[0] - b[0]);
+    const entries = Object.entries(data)
+      .filter(([ts]) => !timestampsToIgnore.includes(ts))
+      .sort((a, b) => a[0] - b[0]);
 
     entries.forEach(([ts, wp], index) => {
       // --- Actualizar tabla ---
@@ -380,7 +386,7 @@
       yCell.textContent = wp.wp_y;
 
       const actionCell = document.createElement("td");
-      actionCell.classList.add("button-cell"); // <- aplica la clase para centrar
+      actionCell.classList.add("button-cell");
       actionCell.style.textAlign = "right";
 
       const btn = document.createElement("button");
@@ -419,13 +425,25 @@
 
 
   // --- LISTENER DE STATUS ACTUAL ---
-  db.ref("status_log").limitToLast(1).on("value", snapshot => {
+  db.ref("status_log").on("value", snapshot => {
     const tbody = document.querySelector("#statusTable tbody");
-    const data = snapshot.val();
-    const last = data ? Object.values(data)[0] : null;
-    if (!last) return;
     tbody.innerHTML = "";
 
+    const data = snapshot.val();
+    if (!data) return;
+
+    const timestampsToIgnore = ["0000000000"]; // tus timestamps a ignorar
+
+    // Filtrar y ordenar
+    const entries = Object.entries(data)
+      .filter(([ts]) => !timestampsToIgnore.includes(ts))
+      .sort((a, b) => a[1].timestamp - b[1].timestamp);
+
+    if (entries.length === 0) return;
+
+    const last = entries[entries.length - 1][1];
+
+    // Mostrar tabla "Last Status"
     const desiredOrder = [
       "timestamp", "state", "log_msg",
       "pos_x", "pos_y", "rpm_left", "rpm_right",
@@ -452,7 +470,6 @@
     desiredOrder.forEach(key => {
       if (last.hasOwnProperty(key)) {
         const row = document.createElement("tr");
-
         const cellKey = document.createElement("td");
         const cellVal = document.createElement("td");
 
@@ -469,13 +486,37 @@
         }
 
         cellVal.textContent = val;
-
         row.appendChild(cellKey);
         row.appendChild(cellVal);
         tbody.appendChild(row);
       }
     });
+
+    // Actualizar gráficos
+    let rmse_acumulado = 0, iae_acumulado = 0;
+    rmseChart.data.labels = [];
+    rmseChart.data.datasets[0].data = [];
+    iaeChart.data.labels = [];
+    iaeChart.data.datasets[0].data = [];
+
+    entries.forEach(([_, item], i) => {
+      const rmse = item.rmse || 0;
+      const iae = item.iae || 0;
+
+      rmse_acumulado += rmse;
+      iae_acumulado += iae;
+
+      rmseChart.data.labels.push('');
+      iaeChart.data.labels.push('');
+
+      rmseChart.data.datasets[0].data.push((rmse_acumulado / (i + 1)).toFixed(2));
+      iaeChart.data.datasets[0].data.push((iae_acumulado / (i + 1)).toFixed(2));
+    });
+
+    rmseChart.update();
+    iaeChart.update();
   });
+
 
 
   // --- GRÁFICOS Chart.js ---
@@ -589,7 +630,11 @@
     tbody.innerHTML = "";
     if (!data) return;
 
-    const entries = Object.entries(data).sort((a, b) => a[1].reached_timestamp - b[1].reached_timestamp);
+    const timestampsToIgnore = ["0000000000"];
+
+    const entries = Object.entries(data)
+      .filter(([ts]) => !timestampsToIgnore.includes(ts))  // ← IGNORA timestamps específicos
+      .sort((a, b) => a[1].reached_timestamp - b[1].reached_timestamp);
     const success = [], fail = [], trayectoria = [];
 
     entries.forEach(([ts, wp], index) => {
@@ -672,6 +717,5 @@
     iaeChart.update();
   });
 </script>
-
 
 </html>
