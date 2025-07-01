@@ -189,9 +189,13 @@ namespace OS
         {
         case OS_State::INIT:
         { // Solo se ejecuta como paso hacia IDLE
-            enter_idle(ctx_ptr);
-            os.state = OS_State::IDLE;
-            set_operation_log(OS_State::IDLE, OS_State::INIT, ctx_ptr);
+            fb_result = reset_online_status(ctx_ptr);
+            if (fb_result == FB_State::OK)
+            { // Si se pudo resetear el estado online, se entra a STAND_BY
+                enter_idle(ctx_ptr);
+                os.state = OS_State::IDLE;
+                set_operation_log(OS_State::IDLE, OS_State::INIT, ctx_ptr);
+            }
             break;
         }
         case OS_State::IDLE:
@@ -436,7 +440,7 @@ namespace OS
             FirebaseComm::ConnectFirebase();
             delay(10000);
         } // Ambas son operaciones bloqueantes, por lo que el sistema no avanzará hasta que se completen
-        Serial.println("\n COsas wifi listas...");
+        if (OS_DEBUG_MODE) Serial.println("\nCosas wifi listas...");
         delay(1000);
 
         // 2. Inicialización de módulos individuales
@@ -452,6 +456,7 @@ namespace OS
                               sens.us_right_dist, sens.us_right_obst, sens.us_obstacle, sts.distance);
         PositionController::init(sts.position, ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached,
                                  ctrl.w_L_ref, ctrl.w_R_ref);
+        if (OS_DEBUG_MODE) Serial.println("Módulos individuales inicializados.");         
 
         // 3. Lanzar tareas RTOS núcleo 1
         if (pose.estimator_type == PoseEstimatorType::COMPLEMENTARY)
@@ -466,6 +471,7 @@ namespace OS
             MotorController::Task_WheelControl, "WheelControl", 2 * BASIC_STACK_SIZE, ctx_ptr, 2, nullptr, 1);
         xTaskCreatePinnedToCore(
             PositionController::Task_PositionControl, "PositionControl", 3 * BASIC_STACK_SIZE, ctx_ptr, 1, nullptr, 1);
+        if (OS_DEBUG_MODE) Serial.println("Tasks núcleo 1 lanzados."); 
 
         // 4. Lanzar tareas RTOS núcleo 0
         xTaskCreatePinnedToCore(OS::Task_VehicleOS, "VehicleOS", 3 * BASIC_STACK_SIZE, ctx_ptr, 0, nullptr, 0);
@@ -479,8 +485,9 @@ namespace OS
             xTaskCreatePinnedToCore(FirebaseComm::Task_GetCommands, "FirebaseGetCommands", 4 * BASIC_STACK_SIZE, ctx_ptr, 1, nullptr, 0);
             xTaskCreatePinnedToCore(FirebaseComm::Task_Loop, "FirebaseLoop", BASIC_STACK_SIZE, ctx_ptr, 1, nullptr, 0);
         }
-        if (OS_DEBUG_MODE)
-            Serial.println("Tareas RTOS iniciadas.");
+
+        if (OS_DEBUG_MODE) Serial.println("Tareas RTOS iniciadas.");
+
         return SUCCESS; // Estado INIT alcanzado
     }
 

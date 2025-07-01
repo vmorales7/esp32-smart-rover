@@ -34,7 +34,7 @@ WifiStatus check_wifi() {
 
     if (WiFi.status() == WL_CONNECTED) {
         last_wifi_ok_ms = now;
-        if (WIFI_DEBUG_MODE) Serial.println("\nWiFi OK.");
+        // if (WIFI_DEBUG_MODE) Serial.println("\nWiFi OK.");
         return WifiStatus::OK;
     }
     // Se perdió la conexión WiFi, generar error pero intentar reconectar

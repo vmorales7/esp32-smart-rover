@@ -161,7 +161,7 @@ constexpr uint16_t POSITION_CONTROL_PERIOD_MS = 50;
 constexpr uint16_t WIFI_CHECK_PERIOD_MS = 1000;
 constexpr uint16_t FB_PUSH_STATUS_PERIOD_MS = 500;
 constexpr uint16_t FB_GET_COMMANDS_PERIOD_MS = 200;
-constexpr uint16_t FB_LOOP_PERIOD_MS = 1000;
+constexpr uint16_t FB_LOOP_PERIOD_MS = 200;
 
 
 // Sistema operativo y evasión
