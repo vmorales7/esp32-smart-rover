@@ -120,8 +120,7 @@ enum class UserCommand : uint8_t {
 
 // Estados del sistema de evasión
 enum class EvadeState : uint8_t {
-    IDLE = 0,
-    SELECT_DIR,
+    SELECT_DIR= 0,
     WAIT_ALIGN,
     WAIT_ADVANCE,
     WAIT_FREE_PATH,
@@ -475,7 +474,7 @@ struct TaskHandlers {
  */
 struct EvadeContext {
     bool include_evade = true; // Indica si se usa el controlador de evasión
-    EvadeState state = EvadeState::IDLE;
+    EvadeState state = EvadeState::SELECT_DIR;
     int8_t direction = 0;          // +1: izquierda, -1: derecha
     float current_angle = 0.0f;     // Ángulo de evasión actual [rad]
     bool tried_both_sides = false; // Flag que indica si se intentó evasión a ambos lados

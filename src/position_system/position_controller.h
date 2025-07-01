@@ -125,22 +125,38 @@ bool set_waypoint(
     volatile PositionControlMode& control_mode
 );
 
-/** 
- * @brief Establece un waypoint diferencial basado en la distancia y el cambio de orientación.
- * 
- * @param dist Distancia al waypoint diferencial [m].
- * @param delta_theta Cambio de orientación al waypoint diferencial [rad].
- * @param x_d_global Referencia global de coordenada X del waypoint [m].
- * @param y_d_global Referencia global de coordenada Y del waypoint [m].
- * @param theta_d_global Referencia global de orientación del waypoint [rad].
- * @param waypoint_reached Referencia a bandera que indica si se ha alcanzado el waypoint.
- * @param control_mode Modo actual del controlador (debe ser MOVE o ROTATE).
+/**
+ * @brief Establece un nuevo waypoint relativo a la posición y orientación actual del vehículo.
+ *
+ * Este método actualiza la posición objetivo (`x_d`, `y_d`, `theta_d`) desplazándose una distancia `dist`
+ * en la dirección `delta_theta` relativa a la orientación actual `theta`. Se utiliza típicamente en rutinas
+ * de evasión o navegación local.
+ *
+ * - El waypoint se calcula desde la posición actual `(x, y, theta)`.
+ * - El ángulo objetivo se calcula como `theta + delta_theta`, envuelto en el rango [-π, π].
+ * - La nueva posición destino `(x_d, y_d)` se obtiene desplazando `dist` metros en la dirección `theta_d`.
+ * - Reinicia los estados internos del PID y el controlador backstepping.
+ * - Reinicia la bandera `waypoint_reached` para iniciar una nueva trayectoria.
+ *
+ * La función no realiza ningún cambio si el modo de control está en `INACTIVE`.
+ *
+ * @param dist Distancia a recorrer desde la posición actual [m].
+ * @param delta_theta Cambio angular respecto a la orientación actual [rad].
+ * @param x Posición actual en X del vehículo [m].
+ * @param y Posición actual en Y del vehículo [m].
+ * @param theta Orientación actual del vehículo [rad].
+ * @param x_d Referencia global actual a coordenada X del objetivo [m] (será modificada).
+ * @param y_d Referencia global actual a coordenada Y del objetivo [m] (será modificada).
+ * @param theta_d Referencia global actual a orientación del objetivo [rad] (será modificada).
+ * @param waypoint_reached Bandera que se reiniciará a `false` para indicar que se debe alcanzar un nuevo objetivo.
+ * @param control_mode Modo actual de control. La función se omite si está en modo `INACTIVE`.
+ * @return true si se estableció el nuevo waypoint, false si el modo de control era `INACTIVE`.
  */
 bool set_diferential_waypoint(
     const float dist, const float delta_theta,
-    volatile float& x_d_global, volatile float& y_d_global, volatile float& theta_d_global,
-    volatile bool& waypoint_reached,
-    const PositionControlMode control_mode
+    volatile float& x, volatile float& y, volatile float& theta,
+    volatile float& x_d, volatile float& y_d, volatile float& theta_d,
+    volatile bool& waypoint_reached, const PositionControlMode control_mode
 );
 
 /**

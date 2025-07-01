@@ -110,12 +110,11 @@ namespace OS
                             enter_align(ctx_ptr);
                             os.state = OS_State::ALIGN;
                             set_operation_log(OS_State::ALIGN, OS_State::MOVE, ctx_ptr);
-                            EvadeController::reset_evade_state(ctx_ptr); // Reiniciar el estado de evasión
+                            EvadeController::reset_evade_state(ctx_ptr); // Reiniciar el estado de evasión en cada waypoint nuevo
                         }
                     } 
                     else { // Si es necesario evadir, se entra al estado EVADE
                         if (evade.include_evade) {// Caso con evasión incluida
-                            EvadeController::start_evade(ctx_ptr);
                             enter_evade(ctx_ptr);
                         } else { // Caso sin evasión, se espera a que el camino esté libre
                             enter_wait_free_path(ctx_ptr);
@@ -245,7 +244,6 @@ namespace OS
                     enter_align(ctx_ptr);
                     os.state = OS_State::ALIGN;
                     set_operation_log(OS_State::ALIGN, OS_State::STAND_BY, ctx_ptr);
-                    EvadeController::reset_evade_state(ctx_ptr);
                 }
             } // Último punto alcanzado fue enviado + comando IDLE
             else if (os.fb_last_command == UserCommand::IDLE)
@@ -296,7 +294,7 @@ namespace OS
             break;
         }
         case OS_State::MOVE:
-        {
+        {   // Estado de desplazamiento recto hacia el waypoint
             ok = CheckOnlineStatus(ctx_ptr);
             if (ctrl.waypoint_reached)
             {   // Si se alcanza el waypoint, se detiene, se registra y se pasa a STAND_BY
@@ -329,7 +327,6 @@ namespace OS
                 {   // Esperar a que el movimiento se detenga
                     if (evade.include_evade)
                     {   // Está activa la evasión, se inicia y se entra al estado EVADE
-                        EvadeController::start_evade(ctx_ptr);
                         enter_evade(ctx_ptr);
                     }
                     else
@@ -352,15 +349,15 @@ namespace OS
         case OS_State::EVADE:
         {
             ok = CheckOnlineStatus(ctx_ptr);
-            if (os.fb_last_command != UserCommand::START || !ok)
-            {   // Si se recibe el comando STOP/IDLE o hay error de conexión, se detiene el movimiento
+            if (!ok || os.fb_last_command != UserCommand::START)
+            {   // Si se recibe STOP/IDLE o hay error de conexión, se detiene el movimiento y se pasa a STAND_BY
                 bool stop_flag = PositionController::stop_movement(
                     pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
                 if (stop_flag)
-                {
+                {   // Esperar a que el movimiento se detenga antes de hacer la transición
                     enter_stand_by(ctx_ptr);
                     os.state = OS_State::STAND_BY;
-                    set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
+                    set_operation_log(OS_State::STAND_BY, OS_State::EVADE, ctx_ptr);
                     if (OS_DEBUG_MODE) {
                         if (!ok) Serial.println("EVADE: Error de conexión, se vuelve a STAND_BY.");
                         else Serial.println("EVADE: Comando STOP/IDLE recibido, se vuelve a STAND_BY.");
@@ -368,18 +365,18 @@ namespace OS
                 }
             }
             else if (evade.include_evade)
-            {
+            {   // Si hay controlador de posición, se utiliza la máquina de estados de evasión
                 EvadeController::update_evade(ctx_ptr);
-                // Si se completó la evasión, se vuelve a ALIGN
                 if (evade.state == EvadeState::FINISHED)
-                {
+                {   // Si se completó la evasión, se vuelve a ALIGN
+                    // Solo se entrega FINISHED desde estados detenidos, por lo que no es necesario detener el movimiento
                     enter_align(ctx_ptr);
                     os.state = OS_State::ALIGN;
                     set_operation_log(OS_State::ALIGN, OS_State::EVADE, ctx_ptr);
                 }
                 else if (evade.state == EvadeState::FAIL)
                 {   // Si falla la evasión, se vuelve a STAND_BY y se avisa punto fallido
-                    PositionController::stop_movement(pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
+                    // Notar que solo se entrega FAIL desde estados detenidos, por lo que no es necesario detener el movimiento
                     register_finished_waypoint_data(false, ctx_ptr); // Registrar datos del waypoint fallado
                     enter_stand_by(ctx_ptr);
                     os.state = OS_State::STAND_BY;
@@ -502,6 +499,9 @@ namespace OS
         // 🚫 Desactivar sensores de obstáculos -> se fuerza la limpieza de las flag de obstáculo
         DistanceSensors::set_state(INACTIVE, sts.distance,
                                    sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
+                                   
+        // Reiniciar el estado de evasión
+        EvadeController::reset_evade_state(ctx_ptr);
 
         return SUCCESS; // Estado IDLE alcanzado
     }
@@ -555,8 +555,8 @@ namespace OS
         DistanceSensors::reset_system(sens.us_left_dist, sens.us_left_obst, sens.us_mid_dist, sens.us_mid_obst,
                                       sens.us_right_dist, sens.us_right_obst, sens.us_obstacle);
 
-        // Reset del estado de evasión
-        EvadeController::reset_evade_state(ctx_ptr);
+        // Reset del estado de evasión -> no se hace porque en online se pasa por STAND_BY en casos de error
+        // EvadeController::reset_evade_state(ctx_ptr);
 
         return SUCCESS;
     }
@@ -613,6 +613,8 @@ namespace OS
         DistanceSensors::set_state(ACTIVE, sts.distance,
                                    sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
         DistanceSensors::force_check_sensors(ctx_ptr);
+        DistanceSensors::update_global_obstacle_flag(
+            sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
 
         // 🟢 Activar control de posición (v_ref y w_ref) y actualizar el tipo de controlador
         PositionController::set_controller_type(os.fb_controller_type, ctrl.controller_type);
@@ -629,7 +631,7 @@ namespace OS
         volatile PoseData &pose = *(ctx_ptr->pose_ptr);
         volatile ControllerData &ctrl = *(ctx_ptr->control_ptr);
         volatile OperationData &os = *(ctx_ptr->os_ptr);
-        bool ok = true;
+        volatile EvadeContext &evade = *(ctx_ptr->evade_ptr);
 
         // 🟡 Reanudar sensores y estimadores
         if (pose.estimator_type == PoseEstimatorType::COMPLEMENTARY)
@@ -647,6 +649,9 @@ namespace OS
         // Sensores de distancia desactivados
         DistanceSensors::set_state(INACTIVE, sts.distance,
                                    sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
+
+        // Mandamos al primer estado de evasión
+        evade.state = EvadeState::SELECT_DIR;
 
         return SUCCESS;
     }
@@ -864,12 +869,17 @@ namespace OS
         volatile OperationData &os = *(ctx_ptr->os_ptr);
         volatile ControllerData &ctrl = *(ctx_ptr->control_ptr);
 
-        // Guardar datos iniciales del waypoint en el buffer
-        os.fb_waypoint_data.input_ts = os.fb_target_buffer.ts;
-        os.fb_waypoint_data.wp_x = os.fb_target_buffer.x;
-        os.fb_waypoint_data.wp_y = os.fb_target_buffer.y;
-        os.fb_waypoint_data.start_ts = get_unix_timestamp();
-
+        // Si el punto es distinto al que tenía antes (quizás se está pidiendo por haber vuelto a STAND_BY), 
+        // se puede reiniciar el estado de evasión y fijar nuevos timestamps en el buffer
+        if (os.fb_target_buffer.x != os.fb_waypoint_data.wp_x || os.fb_target_buffer.y != os.fb_waypoint_data.wp_y)
+        {
+            EvadeController::reset_evade_state(ctx_ptr);
+            os.fb_waypoint_data.input_ts = os.fb_target_buffer.ts;
+            os.fb_waypoint_data.wp_x = os.fb_target_buffer.x;
+            os.fb_waypoint_data.wp_y = os.fb_target_buffer.y;
+            os.fb_waypoint_data.start_ts = get_unix_timestamp();
+            
+        }
         // Establecer el objetivo del controlador: pasar a manual para poder fijar el waypoint
         PositionController::set_control_mode(
             PositionControlMode::MANUAL, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
@@ -925,10 +935,16 @@ namespace OS
         for (;;) {
             vTaskDelayUntil(&xLastWakeTime, period);
             const bool is_moving = (os.state == OS_State::MOVE);
+            const bool obstacle = (sens.us_obstacle && sts.distance == ACTIVE);
             const bool is_aligning = (os.state == OS_State::ALIGN);
-            const bool stop_cmd = (os.fb_last_command != UserCommand::START);
-            const bool offline = ONLINE_MODE && (!CheckOnlineStatus(ctx)); 
-            if ((is_moving && sens.us_obstacle) || ((is_moving || is_aligning) && (stop_cmd || offline)))
+            bool stop_cmd = false;
+            bool offline = false;
+            if (ONLINE_MODE) 
+            {
+                stop_cmd = (os.fb_last_command != UserCommand::START);
+                offline =!CheckOnlineStatus(ctx); 
+            }
+            if ((is_moving && obstacle) || ((is_moving || is_aligning) && (stop_cmd || offline)))
             {
                 if (sts.position != PositionControlMode::MANUAL && sts.position != PositionControlMode::INACTIVE)
                     PositionController::stop_movement(pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);

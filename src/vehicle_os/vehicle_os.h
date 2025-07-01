@@ -102,7 +102,9 @@ bool enter_align(GlobalContext* ctx);
  * @brief Realiza las operaciones para entrar al estado MOVE
  * 
  * Activa todos los sensores y controladores, establece el punto objetivo como el primer punto de la lista de trayectoria,
- * y configura el controlador de posición según el tipo de control seleccionado.
+ * y configura el controlador de posición según el tipo de control seleccionado. 
+ * 
+ * Genera una primera lectura de los sensores de distancia para detectar obstáculos y actualiza la bandera global.
  * 
  * @param ctx Puntero al contexto global con datos del sistema
  * @return true si se inició el movimiento correctamente, false en caso contrario

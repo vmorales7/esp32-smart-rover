@@ -88,16 +88,17 @@ bool set_waypoint(
 
 bool set_diferential_waypoint(
     const float dist, const float delta_theta,
-    volatile float& x_d_global, volatile float& y_d_global, volatile float& theta_d_global,
+    volatile float& x, volatile float& y, volatile float& theta,
+    volatile float& x_d, volatile float& y_d, volatile float& theta_d,
     volatile bool& waypoint_reached, const PositionControlMode control_mode
 ) {
     if (control_mode == PositionControlMode::INACTIVE) {
         return ERROR; // No se actualiza si el modo es inactivo o manual
     }
     // Actualizar las coordenadas del destino
-    theta_d_global = wrap_to_pi(theta_d_global + delta_theta); 
-    x_d_global +=  dist* cosf(theta_d_global);
-    y_d_global += dist * sinf(theta_d_global);
+    theta_d = wrap_to_pi(theta + delta_theta); 
+    x_d +=  dist * cosf(theta_d);
+    y_d += dist * sinf(theta_d);
     reset_pid_state(); // Reiniciar el estado del PID
     reset_backs();
     waypoint_reached = false; // Reiniciar la bandera de waypoint alcanzado
@@ -218,13 +219,11 @@ void reset_pid_state() {
 }
 
 void reset_backs() {
-    
-    e1= 0.0f;
-    e2= 0.0f;
-    e3= 0.0f;
-    last_millis = millis() * MS_TO_S;
+    e1 = 0.0f;
+    e2 = 0.0f;
+    e3 = 0.0f;
+    // last_millis = millis() * MS_TO_S; // no usa tiempo backs
 }
-
 
 
 MovingState update_control_backstepping(
