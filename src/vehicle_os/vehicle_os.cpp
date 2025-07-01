@@ -304,37 +304,45 @@ namespace OS
                 set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
             }
             // Si se da el STOP/IDLE o falla la conexión, se detiene el movimiento y se pasa a STAND_BY
-            else if (!ok || os.fb_last_command != UserCommand::START)
+            else if (!ok || os.fb_last_command != UserCommand::START || sens.us_obstacle)
             { // Si hay error de conexión o STOP/IDLE, se frena el movimiento y se vuelve a STAND_BY cuando se detiene
                 bool stop_flag = PositionController::stop_movement(
                     pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
                 if (stop_flag)
-                {
-                    enter_stand_by(ctx_ptr);
-                    os.state = OS_State::STAND_BY;
-                    set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
-                    if (OS_DEBUG_MODE) {
-                        if (!ok) Serial.println("MOVE: Error de conexión, se vuelve a STAND_BY.");
-                        else Serial.println("MOVE: Comando STOP/IDLE recibido, se vuelve a STAND_BY.");
+                {   // Detención por STOP/IDLE o error de conexión
+                    if (!ok || os.fb_last_command != UserCommand::START) 
+                    {
+                        enter_stand_by(ctx_ptr);
+                        os.state = OS_State::STAND_BY;
+                        set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
+                        if (OS_DEBUG_MODE) {
+                            if (!ok) Serial.println("MOVE: Error de conexión, se vuelve a STAND_BY.");
+                            else Serial.println("MOVE: Comando STOP/IDLE recibido, se vuelve a STAND_BY.");
+                        }
+                    } 
+                    else 
+                    {   // Detención por obstáculo
+                        if (check_skip_evade(ctx_ptr) == true) 
+                        {   // Si el waypoint está tapado por un obstáculo y se puede saltar, se completa el waypoint
+                            register_finished_waypoint_data(false, ctx_ptr);
+                            enter_stand_by(ctx_ptr);
+                            os.state = OS_State::STAND_BY;
+                            set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
+                        } 
+                        else
+                        {
+                            if (evade.include_evade)
+                            {   // Está activa la evasión, se inicia y se entra al estado EVADE
+                                enter_evade(ctx_ptr);
+                            }
+                            else
+                            {   // No está activa la evasión, se espera a que el camino esté libre
+                                enter_wait_free_path(ctx_ptr);
+                            }
+                            set_operation_log(OS_State::EVADE, OS_State::MOVE, ctx_ptr);
+                            os.state = OS_State::EVADE;
+                        }
                     }
-                }
-            }
-            else if (sens.us_obstacle)
-            {   // Si hay obstáculo y seguimos en START + conexión OK, se detiene y entra a evasión
-                bool stop_flag = PositionController::stop_movement(
-                    pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
-                if (stop_flag)
-                {   // Esperar a que el movimiento se detenga
-                    if (evade.include_evade)
-                    {   // Está activa la evasión, se inicia y se entra al estado EVADE
-                        enter_evade(ctx_ptr);
-                    }
-                    else
-                    {   // No está activa la evasión, se espera a que el camino esté libre
-                        enter_wait_free_path(ctx_ptr);
-                    }
-                    set_operation_log(OS_State::EVADE, OS_State::MOVE, ctx_ptr);
-                    os.state = OS_State::EVADE;
                 }
             }
             else
@@ -940,12 +948,12 @@ namespace OS
             bool stop_cmd = false;
             bool offline = false;
             if (ONLINE_MODE) 
-            {
+            {   // Estas condiciones son para el modo online
                 stop_cmd = (os.fb_last_command != UserCommand::START);
                 offline =!CheckOnlineStatus(ctx); 
             }
             if ((is_moving && obstacle) || ((is_moving || is_aligning) && (stop_cmd || offline)))
-            {
+            {   // Movimiento + obstáculo o comando de parada o desconexión
                 if (sts.position != PositionControlMode::MANUAL && sts.position != PositionControlMode::INACTIVE)
                     PositionController::stop_movement(pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
             }
