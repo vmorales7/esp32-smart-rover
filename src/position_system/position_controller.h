@@ -31,8 +31,8 @@ constexpr float INTEGRAL_RHO_MAX = 0.5 * V_MAX / KI_RHO; // Clamping del integra
 
 // Parámetros del controlador tipo backstepping
 constexpr float K1 = 2.5f; 
-constexpr float K2 = 3.5f; //3.0
-constexpr float K3 = 0.1f; // 0.5
+constexpr float K2 = 3.5f;  // 3.5 (o 3.0?)
+constexpr float K3 = 0.08f; // 0.1
 
 // Estructura de datos para poder tener múltiples return
 struct VelocityData {

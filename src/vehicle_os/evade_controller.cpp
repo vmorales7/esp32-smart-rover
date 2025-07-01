@@ -33,9 +33,6 @@ void update_evade(GlobalContext* ctx_ptr) {
     volatile PoseData& pose = *(ctx_ptr->pose_ptr);
     volatile ControllerData& ctrl = *(ctx_ptr->control_ptr);
     volatile EvadeContext& evade = *(ctx_ptr->evade_ptr);
-    //Serial.printf("Estado de evasion: %d\n", static_cast<int>(evade.state));
-    //Serial.printf("Pose punto actual: (%f, %f)\n", pose.x, pose.y);
-    // Serial.printf("Pose objetivo: (%f, %f)\n", ctrl.x_d, ctrl.y_d);
     DistanceSensors::update_global_obstacle_flag(
         sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
 
