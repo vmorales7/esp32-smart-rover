@@ -99,8 +99,8 @@ WheelSpeedPID::WheelSpeedPID(float kp, float ki, float kw)
     }    
 
 // ----- Funciones y variables local (static) de motor_controller -------
-static WheelSpeedPID pidLeft(KP_WHEEL, KI_WHEEL, KW_WHEEL); // Instancia PID motor izq.
-static WheelSpeedPID pidRight(KP_WHEEL, KI_WHEEL, KW_WHEEL); // Instancia PID motor der.
+static WheelSpeedPID* pidLeft = nullptr;  // Instancia PID motor izq.
+static WheelSpeedPID* pidRight = nullptr; // Instancia PID motor der.
 
 
 /* ---------------- MotorController ------------------*/
@@ -111,6 +111,10 @@ void init(
     volatile MotorMode& motor_state_global,
     volatile float& dutyL_global, volatile float& dutyR_global
 ) {
+    // Generar los controladores
+    pidLeft  = new WheelSpeedPID(KP_WHEEL, KI_WHEEL, KW_WHEEL);
+    pidRight = new WheelSpeedPID(KP_WHEEL, KI_WHEEL, KW_WHEEL);
+
     // Configurar pines de control de L298N
     pinMode(MOTOR_LEFT_DIR_PIN1, OUTPUT);
     pinMode(MOTOR_LEFT_DIR_PIN2, OUTPUT);
@@ -193,8 +197,8 @@ void set_motors_mode(
 
     // Clasificación según cambio
     if (mode_new == MotorMode::AUTO) { // Resetear los integradores de PID al pasar a AUTO
-        pidLeft.reset();
-        pidRight.reset();
+        pidLeft->reset();
+        pidRight->reset();
     } else if (mode_new == MotorMode::BREAK) {
         set_motor_break(WHEEL_LEFT);
         set_motor_break(WHEEL_RIGHT);
@@ -255,8 +259,8 @@ void update_motors_control(
 ) {
     if (state != MotorMode::AUTO) return; // Se opera solo en modo auto
     // Cálculo del PI
-    DutyProfile dutyL = pidLeft.compute(w_L_ref, w_L);
-    DutyProfile dutyR = pidRight.compute(w_R_ref, w_R);
+    DutyProfile dutyL = pidLeft->compute(w_L_ref, w_L);
+    DutyProfile dutyR = pidRight->compute(w_R_ref, w_R);
     // Aplicar duty resultante
     apply_duty_profile(WHEEL_LEFT, dutyL, duty_L, state);
     apply_duty_profile(WHEEL_RIGHT, dutyR, duty_R, state);

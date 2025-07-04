@@ -419,7 +419,6 @@ struct OperationData {
     FB_State fb_state; // Estado de la comunicación con Firebase
     WifiStatus wifi_status; // Estado de la conexión WiFi
     UserCommand fb_last_command;
-    volatile uint8_t buffer_guard = 0xAA;
     ControlType fb_controller_type; // Tipo de controlador usado en el último comando
     TargetPoint fb_target_buffer; // Punto objetivo actual
     WaypointData fb_waypoint_data; // Data del waypoint actual (se envia a Firebase)
@@ -437,7 +436,7 @@ struct OperationData {
         fb_waypoint_data(),
         fb_completed_but_not_sent(false)
     {
-        // last_log[0] = '\0'; // String vacío al inicio
+        last_log[0] = '\0'; // String vacío al inicio
     }
 };
 

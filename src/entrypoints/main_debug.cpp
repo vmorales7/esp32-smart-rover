@@ -47,9 +47,6 @@ struct GlobalContext {
 };
 
 // ====================== VARIABLES GLOBALES ======================
-// SystemStates syst;
-// SensorsData sens;
-// GlobalContext ctx;
 GlobalContext* ctx = nullptr;
 
 // =================== Operación del sistema ====================
@@ -63,10 +60,14 @@ void setup() {
     ctx->systems_ptr = new SystemStates;
     ctx->sensors_ptr = new SensorsData;
 
-    Serial.println("Setting WiFi mode...");
-    WiFi.mode(WIFI_STA);
     Serial.println("Iniciando WiFi...");
+    WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID, WIFI_PASS);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+    }
+    Serial.println("\n¡WiFi conectado!");
 }
 
 void loop() {

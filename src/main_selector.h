@@ -20,8 +20,8 @@
 // #define USE_MAIN_POSITION_POINTS        // Múltiples posiciones + detención por obstáculo
 //  #define USE_MAIN_AVANCE3               // Pruebas de OS + evasión de obstáculos sin Firebase
 // #define USE_MAIN_FIREBASE_BASIC
-// #define USE_MAIN_AVANCE4         
-#define USE_MAIN_DEBUG
+#define USE_MAIN_AVANCE4         
+// #define USE_MAIN_DEBUG
 
 
 // ===================================================

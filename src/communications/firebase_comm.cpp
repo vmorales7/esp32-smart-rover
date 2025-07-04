@@ -779,42 +779,14 @@ void Task_PushStatus(void *pvParameters) {
     }
 }
 
-// void Task_GetCommands(void *pvParameters) {
-//     // Configuración del periodo de muestreo
-//     TickType_t xLastWakeTime = xTaskGetTickCount();
-//     const TickType_t period = pdMS_TO_TICKS(FB_GET_COMMANDS_PERIOD_MS);
-//     // Recuperar variables globales
-//     GlobalContext* ctx_ptr = static_cast<GlobalContext*>(pvParameters);
-//     volatile OperationData& os = *(ctx_ptr->os_ptr);
-//     // Ejecutar tarea periódicamente
-//     for (;;) {
-//         vTaskDelayUntil(&xLastWakeTime, period);
-//         uint8_t action = 0;
-//         uint8_t controller_type = 0;
-//         if (os.state != OS_State::INIT) 
-//         {
-//             if (UpdateCommands(action, controller_type, os.fb_state) == FB_State::OK) 
-//             {
-//                 os.fb_last_command    = Int2Cmd(action);
-//                 os.fb_controller_type = Int2CtrlType(controller_type);
-//                 if (FB_DEBUG_MODE) {
-//                     Serial.printf("Task_GetCommands: action=%u → cmd=%d, ctrl_type=%u → ctrl=%d\n",
-//                         action, (int)os.fb_last_command, controller_type, (int)os.fb_controller_type);
-//                 }
-//             }
-//         }
-//     }
-// }
-
-void Task_GetCommands(void *pvParameters) 
-{
+void Task_GetCommands(void *pvParameters) {
+    // Configuración del periodo de muestreo
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    const TickType_t period = pdMS_TO_TICKS(FB_GET_COMMANDS_PERIOD_MS);
     // Recuperar variables globales
     GlobalContext* ctx_ptr = static_cast<GlobalContext*>(pvParameters);
     volatile OperationData& os = *(ctx_ptr->os_ptr);
-
-    // Ejecutar tarea periodicamente
-    TickType_t xLastWakeTime = xTaskGetTickCount();
-    const TickType_t period = pdMS_TO_TICKS(FB_GET_COMMANDS_PERIOD_MS);
+    // Ejecutar tarea periódicamente
     for (;;) {
         vTaskDelayUntil(&xLastWakeTime, period);
         uint8_t action = 0;
@@ -823,39 +795,16 @@ void Task_GetCommands(void *pvParameters)
         {
             if (UpdateCommands(action, controller_type, os.fb_state) == FB_State::OK) 
             {
-                switch (action) {
-                    case 0:
-                        os.fb_last_command = UserCommand::STOP;
-                        if (FB_DEBUG_MODE) Serial.printf("[Task_GetCommands] Asignado STOP (0). Valor actual: %d\n", (int)os.fb_last_command);
-                        break;
-                    case 1:
-                        os.fb_last_command = UserCommand::START;
-                        if (FB_DEBUG_MODE) Serial.printf("[Task_GetCommands] Asignado START (1). Valor actual: %d\n", (int)os.fb_last_command);
-                        break;
-                    case 2:
-                        os.fb_last_command = UserCommand::IDLE;
-                        if (FB_DEBUG_MODE) Serial.printf("[Task_GetCommands] Asignado IDLE (2). Valor actual: %d\n", (int)os.fb_last_command);
-                        break;
-                    default: 
-                        os.fb_last_command = UserCommand::STOP;
-                        os.fb_state = FB_State::ERROR;
-                        if (FB_DEBUG_MODE) Serial.printf("[Task_GetCommands] Acción inválida: %u. Asignado STOP (0). Valor actual: %d\n", action, (int)os.fb_last_command);
-                        break;
-                }
-                switch (controller_type) {
-                    case 0: os.fb_controller_type = ControlType::PID; break;
-                    case 1: os.fb_controller_type = ControlType::BACKS; break;
-                    default:
-                        os.fb_controller_type = ControlType::PID;  // Valor seguro por defecto
-                        os.fb_state = FB_State::ERROR;
-                        if (FB_DEBUG_MODE) Serial.printf("Task_FirebaseGetCommands: controlador inválido: %u\n", controller_type);
-                        break;
+                os.fb_last_command    = Int2Cmd(action);
+                os.fb_controller_type = Int2CtrlType(controller_type);
+                if (FB_DEBUG_MODE) {
+                    Serial.printf("Task_GetCommands: action=%u → cmd=%d, ctrl_type=%u → ctrl=%d\n",
+                        action, (int)os.fb_last_command, controller_type, (int)os.fb_controller_type);
                 }
             }
         }
     }
 }
-
 
 void Task_Loop(void *pvParameters) {
     // Configuración del periodo de muestreo

@@ -4,6 +4,7 @@
 // Generales
 #include <Arduino.h>
 #include "vehicle_os/general_config.h"
+#include "vehicle_os/vehicle_os.h"
 
 // Herramientas para generar cliente de Firebase
 #include "wifi_basic.h"
