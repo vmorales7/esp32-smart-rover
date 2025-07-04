@@ -17,13 +17,13 @@ void setup() {
     ctx_ptr->rtos_task_ptr = new TaskHandlers;
     ctx_ptr->evade_ptr     = new EvadeContext;
 
-    // Poner en operación el sistema operativo del vehículo
-    OS::enter_init(ctx_ptr);
-
     // Configurar control de evasión y estimador de pose
     ctx_ptr->os_ptr->fb_controller_type = CONTROLLER_TYPE;
     ctx_ptr->evade_ptr->include_evade = INCLUDE_EVADE;
     ctx_ptr->pose_ptr->estimator_type = POSE_ESTIMATOR_TYPE; 
+
+    // Poner en operación el sistema operativo del vehículo
+    OS::enter_init(ctx_ptr);
 }
 
 void loop() {}

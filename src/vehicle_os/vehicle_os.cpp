@@ -269,6 +269,7 @@ namespace OS
         }
         case OS_State::ALIGN:
         {   // Este estado se usa para alinear el vehículo hacia el objetivo
+            if (OS_DEBUG_MODE) Serial.printf("[ALIGN] Instrucción: %d\n", Cmd2Int(os.fb_last_command));
             ok = CheckOnlineStatus(ctx_ptr);
             if (!ok || os.fb_last_command != UserCommand::START)
             { // Si hay error de conexión o STOP/IDLE, se frena el movimiento y se vuelve a STAND_BY cuando se detiene
@@ -456,7 +457,6 @@ namespace OS
         EncoderReader::init(sens.enc_phiL, sens.enc_phiR, sens.enc_wL, sens.enc_wR, sts.encoders);
         PoseEstimator::init(pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R,
                             sens.enc_phiL, sens.enc_phiR, sens.imu_theta, sts.pose);
-        if (OS_DEBUG_MODE) Serial.println("Posición lista."); 
         MotorController::init(sts.motors, ctrl.duty_L, ctrl.duty_R);
         DistanceSensors::init(sens.us_left_dist, sens.us_left_obst, sens.us_mid_dist, sens.us_mid_obst,
                               sens.us_right_dist, sens.us_right_obst, sens.us_obstacle, sts.distance);

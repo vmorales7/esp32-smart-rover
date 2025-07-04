@@ -625,16 +625,67 @@ FB_State ClearPendingWaypoints(volatile FB_State& fb_state) {
 }
 
 FB_State FullReset(volatile FB_State& fb_state) {
-    // Estado interno de la operación
+    static bool command_idle_sent = false;
+    static bool command_idle_done = false;
     static bool request_sent      = false;
     static bool status_done       = false;
     static bool finalized_done    = false;
     static bool pendings_done     = false;
-    static bool command_idle_done = false;
     static uint32_t time_sent     = 0;
     static uint8_t error_count    = 0;
 
-    // 1. Enviar solicitudes solo la primera vez
+    // 1. Forzar comando IDLE al inicio
+    if (!command_idle_sent) {
+        JsonDocument doc;
+        doc["action"] = 2;           // 2 = IDLE
+        doc["controller_type"] = 0;  // 0 = PID
+        String path = "/commands";
+        SetJson(path, doc, async_commands);
+        command_idle_sent = true;
+        command_idle_done = false;
+        time_sent = millis();
+        if (FB_DEBUG_MODE) Serial.println("FullReset: Forzando /commands a IDLE...");
+        return FB_State::PENDING;
+    }
+    // 2. Esperar respuesta del push a /commands (async_commands)
+    if (!command_idle_done) {
+        if (async_commands.isResult()) {
+            if (!async_commands.isError()) {
+                command_idle_done = true;
+                if (FB_DEBUG_MODE) Serial.println("FullReset: /commands en IDLE correctamente.");
+            } else {
+                error_count++;
+                command_idle_sent = false; // Volver a intentar
+                if (FB_DEBUG_MODE) {
+                    Serial.print("FullReset: Error al forzar /commands -> ");
+                    Serial.println(async_commands.error().message().c_str());
+                }
+                if (error_count >= FB_PUSH_CLEAR_MAX_ERRORS) {
+                    error_count = 0;
+                    fb_state = FB_State::ERROR;
+                    if (FB_DEBUG_MODE) Serial.println("FullReset: Error permanente en /commands.");
+                    return FB_State::ERROR;
+                }
+                return FB_State::PENDING;
+            }
+        } else if (millis() - time_sent > FB_PUSH_CLEAR_TIMEOUT_MS) {
+            error_count++;
+            command_idle_sent = false; // Volver a intentar
+            if (FB_DEBUG_MODE) Serial.println("FullReset: Timeout esperando /commands...");
+            if (error_count >= FB_PUSH_CLEAR_MAX_ERRORS) {
+                error_count = 0;
+                fb_state = FB_State::ERROR;
+                if (FB_DEBUG_MODE) Serial.println("FullReset: Timeout permanente en /commands.");
+                return FB_State::ERROR;
+            }
+            return FB_State::PENDING;
+        } else {
+            // Esperar a que termine la operación
+            return FB_State::PENDING;
+        }
+    }
+
+    // 3. Enviar eliminaciones una vez forzado el comando
     if (!request_sent) {
         if (FB_DEBUG_MODE) Serial.println("\nFullReset: Enviando solicitudes de eliminación global...");
         rtdb_ptr->remove(*async_client_ptr, "/status_log", async_status);
@@ -644,84 +695,76 @@ FB_State FullReset(volatile FB_State& fb_state) {
         status_done       = false;
         finalized_done    = false;
         pendings_done     = false;
-        command_idle_done = false;
         time_sent         = millis();
-        error_count       = 0;
         return FB_State::PENDING;
     }
 
-    // 2. Revisar /status_log
+    // 4. Revisar /status_log
     if (!status_done && async_status.isResult()) {
         if (async_status.isError()) {
+            error_count++;
             if (FB_DEBUG_MODE) {
                 Serial.print("FullReset: Error al eliminar /status_log -> ");
                 Serial.println(async_status.error().message().c_str());
             }
-            error_count++;
         } else {
             if (FB_DEBUG_MODE) Serial.println("FullReset: /status_log eliminado correctamente.");
         }
         status_done = true;
     }
 
-    // 3. Revisar /waypoints_finalized
+    // 5. Revisar /waypoints_finalized
     if (!finalized_done && async_reached_waypoints.isResult()) {
         if (async_reached_waypoints.isError()) {
+            error_count++;
             if (FB_DEBUG_MODE) {
                 Serial.print("FullReset: Error al eliminar /waypoints_finalized -> ");
                 Serial.println(async_reached_waypoints.error().message().c_str());
             }
-            error_count++;
         } else {
             if (FB_DEBUG_MODE) Serial.println("FullReset: /waypoints_finalized eliminado correctamente.");
         }
         finalized_done = true;
     }
 
-    // 4. Revisar /waypoints_pending
+    // 6. Revisar /waypoints_pending
     if (!pendings_done && async_pending_waypoints.isResult()) {
         if (async_pending_waypoints.isError()) {
+            error_count++;
             if (FB_DEBUG_MODE) {
                 Serial.print("FullReset: Error al eliminar /waypoints_pending -> ");
                 Serial.println(async_pending_waypoints.error().message().c_str());
             }
-            error_count++;
         } else {
             if (FB_DEBUG_MODE) Serial.println("FullReset: /waypoints_pending eliminado correctamente.");
         }
         pendings_done = true;
     }
 
-    // 5. Cuando todo esté eliminado, forzar el comando a IDLE (solo una vez)
-    if (status_done && finalized_done && pendings_done && !command_idle_done) {
-        ForceCommandIdle(); // fire-and-forget, la interfaz se actualiza de inmediato
-        command_idle_done = true;
-        if (FB_DEBUG_MODE) Serial.println("FullReset: /commands forzado a IDLE.");
-        // Puedes decidir si aquí retornas PENDING para dar tiempo a propagarse, pero generalmente OK de inmediato.
-    }
-
-    // 6. Si todas las operaciones terminaron, resetear flags y devolver OK
-    if (status_done && finalized_done && pendings_done && command_idle_done) {
+    // 7. Si todo terminó, resetear flags y devolver OK
+    if (status_done && finalized_done && pendings_done) {
+        command_idle_sent = false;
+        command_idle_done = false;
         request_sent      = false;
         status_done       = false;
         finalized_done    = false;
         pendings_done     = false;
-        command_idle_done = false;
         error_count       = 0;
         fb_state = FB_State::OK;
         if (FB_DEBUG_MODE) Serial.println("FullReset: COMPLETADO exitosamente.");
         return FB_State::OK;
     }
 
-    // 7. Timeout global
+    // 8. Timeout global
     if (millis() - time_sent > FB_PUSH_CLEAR_TIMEOUT_MS) {
         error_count++;
+        command_idle_sent = false;
+        command_idle_done = false;
         request_sent      = false;
         status_done       = false;
         finalized_done    = false;
         pendings_done     = false;
-        command_idle_done = false;
-        if (FB_DEBUG_MODE) Serial.println("FullReset: Timeout alcanzado. Reintentando...");
+        if (FB_DEBUG_MODE) Serial.println("FullReset: Timeout global alcanzado. Reintentando...");
         if (error_count >= FB_PUSH_CLEAR_MAX_ERRORS) {
             error_count = 0;
             fb_state = FB_State::ERROR;
