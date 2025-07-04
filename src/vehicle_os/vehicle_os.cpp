@@ -20,7 +20,7 @@ namespace OS
         { // Solo se ejecuta como paso hacia IDLE
             enter_idle(ctx_ptr);
             os.state = OS_State::IDLE;
-            set_operation_log(OS_State::IDLE, OS_State::INIT, ctx_ptr);
+            //set_operation_log(OS_State::IDLE, OS_State::INIT, ctx_ptr);
             break;
         }
         case OS_State::IDLE: 
@@ -28,9 +28,8 @@ namespace OS
             if (os.local_total_targets > 0)
             {
                 enter_stand_by(ctx_ptr);
-                reset_local_status(ctx_ptr);
                 os.state = OS_State::STAND_BY;
-                set_operation_log(OS_State::STAND_BY, OS_State::IDLE, ctx_ptr);
+                //set_operation_log(OS_State::STAND_BY, OS_State::IDLE, ctx_ptr);
             }
             break;
         }
@@ -42,12 +41,12 @@ namespace OS
             {                                 // Si hay puntos pendientes, se entra al estado ALIGN
                 enter_align(ctx_ptr);         // El controlador intentará alinear el vehículo hacia el objetivo
                 os.state = OS_State::ALIGN;
-                set_operation_log(OS_State::ALIGN, OS_State::STAND_BY, ctx_ptr);
+                //set_operation_log(OS_State::ALIGN, OS_State::STAND_BY, ctx_ptr);
                 EvadeController::reset_evade_state(ctx_ptr);
             }
             else 
             {   // Si no se poner punto nuevo, nos quedamos en STAND_BY
-                set_operation_log(OS_State::STAND_BY, OS_State::STAND_BY, ctx_ptr);
+                //set_operation_log(OS_State::STAND_BY, OS_State::STAND_BY, ctx_ptr);
             }
             break;
         }
@@ -61,13 +60,13 @@ namespace OS
                 {  // Si se pudo entrar al estado MOVE, se actualiza el estado
                     enter_move(ctx_ptr);
                     os.state = OS_State::MOVE;
-                    set_operation_log(OS_State::MOVE, OS_State::ALIGN, ctx_ptr);
+                    //set_operation_log(OS_State::MOVE, OS_State::ALIGN, ctx_ptr);
                 }
                 else
                 {   // Si no se pudo entrar al estado MOVE, se vuelve a STAND_BY
                     enter_stand_by(ctx_ptr);
                     os.state = OS_State::STAND_BY;
-                    set_operation_log(OS_State::STAND_BY, OS_State::ALIGN, ctx_ptr);
+                    //set_operation_log(OS_State::STAND_BY, OS_State::ALIGN, ctx_ptr);
                 }
             }
             break;
@@ -82,12 +81,12 @@ namespace OS
                 if (!ok) { // Si se acabaron los waypoints, se vuelve a STAND_BY
                     enter_stand_by(ctx_ptr);
                     os.state = OS_State::STAND_BY;
-                    set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
+                    //set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
                 } else { // Si se pudo establecer el siguiente waypoint, se vuelve a ALIGN
                     enter_align(ctx_ptr);
                     EvadeController::reset_evade_state(ctx_ptr); // Reiniciar el estado de evasión en cada waypoint nuevo
                     os.state = OS_State::ALIGN;
-                    set_operation_log(OS_State::ALIGN, OS_State::MOVE, ctx_ptr);
+                    //set_operation_log(OS_State::ALIGN, OS_State::MOVE, ctx_ptr);
                 }
             }
             else if (sens.us_obstacle)
@@ -105,11 +104,11 @@ namespace OS
                         if (!ok) { // Si no se pudo fijar, se vuelve a STAND_BY
                             enter_stand_by(ctx_ptr);
                             os.state = OS_State::STAND_BY;
-                            set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
+                            //set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
                         } else { // Si se pudo completar el waypoint, se vuelve a ALIGN
                             enter_align(ctx_ptr);
                             os.state = OS_State::ALIGN;
-                            set_operation_log(OS_State::ALIGN, OS_State::MOVE, ctx_ptr);
+                            //set_operation_log(OS_State::ALIGN, OS_State::MOVE, ctx_ptr);
                             EvadeController::reset_evade_state(ctx_ptr); // Reiniciar el estado de evasión en cada waypoint nuevo
                         }
                     } 
@@ -119,7 +118,7 @@ namespace OS
                         } else { // Caso sin evasión, se espera a que el camino esté libre
                             enter_wait_free_path(ctx_ptr);
                         }
-                        set_operation_log(OS_State::EVADE, OS_State::MOVE, ctx_ptr);
+                        //set_operation_log(OS_State::EVADE, OS_State::MOVE, ctx_ptr);
                         os.state = OS_State::EVADE;
                     }
                 }
@@ -135,7 +134,7 @@ namespace OS
                 {   
                     enter_align(ctx_ptr);
                     os.state = OS_State::ALIGN;
-                    set_operation_log(OS_State::ALIGN, OS_State::EVADE, ctx_ptr);
+                    //set_operation_log(OS_State::ALIGN, OS_State::EVADE, ctx_ptr);
                 }
                 else if (evade.state == EvadeState::FAIL) // Reiniciar evasión y establecer un nuevo waypoint
                 {   
@@ -146,13 +145,13 @@ namespace OS
                     {   // No hay más waypoints disponibles, volver a STAND_BY
                         enter_stand_by(ctx_ptr);
                         os.state = OS_State::STAND_BY;
-                        set_operation_log(OS_State::STAND_BY, OS_State::EVADE, ctx_ptr);
+                        //set_operation_log(OS_State::STAND_BY, OS_State::EVADE, ctx_ptr);
                     }
                     else
                     {   // Waypoint siguiente fijado con éxito, ir a ALIGN
                         enter_align(ctx_ptr);
                         os.state = OS_State::ALIGN;
-                        set_operation_log(OS_State::ALIGN, OS_State::EVADE, ctx_ptr);
+                        //set_operation_log(OS_State::ALIGN, OS_State::EVADE, ctx_ptr);
                     }
                 }
             }
@@ -164,7 +163,7 @@ namespace OS
                 {   // Si el camino está libre, se vuelve a MOVE
                     enter_move(ctx_ptr);
                     os.state = OS_State::MOVE;
-                    set_operation_log(OS_State::MOVE, OS_State::EVADE, ctx_ptr);
+                    //set_operation_log(OS_State::MOVE, OS_State::EVADE, ctx_ptr);
                 }
             }
             break;
@@ -189,44 +188,51 @@ namespace OS
         {
         case OS_State::INIT:
         { // Solo se ejecuta como paso hacia IDLE
-            fb_result = reset_online_status(ctx_ptr);
+            if (os.buffer_guard != 0xAA) Serial.println("[ERROR] buffer_guard modificado!");
+            fb_result = reset_online_status(ctx_ptr); // Se hace no bloqueante para poder usarla en otras partes
             if (fb_result == FB_State::OK)
-            { // Si se pudo resetear el estado online, se entra a STAND_BY
+            { // Si se pudo resetear el estado online, se entra a IDLE
                 enter_idle(ctx_ptr);
                 os.state = OS_State::IDLE;
-                set_operation_log(OS_State::IDLE, OS_State::INIT, ctx_ptr);
+                //set_operation_log(OS_State::IDLE, OS_State::INIT, ctx_ptr);
             }
             break;
         }
         case OS_State::IDLE:
-        {
+        {   
+            // if (OS_DEBUG_MODE) Serial.printf("[IDLE] Instrucción: %d\n", Cmd2Int(os.fb_last_command));
+            if (os.buffer_guard != 0xAA) Serial.println("[ERROR] buffer_guard modificado!");
+            if (OS_DEBUG_MODE) Serial.printf("[IDLE] Instrucción: %d\n", (int)os.fb_last_command);
             if (CheckOnlineStatus(ctx_ptr) == false)
             {   // Si no hay conexión WiFi o Firebase no está verificado, se mantiene en IDLE
-                set_operation_log(OS_State::IDLE, OS_State::IDLE, ctx_ptr);
+                //set_operation_log(OS_State::IDLE, OS_State::IDLE, ctx_ptr);
             }
-            else if (os.fb_last_command == UserCommand::START)
-            {   // Si se da un start desde Firebase, se entra a STAND_BY y se resetea el estado
+            else if (os.fb_last_command == UserCommand::START || os.fb_last_command == UserCommand::STOP)
+            {   // Si se da un start/stop desde Firebase, se entra a STAND_BY y se resetea el estado
                 fb_result = reset_online_status(ctx_ptr);
                 if (fb_result == FB_State::OK)
                 { // Si se pudo resetear el estado online, se entra a STAND_BY
                     enter_stand_by(ctx_ptr);
                     os.state = OS_State::STAND_BY;
-                    set_operation_log(OS_State::STAND_BY, OS_State::IDLE, ctx_ptr);
+                    //set_operation_log(OS_State::STAND_BY, OS_State::IDLE, ctx_ptr);
                 }
                 else
                 { // Si no se pudo resetear, se queda en IDLE
-                    set_operation_log(OS_State::IDLE, OS_State::IDLE, ctx_ptr);
+                    //set_operation_log(OS_State::IDLE, OS_State::IDLE, ctx_ptr);
                 }
             }
             break;
         }
         case OS_State::STAND_BY:
-        {
+        {   
+            // if (OS_DEBUG_MODE) Serial.printf("[STAND-BY] Instrucción: %d\n", Cmd2Int(os.fb_last_command));
+            if (os.buffer_guard != 0xAA) Serial.println("[ERROR] buffer_guard modificado!");
+            if (OS_DEBUG_MODE) Serial.printf("[STAND-BY] Instrucción: %d\n", (int)os.fb_last_command);
             // Si no hay conexión WiFi o Firebase no está verificado, se espera a que se conecte
             if (CheckOnlineStatus(ctx_ptr) == false)
             {   
                 if (OS_DEBUG_MODE) Serial.println("STAND_BY: No hay conexión WiFi o Firebase no verificado.");
-                set_operation_log(OS_State::STAND_BY, OS_State::STAND_BY, ctx_ptr);
+                //set_operation_log(OS_State::STAND_BY, OS_State::STAND_BY, ctx_ptr);
             }
             // Siempre se verifica si el último punto completado fue enviado a Firebase
             // Si hay error, se queda en STAND_BY por no poder remover el pendiente
@@ -247,7 +253,10 @@ namespace OS
                     set_online_waypoint(ctx_ptr);
                     enter_align(ctx_ptr);
                     os.state = OS_State::ALIGN;
-                    set_operation_log(OS_State::ALIGN, OS_State::STAND_BY, ctx_ptr);
+                    //set_operation_log(OS_State::ALIGN, OS_State::STAND_BY, ctx_ptr);
+                    if (OS_DEBUG_MODE) 
+                        Serial.printf("STAND_BY: Comando START recibido, se pasa a ALIGN con waypoint (%f, %f).\n", 
+                            os.fb_target_buffer.x, os.fb_target_buffer.y);
                 }
             } // Último punto alcanzado fue enviado + comando IDLE
             else if (os.fb_last_command == UserCommand::IDLE)
@@ -257,7 +266,7 @@ namespace OS
                 {   // Si se pudo eliminar los waypoints pendiente o fue error, se vuelve a IDLE
                     enter_idle(ctx_ptr);
                     os.state = OS_State::IDLE;
-                    set_operation_log(OS_State::IDLE, OS_State::STAND_BY, ctx_ptr);
+                    //set_operation_log(OS_State::IDLE, OS_State::STAND_BY, ctx_ptr);
                 }
             }
             break;
@@ -273,7 +282,7 @@ namespace OS
                 {
                     enter_stand_by(ctx_ptr);
                     os.state = OS_State::STAND_BY;
-                    set_operation_log(OS_State::STAND_BY, OS_State::ALIGN, ctx_ptr);
+                    //set_operation_log(OS_State::STAND_BY, OS_State::ALIGN, ctx_ptr);
                     if (OS_DEBUG_MODE) {
                         if (!ok) Serial.println("ALIGN: Error de conexión, se vuelve a STAND_BY.");
                         else Serial.println("ALIGN: Comando STOP/IDLE recibido, se vuelve a STAND_BY.");
@@ -285,7 +294,7 @@ namespace OS
                 ctrl.waypoint_reached = false; // Limpiar la flag para el controlador de posición
                 enter_move(ctx_ptr);
                 os.state = OS_State::MOVE;
-                set_operation_log(OS_State::MOVE, OS_State::ALIGN, ctx_ptr);
+                //set_operation_log(OS_State::MOVE, OS_State::ALIGN, ctx_ptr);
                 if (OS_DEBUG_MODE) Serial.println("ALIGN: Alineación completada. Transición a MOVE.");
             }
             else
@@ -305,7 +314,7 @@ namespace OS
                 register_finished_waypoint_data(true, ctx_ptr); // Registrar datos del waypoint alcanzado
                 enter_stand_by(ctx_ptr);
                 os.state = OS_State::STAND_BY;
-                set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
+                //set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
             }
             // Si se da el STOP/IDLE o falla la conexión, se detiene el movimiento y se pasa a STAND_BY
             else if (!ok || os.fb_last_command != UserCommand::START || sens.us_obstacle)
@@ -318,7 +327,7 @@ namespace OS
                     {
                         enter_stand_by(ctx_ptr);
                         os.state = OS_State::STAND_BY;
-                        set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
+                        //set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
                         if (OS_DEBUG_MODE) {
                             if (!ok) Serial.println("MOVE: Error de conexión, se vuelve a STAND_BY.");
                             else Serial.println("MOVE: Comando STOP/IDLE recibido, se vuelve a STAND_BY.");
@@ -331,7 +340,7 @@ namespace OS
                             register_finished_waypoint_data(false, ctx_ptr);
                             enter_stand_by(ctx_ptr);
                             os.state = OS_State::STAND_BY;
-                            set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
+                            //set_operation_log(OS_State::STAND_BY, OS_State::MOVE, ctx_ptr);
                         } 
                         else
                         {
@@ -343,7 +352,7 @@ namespace OS
                             {   // No está activa la evasión, se espera a que el camino esté libre
                                 enter_wait_free_path(ctx_ptr);
                             }
-                            set_operation_log(OS_State::EVADE, OS_State::MOVE, ctx_ptr);
+                            //set_operation_log(OS_State::EVADE, OS_State::MOVE, ctx_ptr);
                             os.state = OS_State::EVADE;
                         }
                     }
@@ -369,7 +378,7 @@ namespace OS
                 {   // Esperar a que el movimiento se detenga antes de hacer la transición
                     enter_stand_by(ctx_ptr);
                     os.state = OS_State::STAND_BY;
-                    set_operation_log(OS_State::STAND_BY, OS_State::EVADE, ctx_ptr);
+                    //set_operation_log(OS_State::STAND_BY, OS_State::EVADE, ctx_ptr);
                     if (OS_DEBUG_MODE) {
                         if (!ok) Serial.println("EVADE: Error de conexión, se vuelve a STAND_BY.");
                         else Serial.println("EVADE: Comando STOP/IDLE recibido, se vuelve a STAND_BY.");
@@ -384,7 +393,7 @@ namespace OS
                     // Solo se entrega FINISHED desde estados detenidos, por lo que no es necesario detener el movimiento
                     enter_align(ctx_ptr);
                     os.state = OS_State::ALIGN;
-                    set_operation_log(OS_State::ALIGN, OS_State::EVADE, ctx_ptr);
+                    //set_operation_log(OS_State::ALIGN, OS_State::EVADE, ctx_ptr);
                 }
                 else if (evade.state == EvadeState::FAIL)
                 {   // Si falla la evasión, se vuelve a STAND_BY y se avisa punto fallido
@@ -392,7 +401,7 @@ namespace OS
                     register_finished_waypoint_data(false, ctx_ptr); // Registrar datos del waypoint fallado
                     enter_stand_by(ctx_ptr);
                     os.state = OS_State::STAND_BY;
-                    set_operation_log(OS_State::STAND_BY, OS_State::EVADE, ctx_ptr);
+                    //set_operation_log(OS_State::STAND_BY, OS_State::EVADE, ctx_ptr);
                 }
             }
             else
@@ -403,7 +412,7 @@ namespace OS
                 {
                     enter_move(ctx_ptr);
                     os.state = OS_State::MOVE;
-                    set_operation_log(OS_State::MOVE, OS_State::EVADE, ctx_ptr);
+                    //set_operation_log(OS_State::MOVE, OS_State::EVADE, ctx_ptr);
                 }
             }
             break;
@@ -424,8 +433,8 @@ namespace OS
         os.state = OS_State::INIT;
 
         // 1. Iniciar serial para depuración y retardo de inicio
-        Serial.begin(115200);
-        delay(1000);
+        // Serial.begin(115200);
+        // delay(5000);
         Serial.println("\nIniciando operación del vehículo...");
         delay(5000);
 
@@ -438,12 +447,12 @@ namespace OS
             init_time();
             Serial.println("\nIniciando Firebase...");
             FirebaseComm::ConnectFirebase();
-            delay(10000);
-        } // Ambas son operaciones bloqueantes, por lo que el sistema no avanzará hasta que se completen
-        if (OS_DEBUG_MODE) Serial.println("\nCosas wifi listas...");
-        delay(1000);
+            if (OS_DEBUG_MODE) Serial.println("\nConexión wireless realizada...");
+            delay(1000);
+        } // Todas son operaciones bloqueantes, por lo que el sistema no avanzará hasta que se completen
 
         // 2. Inicialización de módulos individuales
+        if (OS_DEBUG_MODE) Serial.println("Lanzando operación de sistemas locales."); 
         if (pose.estimator_type == PoseEstimatorType::COMPLEMENTARY)
         {
             IMUSensor::init(sens.imu_acc, sens.imu_w, sens.imu_theta, sts.imu);
@@ -456,9 +465,10 @@ namespace OS
                               sens.us_right_dist, sens.us_right_obst, sens.us_obstacle, sts.distance);
         PositionController::init(sts.position, ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached,
                                  ctrl.w_L_ref, ctrl.w_R_ref);
-        if (OS_DEBUG_MODE) Serial.println("Módulos individuales inicializados.");         
+        
 
         // 3. Lanzar tareas RTOS núcleo 1
+        if (OS_DEBUG_MODE) Serial.println("Iniciando tareas RTOS."); 
         if (pose.estimator_type == PoseEstimatorType::COMPLEMENTARY)
         {
             xTaskCreatePinnedToCore(IMUSensor::Task_IMUData, "UpdateIMU", 2 * BASIC_STACK_SIZE, ctx_ptr, 3, nullptr, 1);
@@ -471,22 +481,20 @@ namespace OS
             MotorController::Task_WheelControl, "WheelControl", 2 * BASIC_STACK_SIZE, ctx_ptr, 2, nullptr, 1);
         xTaskCreatePinnedToCore(
             PositionController::Task_PositionControl, "PositionControl", 3 * BASIC_STACK_SIZE, ctx_ptr, 1, nullptr, 1);
-        if (OS_DEBUG_MODE) Serial.println("Tasks núcleo 1 lanzados."); 
 
         // 4. Lanzar tareas RTOS núcleo 0
-        xTaskCreatePinnedToCore(OS::Task_VehicleOS, "VehicleOS", 3 * BASIC_STACK_SIZE, ctx_ptr, 0, nullptr, 0);
+        xTaskCreatePinnedToCore(OS::Task_VehicleOS, "VehicleOS", 6 * BASIC_STACK_SIZE, ctx_ptr, 0, nullptr, 0);
         xTaskCreatePinnedToCore(
-            DistanceSensors::Task_CheckObstacle, "CheckObstacles", 2 * BASIC_STACK_SIZE, ctx_ptr, 2, &(task_handlers.obstacle_handle), 0);
-        xTaskCreatePinnedToCore(Task_StopOnRiskFlags, "StopOnRiskFlags", BASIC_STACK_SIZE, ctx_ptr, 1, nullptr, 0);
+            DistanceSensors::Task_CheckObstacle, "CheckObstacles", 2 * BASIC_STACK_SIZE, ctx_ptr, 3, &(task_handlers.obstacle_handle), 0);
+        xTaskCreatePinnedToCore(Task_StopOnRiskFlags, "StopOnRiskFlags", BASIC_STACK_SIZE, ctx_ptr, 4, nullptr, 0);
         if (ONLINE_MODE)
         {
-            xTaskCreatePinnedToCore(Task_CheckWifi, "CheckWifi", BASIC_STACK_SIZE, ctx_ptr, 1, nullptr, 0);
-            xTaskCreatePinnedToCore(FirebaseComm::Task_PushStatus, "FirebasePushStatus", 4 * BASIC_STACK_SIZE, ctx_ptr, 1, nullptr, 0);
-            xTaskCreatePinnedToCore(FirebaseComm::Task_GetCommands, "FirebaseGetCommands", 4 * BASIC_STACK_SIZE, ctx_ptr, 1, nullptr, 0);
-            xTaskCreatePinnedToCore(FirebaseComm::Task_Loop, "FirebaseLoop", BASIC_STACK_SIZE, ctx_ptr, 1, nullptr, 0);
+            xTaskCreatePinnedToCore(Task_CheckWifi, "CheckWifi", BASIC_STACK_SIZE, ctx_ptr, 2, nullptr, 0);
+            // xTaskCreatePinnedToCore(FirebaseComm::Task_PushStatus, "FirebasePushStatus", 4 * BASIC_STACK_SIZE, ctx_ptr, 1, nullptr, 0);
+            xTaskCreatePinnedToCore(FirebaseComm::Task_GetCommands, "FirebaseGetCommands", 6 * BASIC_STACK_SIZE, ctx_ptr, 3, nullptr, 0);
+            xTaskCreatePinnedToCore(FirebaseComm::Task_Loop, "FirebaseLoop", 2 * BASIC_STACK_SIZE, ctx_ptr, 3, nullptr, 0);
         }
-
-        if (OS_DEBUG_MODE) Serial.println("Tareas RTOS iniciadas.");
+        if (OS_DEBUG_MODE) Serial.println("Sistema operativo del vehículo listo.");
 
         return SUCCESS; // Estado INIT alcanzado
     }
@@ -500,8 +508,9 @@ namespace OS
         volatile OperationData &os = *(ctx_ptr->os_ptr);
 
         // Detener control de posición y dejar motores inactivos (libres)
-        PositionController::set_control_mode(PositionControlMode::INACTIVE, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
         MotorController::set_motors_mode(MotorMode::IDLE, sts.motors, ctrl.duty_L, ctrl.duty_R);
+        PositionController::set_control_mode(PositionControlMode::INACTIVE, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
+        PositionController::reset_waypoint(ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached);
 
         // ⏸️ Pausar encoders, IMU, y estimación de pose -> resetar posición y orientación a cero
         if (pose.estimator_type == PoseEstimatorType::COMPLEMENTARY)
@@ -510,8 +519,13 @@ namespace OS
         }
         EncoderReader::pause(sens.enc_phiL, sens.enc_phiR, sens.enc_wL, sens.enc_wR, sts.encoders);
         PoseEstimator::set_state(INACTIVE, sts.pose);
+        PoseEstimator::reset_pose(pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R,
+                                  sens.enc_phiL, sens.enc_phiR, sens.imu_theta);
+
 
         // 🚫 Desactivar sensores de obstáculos -> se fuerza la limpieza de las flag de obstáculo
+        DistanceSensors::reset_system(sens.us_left_dist, sens.us_left_obst, sens.us_mid_dist, sens.us_mid_obst,
+                                sens.us_right_dist, sens.us_right_obst, sens.us_obstacle);     
         DistanceSensors::set_state(INACTIVE, sts.distance,
                                    sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
                                    
@@ -519,29 +533,6 @@ namespace OS
         EvadeController::reset_evade_state(ctx_ptr);
 
         return SUCCESS; // Estado IDLE alcanzado
-    }
-
-    bool reset_local_status(GlobalContext *ctx_ptr)
-    {
-        volatile SystemStates &sts = *(ctx_ptr->systems_ptr);
-        volatile SensorsData &sens = *(ctx_ptr->sensors_ptr);
-        volatile PoseData &pose = *(ctx_ptr->pose_ptr);
-        volatile ControllerData &ctrl = *(ctx_ptr->control_ptr);
-        volatile OperationData &os = *(ctx_ptr->os_ptr);
-
-        // Resetear datos de movimiento y posición
-        PoseEstimator::reset_pose(pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R,
-                                  sens.enc_phiL, sens.enc_phiR, sens.imu_theta);
-        // Resetear datos de control
-        PositionController::set_control_mode(PositionControlMode::MANUAL, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
-        PositionController::set_waypoint(0.0f, 0.0f, 0.0f, ctrl.x_d, ctrl.y_d, ctrl.theta_d,
-                                         ctrl.waypoint_reached, sts.position);
-        // Restear flag de obstáculo
-        DistanceSensors::reset_system(sens.us_left_dist, sens.us_left_obst, sens.us_mid_dist, sens.us_mid_obst,
-                                sens.us_right_dist, sens.us_right_obst, sens.us_obstacle);                    
-        // Reiniciar el estado de evasión
-        EvadeController::reset_evade_state(ctx_ptr);
-        return SUCCESS;
     }
 
     bool enter_stand_by(GlobalContext *ctx_ptr)
@@ -594,7 +585,7 @@ namespace OS
         PoseEstimator::set_state(ACTIVE, sts.pose);
 
         // 🟢 Activar control de posición (v_ref y w_ref) y actualizar el tipo de controlador
-        PositionController::set_controller_type(os.fb_controller_type, ctrl.controller_type);
+        PositionController::set_controller_type(os.fb_controller_type, ctrl.controller_type, ctrl.iae, ctrl.rmse);
         PositionController::set_control_mode(PositionControlMode::ALIGN, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
         MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
 
@@ -632,7 +623,7 @@ namespace OS
             sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
 
         // 🟢 Activar control de posición (v_ref y w_ref) y actualizar el tipo de controlador
-        PositionController::set_controller_type(os.fb_controller_type, ctrl.controller_type);
+        // PositionController::set_controller_type(os.fb_controller_type, ctrl.controller_type, ctrl.iae, ctrl.rmse);
         PositionController::set_control_mode(PositionControlMode::MOVE, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
         MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
 
@@ -657,7 +648,6 @@ namespace OS
         PoseEstimator::set_state(ACTIVE, sts.pose);
 
         // Se fija la velocidad de referencia a cero
-        // PositionController::set_controller_type();
         PositionController::stop_movement(pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
         MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
 
@@ -689,7 +679,6 @@ namespace OS
         PoseEstimator::set_state(ACTIVE, sts.pose);
 
         // 🟢 Activar control de posición (v_ref y w_ref)
-        // PositionController::set_controller_type();
         PositionController::set_control_mode(PositionControlMode::ROTATE, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
         MotorController::set_motors_mode(MotorMode::AUTO, sts.motors, ctrl.duty_L, ctrl.duty_R);
 
@@ -729,7 +718,7 @@ namespace OS
 
         return ok;
     }
-
+    
     bool set_local_waypoint(GlobalContext *ctx_ptr)
     {
         volatile SystemStates &sts = *(ctx_ptr->systems_ptr);
@@ -799,7 +788,7 @@ namespace OS
     FB_State reset_online_status(GlobalContext *ctx_ptr)
     {
         static bool local_reset_done = false;
-
+        FB_State fb_result = FB_State::PENDING;
         volatile SystemStates &sts = *(ctx_ptr->systems_ptr);
         volatile SensorsData &sens = *(ctx_ptr->sensors_ptr);
         volatile PoseData &pose = *(ctx_ptr->pose_ptr);
@@ -808,27 +797,18 @@ namespace OS
 
         // Solo ejecutar el reset local una vez por intento completo
         if (!local_reset_done) {
-            reset_local_status(ctx_ptr); // Resetear datos locales solo al comienzo
-            os.fb_target_buffer.reset();
-            os.fb_waypoint_data.reset();
-            os.fb_completed_but_not_sent = false;
+            reset_firebase_data(ctx_ptr);
             local_reset_done = true;
         }
+        // Enviar instrucción de reset a Firebase
+        if (os.state == OS_State::INIT) fb_result = FirebaseComm::FullReset(os.fb_state);
+        else fb_result = FirebaseComm::ClearAllLogs(os.fb_state);
 
-        const FB_State result = FirebaseComm::ClearAllLogs(os.fb_state);
-
-        if (result == FB_State::OK || result == FB_State::ERROR) {
+        // Esperar a que termine para el reset
+        if (fb_result == FB_State::OK || fb_result == FB_State::ERROR) {
             local_reset_done = false;  // Permitir nuevo reset en la próxima llamada
         }
-
-        if (OS_DEBUG_MODE) {
-            if (result == FB_State::OK)
-                Serial.println("Historial de status y waypoints borrado en Firebase.");
-            else if (result == FB_State::ERROR)
-                Serial.println("Error al borrar historial de status y waypoints en Firebase.");
-        }
-
-        return result;
+        return fb_result;
     }
 
     bool check_skip_evade(GlobalContext *ctx_ptr)
@@ -893,7 +873,6 @@ namespace OS
             os.fb_waypoint_data.wp_x = os.fb_target_buffer.x;
             os.fb_waypoint_data.wp_y = os.fb_target_buffer.y;
             os.fb_waypoint_data.start_ts = get_unix_timestamp();
-            
         }
         // Establecer el objetivo del controlador: pasar a manual para poder fijar el waypoint
         PositionController::set_control_mode(
@@ -1053,4 +1032,60 @@ namespace OS
         }
     }
 
+    void reset_firebase_data(GlobalContext *ctx_ptr)
+    {
+        volatile OperationData &os = *(ctx_ptr->os_ptr);
+        volatile ControllerData &ctrl = *(ctx_ptr->control_ptr);
+
+        os.fb_target_buffer.x = NULL_WAYPOINT_XY;
+        os.fb_target_buffer.y = NULL_WAYPOINT_XY;
+        os.fb_target_buffer.ts = NULL_TIMESTAMP;
+        os.fb_waypoint_data.input_ts = NULL_TIMESTAMP;
+        os.fb_waypoint_data.wp_x = NULL_WAYPOINT_XY;
+        os.fb_waypoint_data.wp_y = NULL_WAYPOINT_XY;
+        os.fb_waypoint_data.start_ts = NULL_TIMESTAMP;
+        os.fb_waypoint_data.end_ts = NULL_TIMESTAMP;
+        os.fb_waypoint_data.reached_flag = false;
+        os.fb_waypoint_data.pos_x = NULL_WAYPOINT_XY;  
+        os.fb_waypoint_data.pos_y = NULL_WAYPOINT_XY;
+        os.fb_waypoint_data.controller_type = CtrlType2Int(ctrl.controller_type);
+        os.fb_waypoint_data.iae = 0.0f;
+        os.fb_waypoint_data.rmse = 0.0f;
+    }
+
 } // namespace OS
+
+
+UserCommand Int2Cmd(uint8_t val) {
+    switch(val) {
+        case 0: return UserCommand::STOP;
+        case 1: return UserCommand::START;
+        case 2: return UserCommand::IDLE;
+        default: return UserCommand::STOP;
+    }
+}
+
+uint8_t Cmd2Int(UserCommand cmd) {
+    switch(cmd) {
+        case UserCommand::STOP:  return 0;
+        case UserCommand::START: return 1;
+        case UserCommand::IDLE:  return 2;
+        default:                 return 255;
+    }
+}
+
+ControlType Int2CtrlType(uint8_t val) {
+    switch(val) {
+        case 0: return ControlType::PID;
+        case 1: return ControlType::BACKS;
+        default: return ControlType::PID; // Valor seguro por defecto
+    }
+}
+
+uint8_t CtrlType2Int(ControlType ct) {
+    switch(ct) {
+        case ControlType::PID:   return 0;
+        case ControlType::BACKS: return 1;
+        default:                 return 0;
+    }
+}

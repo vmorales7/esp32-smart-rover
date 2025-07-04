@@ -1,114 +1,74 @@
-#include "vehicle_os/general_config.h"
-#include "vehicle_os/vehicle_os.h"
-#warning "Compilando main_debug.cpp"
+#include <Arduino.h>
+#include "WiFi.h"
 
-#include "communications/firebase_comm.h"
+#define WIFI_SSID  "VMA"
+#define WIFI_PASS  "Tangananica"
+
+enum class MotorMode : uint8_t {
+    IDLE = 0U,    
+    MANUAL = 1U,  
+    AUTO = 2U,   
+    BREAK = 3U   
+};
+enum class PositionControlMode : uint8_t {
+    INACTIVE = 0U,
+    MANUAL,
+    ALIGN,
+    MOVE,
+    ROTATE
+};
+struct SystemStates {
+    MotorMode motors;
+    uint8_t encoders;
+    uint8_t imu;
+    uint8_t distance;
+    uint8_t pose;
+    PositionControlMode position;
+};
+struct SensorsData {
+    float enc_phiL;
+    float enc_phiR;
+    float enc_wL;
+    float enc_wR;
+    uint8_t us_left_dist;      
+    uint8_t us_mid_dist;   
+    uint8_t us_right_dist;   
+    bool us_left_obst;     
+    bool us_mid_obst;    
+    bool us_right_obst;      
+    bool us_obstacle;    
+    float imu_acc; 
+    float imu_w; 
+    float imu_theta;
+};
+struct GlobalContext {
+    SystemStates* systems_ptr;
+    SensorsData* sensors_ptr;
+};
+
+// ====================== VARIABLES GLOBALES ======================
+// SystemStates syst;
+// SensorsData sens;
+// GlobalContext ctx;
+GlobalContext* ctx = nullptr;
+
+// =================== Operación del sistema ====================
 
 void setup() {
     Serial.begin(115200);
     delay(5000);
-    Serial.println("\n== Iniciando test completo Firebase ==");
+    Serial.println();
 
-    // Tiene que quedar adentro
-    volatile SystemStates sts;
-    volatile SensorsData sens;
-    volatile ControllerData ctrl;
-    volatile PoseData pose;
-    volatile OperationData op;
-    volatile EvadeContext evade;
-    TaskHandlers tasks;
-    GlobalContext ctx = {
-        .systems_ptr     = &sts,
-        .sensors_ptr     = &sens,
-        .pose_ptr        = &pose,
-        .control_ptr     = &ctrl,
-        .os_ptr          = &op, 
-        .rtos_task_ptr   = &tasks,
-        .evade_ptr       = &evade
-    };
+    ctx = new GlobalContext;
+    ctx->systems_ptr = new SystemStates;
+    ctx->sensors_ptr = new SensorsData;
 
-    // Iniciar WiFi y sincronizar hora
-    begin_wifi();
-    init_time();
-    FirebaseComm::ConnectFirebase();
-
-    delay(1000);
-    FirebaseComm::ready();
-
-    // Limpiar registros anteriores
-    FB_State state_clear = FirebaseComm::ClearAllLogs(state_clear);
-    while (state_clear == FB_State::PENDING) {
-        FirebaseComm::ready();
-        delay(200);
-        state_clear = FirebaseComm::ClearAllLogs(state_clear);
-    }
-    Serial.printf("Resultado ClearAllLogs: %d\n", (int)state_clear);
-
-    FB_State state_pending = FirebaseComm::ClearPendingWaypoints(state_pending);
-    while (state_pending == FB_State::PENDING) {
-        FirebaseComm::ready();
-        delay(200);
-        state_pending = FirebaseComm::ClearPendingWaypoints(state_pending);
-    }
-    Serial.printf("Resultado ClearPending: %d\n", (int)state_pending);
-
-    // Enviar datos dummy
-    for (int i = 0; i < 5; i++) {
-        Serial.printf("\n== Enviando set dummy #%d ==\n", i);
-        uint64_t now = get_unix_timestamp();
-        uint64_t input_ts   = now - 300 + i * 10;
-        uint64_t start_ts   = now - 250 + i * 10;
-        uint64_t reached_ts = now + i * 10;
-
-        // Push a status
-        FirebaseComm::PushStatus(
-            1, "Dummy test status",
-            1.0f + i, 2.0f + i, 20.0f + i, 21.0f + i,
-            input_ts, 10.0f + i, 20.0f + i,
-            0, 0.1f * i, 0.2f * i
-        );
-        delay(1000);
-
-        // Push a reached
-        FirebaseComm::PushReachedWaypoint(
-            input_ts, 10.0f + i, 20.0f + i,
-            start_ts, reached_ts, true,
-            10.0f + i + 0.1f, 20.0f + i + 0.1f,
-            0, 0.1f * i, 0.2f * i
-        );
-        delay(1000);
-
-        // Push a pending
-        uint64_t ts_now = get_unix_timestamp();
-        JsonDocument doc;
-        doc["input_timestamp"] = ts_now;
-        doc["wp_x"] = 10.0f + i;
-        doc["wp_y"] = 20.0f + i;
-        AsyncResult aux;
-        FirebaseComm::SetJson("/waypoints_pending/" + String(ts_now), doc, aux);
-        delay(1000);
-    }
-
-    Serial.println("\n== Solicitud y lectura de waypoint pendiente ==");
-
-    FirebaseComm::RequestPendingWaypoint();
-    delay(1000);
-
-    volatile float x = 0.0f, y = 0.0f;
-    volatile uint64_t ts = 0;
-    FB_Get_Result res = FB_Get_Result::NO_RESULT;
-
-    while (res == FB_Get_Result::NO_RESULT) {
-        FirebaseComm::ready();
-        res = FirebaseComm::ProcessPendingWaypoint(x, y, ts);
-        delay(200);
-    }
-
-    Serial.printf("Lectura Waypoint: Estado = %d | x = %.2f, y = %.2f, ts = %llu\n",
-                  (int)res, x, y, ts);
+    Serial.println("Setting WiFi mode...");
+    WiFi.mode(WIFI_STA);
+    Serial.println("Iniciando WiFi...");
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
 }
 
 void loop() {
-    FirebaseComm::ready();
-    delay(500);
+    // Nada
 }

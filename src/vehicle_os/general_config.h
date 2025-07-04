@@ -42,7 +42,6 @@ constexpr uint8_t IMU_SDA_PIN = 21;
 constexpr uint8_t IMU_SCL_PIN = 13;
 
 
-
 /* -------------- Constantes generales --------------*/
 
 // Parámetros físicos del vehículo
@@ -64,7 +63,7 @@ constexpr bool ERROR   = false;
 constexpr float MS_TO_S = 0.001f;
 
 // Puntos de trayectoria
-constexpr uint8_t MAX_TRAJECTORY_POINTS = 100; // Define máximo de puntos
+constexpr uint8_t MAX_TRAJECTORY_POINTS = 10; // Define máximo de puntos
 constexpr float NULL_WAYPOINT_XY = 99.9f;
 constexpr uint64_t NULL_TIMESTAMP = 0;
 
@@ -159,8 +158,8 @@ constexpr uint16_t POSITION_CONTROL_PERIOD_MS = 50;
 // Firebase y WiFi
 
 constexpr uint16_t WIFI_CHECK_PERIOD_MS = 1000;
-constexpr uint16_t FB_PUSH_STATUS_PERIOD_MS = 500;
-constexpr uint16_t FB_GET_COMMANDS_PERIOD_MS = 200;
+constexpr uint16_t FB_PUSH_STATUS_PERIOD_MS = 1000;
+constexpr uint16_t FB_GET_COMMANDS_PERIOD_MS = 500;
 constexpr uint16_t FB_LOOP_PERIOD_MS = 200;
 
 
@@ -217,7 +216,7 @@ struct WaypointData {
         wp_y = NULL_WAYPOINT_XY;
         start_ts = NULL_TIMESTAMP;
         end_ts = NULL_TIMESTAMP;
-        reached_flag = true;
+        reached_flag = false;
         pos_x = NULL_WAYPOINT_XY;
         pos_y = NULL_WAYPOINT_XY;
         controller_type = 0;
@@ -301,7 +300,7 @@ struct SensorsData{
         : enc_phiL(0.0f), enc_phiR(0.0f),
           enc_wL(0.0f), enc_wR(0.0f),
           us_left_dist(0), us_mid_dist(0), us_right_dist(0),
-          us_left_obst(false), us_mid_obst(false), us_right_obst(false),
+          us_left_obst(false), us_mid_obst(false), us_right_obst(false), us_obstacle(false),
           imu_acc(0.0f), imu_w(0.0f), imu_theta(0.0f)
     {}
 };
@@ -420,6 +419,7 @@ struct OperationData {
     FB_State fb_state; // Estado de la comunicación con Firebase
     WifiStatus wifi_status; // Estado de la conexión WiFi
     UserCommand fb_last_command;
+    volatile uint8_t buffer_guard = 0xAA;
     ControlType fb_controller_type; // Tipo de controlador usado en el último comando
     TargetPoint fb_target_buffer; // Punto objetivo actual
     WaypointData fb_waypoint_data; // Data del waypoint actual (se envia a Firebase)
@@ -437,7 +437,7 @@ struct OperationData {
         fb_waypoint_data(),
         fb_completed_but_not_sent(false)
     {
-        last_log[0] = '\0'; // String vacío al inicio
+        // last_log[0] = '\0'; // String vacío al inicio
     }
 };
 
@@ -495,5 +495,15 @@ struct GlobalContext {
     TaskHandlers* rtos_task_ptr;
     volatile EvadeContext* evade_ptr;
 };
+
+// struct GlobalContext {
+//     SystemStates* systems_ptr;
+//     SensorsData* sensors_ptr;
+//     PoseData* pose_ptr;
+//     ControllerData* control_ptr;
+//     OperationData* os_ptr;
+//     TaskHandlers* rtos_task_ptr;
+//     EvadeContext* evade_ptr;
+// };
 
 #endif

@@ -99,9 +99,11 @@ bool set_control_mode(
  * @return true si se cambió el tipo correctamente, false si ya estaba en ese tipo.
  */
 bool set_controller_type(
-    const ControlType new_type,
-    volatile ControlType& controller_type
+    const ControlType new_type, volatile ControlType& controller_type,
+    volatile float& iae, volatile float& rmse
 );
+
+void reset_control_errors(volatile float& iae, volatile float& rmse);
 
 /**
  * @brief Establece un waypoint (punto objetivo) en coordenadas globales.
@@ -123,6 +125,11 @@ bool set_waypoint(
     volatile float& x_d_global, volatile float& y_d_global, volatile float& theta_d_global,
     volatile bool& waypoint_reached,
     volatile PositionControlMode& control_mode
+);
+
+bool reset_waypoint(
+    volatile float& x_d_global, volatile float& y_d_global, 
+    volatile float& theta_d_global, volatile bool& waypoint_reached
 );
 
 /**

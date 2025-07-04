@@ -1,35 +1,37 @@
 #include "vehicle_OS/vehicle_os.h"
 #warning "Compilando main_avance4.cpp"
 
-// ====================== VARIABLES GLOBALES ======================
+#include <esp_heap_caps.h>
 
+// ====================== VARIABLES GLOBALES ======================
+// Inicializar variables globales
+volatile SystemStates sts;
+volatile SensorsData sens;
+volatile ControllerData ctrl;
+volatile PoseData pose;
+volatile OperationData op;
+TaskHandlers tasks;
+volatile EvadeContext evade;
+GlobalContext ctx;
 
 // ====================== CONSTANTES DE CONFIGURACIÓN ======================
 
 constexpr ControlType CONTROLLER_TYPE = ControlType::PID;// Tipo de controlador a utilizar
-constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::COMPLEMENTARY;
+constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::ENCODER;
 const bool INCLUDE_EVADE = true; // Habilita el controlador de evasión
 
 // =================== Operación del sistema ====================
 
-void setup() {
-    // Inicializar variables globales
-    volatile SystemStates sts;
-    volatile SensorsData sens;
-    volatile ControllerData ctrl;
-    volatile PoseData pose;
-    volatile OperationData op;
-    TaskHandlers tasks;
-    volatile EvadeContext evade;
-        GlobalContext ctx = {
-        .systems_ptr     = &sts,
-        .sensors_ptr     = &sens,
-        .pose_ptr        = &pose,
-        .control_ptr     = &ctrl,
-        .os_ptr          = &op, 
-        .rtos_task_ptr   = &tasks,
-        .evade_ptr       = &evade
-    };
+void setup() 
+{
+    // Llenar la estructura de contexto global
+    ctx.systems_ptr    = &sts;
+    ctx.sensors_ptr    = &sens;
+    ctx.pose_ptr       = &pose;
+    ctx.control_ptr    = &ctrl;
+    ctx.os_ptr         = &op; 
+    ctx.rtos_task_ptr  = &tasks;
+    ctx.evade_ptr      = &evade;
 
     // Inicializar hardware y lanzar todas las tareas RTOS
     OS::enter_init(&ctx);
@@ -40,6 +42,4 @@ void setup() {
     pose.estimator_type = POSE_ESTIMATOR_TYPE; 
 }
 
-void loop() {
-    // Nada aquí, todo lo maneja el RTOS
-}
+void loop() {}

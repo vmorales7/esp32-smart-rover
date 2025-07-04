@@ -15,7 +15,7 @@
 constexpr uint32_t WIFI_TIMEOUT_MS = 10000;
 
 /// @brief Activa mensajes de depuración para WiFi.
-constexpr bool WIFI_DEBUG_MODE = false;
+constexpr bool WIFI_DEBUG_MODE = true;
 
 /// @brief Inicia la conexión WiFi con bloqueo hasta lograr conexión.
 /// @return true si la conexión fue exitosa, false si falló.

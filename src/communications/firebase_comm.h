@@ -1,26 +1,25 @@
 #ifndef FIREBASE_COMM_H
 #define FIREBASE_COMM_H
 
+// Generales
 #include <Arduino.h>
 #include "vehicle_os/general_config.h"
-#include "wifi_basic.h"
 
 // Herramientas para generar cliente de Firebase
+#include "wifi_basic.h"
 #include <WiFiClientSecure.h>
-#define SSL_CLIENT WiFiClientSecure
 #include "secrets.h" // Credenciales de Firebase y WiFi
 
 // Siempre comenzar con las definiciones de preprocesador para FirebaseClient
 #define ENABLE_USER_AUTH
 #define ENABLE_DATABASE
 #include <FirebaseClient.h>
-// #include "MyFirebase.h"
 
 // Extras para manejar datos
 #include <ArduinoJson.h>
 
 // Auxiliar para debug print
-constexpr bool FB_DEBUG_MODE = false;
+constexpr bool FB_DEBUG_MODE = true;
 
 
 // ---------- Enum para los returns ----------
@@ -64,7 +63,23 @@ namespace FirebaseComm {
 bool ConnectFirebase();
 
 /**
- * @brief Verifica si la app Firebase está lista para operar.
+ * @brief Libera todos los objetos dinámicos asociados a la conexión con Firebase.
+ * 
+ * Esta función elimina y pone en nullptr los punteros globales creados dinámicamente 
+ * para manejar la autenticación, cliente HTTPS, y base de datos en tiempo real (RTDB).
+ * 
+ * Debe ser llamada antes de una nueva inicialización mediante `ConnectFirebase()` en 
+ * caso de reconexión WiFi, errores de autenticación o reinicio del sistema de comunicación.
+ * 
+ * Es segura para ser llamada incluso si los objetos aún no han sido inicializados.
+ * 
+ * @note Esta función no reinicia el estado de comunicación (`FB_State`) ni reinicia tareas RTOS.
+ */
+void ResetFirebase();
+
+
+/**
+ * @brief Verifica si la app Firebase está lista para operar. Mantiene el loop, actualizando valores y estados.
  * 
  * @return true si está inicializada y lista.
  */
@@ -265,6 +280,15 @@ void PushStatus(
 );
 
 /**
+ * @brief Fuerza el comando global a IDLE en Firebase.
+ * 
+ * Esta función debe llamarse solo en el arranque del sistema (INIT).
+ * Sobrescribe el nodo /commands en Firebase para evitar que la interfaz o
+ * el sistema queden en un estado inseguro tras reinicio.
+ */
+void ForceCommandIdle();
+
+/**
  * @brief Elimina todos los registros de estado y waypoints finalizados en Firebase.
  *
  * Esta función envía solicitudes asíncronas para eliminar los nodos `/status_log` y 
@@ -297,6 +321,18 @@ FB_State ClearAllLogs(volatile FB_State &fb_state);
  * @return FB_State Estado de la operación: OK, PENDING o ERROR.
  */
 FB_State ClearPendingWaypoints(volatile FB_State& fb_state);
+
+
+/**
+ * @brief Elimina todos los logs, waypoints finalizados, waypoints pendientes y fuerza /commands a IDLE, de forma atómica.
+ * 
+ * Esta función ejecuta la operación como una sola “transacción lógica”, manejando sus propios timeouts y errores.
+ * Solo vuelve a permitir una nueva operación cuando termina o falla el proceso completo.
+ * 
+ * @param fb_state Referencia al estado global de Firebase.
+ * @return FB_State OK si todo fue exitoso, ERROR si falló algún paso, PENDING si aún está en progreso.
+ */
+FB_State FullReset(volatile FB_State& fb_state);
 
 /**
  * @brief Imprime en consola los logs de depuración y errores de Firebase si están disponibles.

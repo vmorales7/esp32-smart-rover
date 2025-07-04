@@ -2,7 +2,6 @@
 
 namespace DistanceSensors {
 
-
 static uint32_t last_obstacle_time = 0; // Tiempo del último obstáculo detectado
 static uint32_t last_read_time = 0; // Tiempo de la última lectura de distancia
 

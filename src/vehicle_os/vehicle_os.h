@@ -141,26 +141,6 @@ bool enter_rotate(GlobalContext* ctx_ptr);
  */
 bool enter_wait_free_path(GlobalContext* ctx_ptr);
 
-
-/**
- * @brief Resetea parcialmente el estado interno del vehículo autónomo.
- *
- * Esta función reinicia la estimación de pose, los datos de control y las banderas de obstáculos,
- * además de reiniciar el estado de evasión. Se utiliza principalmente **al salir del estado `IDLE`
- * hacia `STAND_BY`**, con el objetivo de mantener los últimos valores de sensores y control al entrar
- * a `IDLE`, y preparar correctamente el sistema para reanudar la operación.
- *
- * Acciones que realiza:
- * - Reinicia la pose estimada del vehículo (posición, orientación y velocidades).
- * - Fija un waypoint nulo (0,0) y reinicia las referencias internas del controlador.
- * - Limpia las banderas de detección de obstáculos de todos los sensores ultrasónicos.
- * - Reinicia el estado del sistema de evasión (`EvadeController`).
- *
- * @param ctx_ptr Puntero al contexto global del sistema (`GlobalContext`).
- * @return true si se ejecutó exitosamente (siempre retorna `true`).
- */
-bool reset_local_status(GlobalContext *ctx_ptr);
-
 /**
  * @brief Establece el siguiente punto objetivo desde la trayectoria
  * 
@@ -352,8 +332,40 @@ void Task_StopOnRiskFlags(void *pvParameters);
  */
 void set_operation_log(const OS_State new_state, const OS_State old_state, GlobalContext* ctx_ptr);
 
+void reset_firebase_data(GlobalContext *ctx_ptr);
+
 } // namespace OS
 
+/**
+ * @brief Convierte un valor entero recibido desde Firebase al comando de usuario correspondiente.
+ * 
+ * @param val Valor numérico recibido (0 = STOP, 1 = START, 2 = IDLE).
+ * @return UserCommand Enum representando el comando de usuario.
+ */
+UserCommand Int2Cmd(uint8_t val);
 
+/**
+ * @brief Convierte un comando de usuario (`UserCommand`) a su valor numérico equivalente para escribir en Firebase.
+ * 
+ * @param cmd Comando de usuario (STOP, START, IDLE).
+ * @return uint8_t Valor entero (0 = STOP, 1 = START, 2 = IDLE).
+ */
+uint8_t Cmd2Int(UserCommand cmd);
+
+/**
+ * @brief Convierte un valor entero recibido desde Firebase al tipo de controlador de posición.
+ * 
+ * @param val Valor numérico recibido (0 = PID, 1 = BACKS).
+ * @return ControlType Enum representando el tipo de controlador.
+ */
+ControlType Int2CtrlType(uint8_t val);
+
+/**
+ * @brief Convierte un tipo de controlador (`ControlType`) a su valor numérico equivalente para escribir en Firebase.
+ * 
+ * @param ct Tipo de controlador (PID, BACKS).
+ * @return uint8_t Valor entero (0 = PID, 1 = BACKS).
+ */
+uint8_t CtrlType2Int(ControlType ct);
 
 #endif // VEHICLE_OS_H

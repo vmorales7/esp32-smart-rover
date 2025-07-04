@@ -4,6 +4,7 @@
 void setup() {
     Serial.begin(115200);
     delay(5000);
+
     Serial.println("\n== Iniciando test completo Firebase ==");
 
     // Iniciar WiFi y sincronizar hora
