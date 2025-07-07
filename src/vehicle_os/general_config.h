@@ -24,7 +24,7 @@ constexpr uint16_t POSITION_CONTROL_PERIOD_MS = 100;
 // Firebase y WiFi
 
 constexpr uint16_t WIFI_CHECK_PERIOD_MS = 1000;
-constexpr uint16_t FB_PUSH_STATUS_PERIOD_MS = 1000;
+constexpr uint16_t FB_PUSH_STATUS_PERIOD_MS = 500;
 constexpr uint16_t FB_GET_COMMANDS_PERIOD_MS = 250;
 constexpr uint16_t FB_LOOP_PERIOD_MS = 100;
 
@@ -424,6 +424,7 @@ struct OperationData {
     TargetPoint fb_target_buffer; // Punto objetivo actual
     WaypointData fb_waypoint_data; // Data del waypoint actual (se envia a Firebase)
     bool fb_completed_but_not_sent; // Indica si el waypoint fue completado pero no enviado a Firebase
+    uint64_t fb_last_completed_ts; // Timestamp del último waypoint recibido
 
     // Constructor por defecto
     OperationData() :
@@ -435,7 +436,8 @@ struct OperationData {
         fb_controller_type(ControlType::PID),
         fb_target_buffer(),
         fb_waypoint_data(),
-        fb_completed_but_not_sent(false)
+        fb_completed_but_not_sent(false),
+        fb_last_completed_ts(NULL_TIMESTAMP)
     {
         last_log[0] = '\0'; // String vacío al inicio
     }

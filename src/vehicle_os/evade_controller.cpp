@@ -68,8 +68,9 @@ void update_evade(GlobalContext* ctx_ptr) {
         case EvadeState::WAIT_ALIGN: 
         {   // Segunda etapa: alinear el vehículo en la dirección de evasión e intentar múltiples direcciones
             // Asgurarse del modo rotate por si se usó stop_movement externo (si ya era rotate, no hace nada)
-            PositionController::set_control_mode(
-                PositionControlMode::ROTATE, sts.position, ctrl.w_L_ref, ctrl.w_R_ref); 
+            if (sts.position != PositionControlMode::ROTATE) {
+                PositionController::set_control_mode(PositionControlMode::ROTATE, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
+            }
             if (ctrl.waypoint_reached) 
             {   // Alineación exitosa, ver si hay espacio libre para avanzar
                 PositionController::stop_movement(pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
@@ -123,10 +124,13 @@ void update_evade(GlobalContext* ctx_ptr) {
         }
         case EvadeState::WAIT_ADVANCE: 
         {   // Tercera etapa: avanzar en la dirección de evasión -> nos aseguramos de estar en modo MOVE
-            PositionController::set_control_mode(
-                PositionControlMode::MOVE, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
+            if(sts.position != PositionControlMode::MOVE) {
+                PositionController::set_control_mode(PositionControlMode::MOVE, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
+            }
             if (ctrl.waypoint_reached) 
             {   // Avance exitoso, retomar el waypoint, dejar el vehículo detenido, y volver a máquina principal
+                if (OS_DEBUG_MODE) Serial.printf("[EVADE] Avance exitoso: vamos a ALIGN con dirección hacia el waypoint guardado (%f, %f)\n",
+                    evade.saved_waypoint.x, evade.saved_waypoint.y);
                 OS::enter_evade(ctx_ptr); // Solo se usa para detener el vehículo y dejar en modo manual
                 PositionController::set_waypoint(evade.saved_waypoint.x, evade.saved_waypoint.y, 0.0f, 
                     ctrl.x_d, ctrl.y_d, ctrl.theta_d, ctrl.waypoint_reached, sts.position);

@@ -103,7 +103,7 @@ void read_data(
     const float abs_delta_theta = fabsf(delta_theta);
     delta_theta = (abs_delta_theta < THETA_TOLERANCE || abs_delta_theta > MAX_DELTA_THETA) ? 0.0f : delta_theta; 
 
-    Serial.println(delta_theta*RAD_TO_DEG);
+    // Serial.println(delta_theta*RAD_TO_DEG);
 
     // Actualizar las variables globales
     global_acc = acc;

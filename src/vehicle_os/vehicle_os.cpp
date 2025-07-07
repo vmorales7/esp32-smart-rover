@@ -242,7 +242,7 @@ namespace OS
             {   // Hay que pedir el waypoint pendiente mas antiguo a Firebase
                 if (OS_DEBUG_MODE) Serial.println("[STAND_BY] START recibido, pidiendo/esperando waypoint pendiente.");
                 fb_result = FirebaseComm::UpdatePendingWaypoint(
-                    os.fb_target_buffer.x, os.fb_target_buffer.y, os.fb_target_buffer.ts, os.fb_state);
+                    os.fb_target_buffer.x, os.fb_target_buffer.y, os.fb_target_buffer.ts, os.fb_last_completed_ts, os.fb_state);
                 // Si se recibe un punto invalido, internamente se tratará de eliminar y pedir el siguiente
                 // Si se recibe podemos fijar el waypoint en el controlador y pasar a ALIGN
                 if (fb_result == FB_State::OK)
@@ -318,8 +318,7 @@ namespace OS
         case OS_State::MOVE:
         {   // Estado de desplazamiento recto hacia el waypoint
             if (OS_DEBUG_MODE) {
-                Serial.printf("\n[MOVE] Instrucción y waypoint: %d, (%f, %f)\n", 
-                    Cmd2Int(os.fb_last_command), ctrl.x_d, ctrl.y_d);
+                Serial.printf("\n[MOVE] Waypoint: (%f, %f)\n", ctrl.x_d, ctrl.y_d);
                 Serial.printf("[MOVE] Waypoint en buffer: (%f, %f)\n", 
                     os.fb_target_buffer.x, os.fb_target_buffer.y);
             }
@@ -352,7 +351,9 @@ namespace OS
                     } 
                     else 
                     {   // Detención por obstáculo
-                        if (OS_DEBUG_MODE) Serial.println("[MOVE]: Obstáculo detectado.");
+                        if (OS_DEBUG_MODE) 
+                            Serial.printf("[MOVE] Se inicia evasión. Posición actual x: %f, y: %f, theta: %f\n",
+                                pose.x, pose.y, pose.theta);
                         if (check_skip_evade(ctx_ptr) == true) 
                         {   // Si el waypoint está tapado por un obstáculo y se puede saltar, se completa el waypoint
                             if (OS_DEBUG_MODE) Serial.println("MOVE: Waypoint tapado por obstáculo, se pasa marca como fallido.");
@@ -363,7 +364,6 @@ namespace OS
                         } 
                         else
                         {
-                            if (OS_DEBUG_MODE) Serial.println("MOVE: Obstáculo detectado, se inicia evasión.");
                             if (evade.include_evade)
                             {   // Está activa la evasión, se inicia y se entra al estado EVADE
                                 enter_evade(ctx_ptr);
@@ -521,7 +521,7 @@ namespace OS
         if (ONLINE_MODE)
         {
             xTaskCreatePinnedToCore(Task_CheckWifi, "CheckWifi", BASIC_STACK_SIZE, ctx_ptr, 2, nullptr, 0);
-            // xTaskCreatePinnedToCore(FirebaseComm::Task_PushStatus, "FirebasePushStatus", 4 * BASIC_STACK_SIZE, ctx_ptr, 1, nullptr, 0);
+            xTaskCreatePinnedToCore(FirebaseComm::Task_PushStatus, "FirebasePushStatus", 4 * BASIC_STACK_SIZE, ctx_ptr, 1, nullptr, 0);
             xTaskCreatePinnedToCore(FirebaseComm::Task_GetCommands, "FirebaseGetCommands", 4 * BASIC_STACK_SIZE, ctx_ptr, 3, nullptr, 0);
             xTaskCreatePinnedToCore(FirebaseComm::Task_Loop, "FirebaseLoop", 2 * BASIC_STACK_SIZE, ctx_ptr, 3, nullptr, 0);
         }
@@ -552,7 +552,6 @@ namespace OS
         PoseEstimator::set_state(INACTIVE, sts.pose);
         PoseEstimator::reset_pose(pose.x, pose.y, pose.theta, pose.v, pose.w, pose.w_L, pose.w_R,
                                   sens.enc_phiL, sens.enc_phiR, sens.imu_theta);
-
 
         // 🚫 Desactivar sensores de obstáculos -> se fuerza la limpieza de las flag de obstáculo
         DistanceSensors::reset_system(sens.us_left_dist, sens.us_left_obst, sens.us_mid_dist, sens.us_mid_obst,
@@ -826,11 +825,8 @@ namespace OS
         volatile ControllerData &ctrl = *(ctx_ptr->control_ptr);
         volatile OperationData &os = *(ctx_ptr->os_ptr);
 
-        // Solo ejecutar el reset local una vez por intento completo
-        if (!local_reset_done) {
-            reset_firebase_data(ctx_ptr);
-            local_reset_done = true;
-        }
+        reset_firebase_data(ctx_ptr);
+
         // Enviar instrucción de reset a Firebase
         if (os.state == OS_State::INIT) fb_result = FirebaseComm::FullReset(os.fb_state);
         else fb_result = FirebaseComm::ClearAllLogs(os.fb_state);
@@ -930,6 +926,7 @@ namespace OS
 
         // Avisar que se alcanzó un waypoint y que falta enviar
         os.fb_completed_but_not_sent = true; // Marcar que se alcanzó un waypoint pero no se envió
+        os.fb_last_completed_ts = os.fb_waypoint_data.input_ts; // Guardar timestamp del waypoint alcanzado
 
         if (OS_DEBUG_MODE) {
             Serial.println("Waypoint alcanzado, datos registrados:");
@@ -1079,8 +1076,8 @@ namespace OS
         volatile OperationData &os = *(ctx_ptr->os_ptr);
         volatile ControllerData &ctrl = *(ctx_ptr->control_ptr);
 
-        os.fb_target_buffer.x = NULL_WAYPOINT_XY;
-        os.fb_target_buffer.y = NULL_WAYPOINT_XY;
+        os.fb_target_buffer.x = 0.0f;
+        os.fb_target_buffer.y = 0.0f;
         os.fb_target_buffer.ts = NULL_TIMESTAMP;
         os.fb_waypoint_data.input_ts = NULL_TIMESTAMP;
         os.fb_waypoint_data.wp_x = NULL_WAYPOINT_XY;
@@ -1093,6 +1090,7 @@ namespace OS
         os.fb_waypoint_data.controller_type = CtrlType2Int(ctrl.controller_type);
         os.fb_waypoint_data.iae = 0.0f;
         os.fb_waypoint_data.rmse = 0.0f;
+        os.fb_last_completed_ts = NULL_TIMESTAMP;
     }
 
 } // namespace OS

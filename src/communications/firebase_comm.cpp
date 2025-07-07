@@ -262,7 +262,8 @@ FB_Get_Result ProcessPendingWaypoint(
 }
 
 FB_State UpdatePendingWaypoint(
-    volatile float &target_x, volatile float &target_y, volatile uint64_t &target_ts,
+    volatile float &target_x, volatile float &target_y, 
+    volatile uint64_t &target_ts, volatile uint64_t &last_completed_ts,
     volatile FB_State &fb_state
 ) {
     static bool request_in_flight = false;
@@ -284,6 +285,15 @@ FB_State UpdatePendingWaypoint(
     if (result == FB_Get_Result::OK) {
         request_in_flight = false;
         error_count = 0;
+
+        // Verificar si el waypoint es repetido
+        if (target_ts == last_completed_ts) {
+            if (FB_DEBUG_MODE) Serial.println("UpdatePendingWaypoint: waypoint repetido, esperando próximo...");
+            // Opcional: delay pequeño aquí si quieres
+            // vTaskDelay(pdMS_TO_TICKS(150));
+            return FB_State::PENDING; // Así vuelves a pedir en el próximo ciclo
+        }
+
         return FB_State::OK;
     }
     // No hay resultado aún
@@ -486,12 +496,12 @@ FB_State CompleteWaypoint(
 
     // 1. Lanzar PUSH y REMOVE solo una vez cada uno por nuevo input_ts
     if (!push_initiated) {
-        push_state = ControlledPushReachedWaypoint(
+        ControlledPushReachedWaypoint(
             input_ts, wp_x, wp_y, start_ts, end_ts, reached_flag,
             pos_x, pos_y, controller_type, iae, rmse, fb_state
         );
         push_initiated = true;
-        if (FB_DEBUG_MODE) Serial.println("CompleteWaypoint: PUSH lanzado (paralelo)");
+        if (FB_DEBUG_MODE) Serial.println("CompleteWaypoint: PUSH lanzado");
     } else if (push_state == FB_State::PENDING) {
         // Verificar si ya terminó el push
         push_state = ControlledPushReachedWaypoint(
@@ -499,11 +509,10 @@ FB_State CompleteWaypoint(
             pos_x, pos_y, controller_type, iae, rmse, fb_state
         );
     }
-
     if (!remove_initiated) {
-        remove_state = ControlledRemovePendingWaypoint(input_ts, fb_state);
+        ControlledRemovePendingWaypoint(input_ts, fb_state);
         remove_initiated = true;
-        if (FB_DEBUG_MODE) Serial.println("CompleteWaypoint: REMOVE lanzado (paralelo)");
+        if (FB_DEBUG_MODE) Serial.println("CompleteWaypoint: REMOVE lanzado");
     } else if (remove_state == FB_State::PENDING) {
         remove_state = ControlledRemovePendingWaypoint(input_ts, fb_state);
     }
@@ -513,11 +522,11 @@ FB_State CompleteWaypoint(
 
     // 3. Ambas terminaron: reportar OK solo si remove fue OK
     FB_State ret_state = FB_State::ERROR;
-    if (remove_state == FB_State::OK &&
-        (push_state == FB_State::OK || push_state == FB_State::ERROR)) {
+    if (remove_state == FB_State::OK && (push_state == FB_State::OK || push_state == FB_State::ERROR)) {
         fb_state = FB_State::OK;
         ret_state = FB_State::OK;
-        if (FB_DEBUG_MODE) Serial.println("CompleteWaypoint: ambas operaciones completadas (paralelo).");
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        if (FB_DEBUG_MODE) Serial.println("CompleteWaypoint: ambas operaciones completadas.");
     } else {
         fb_state = FB_State::ERROR;
         ret_state = FB_State::ERROR;

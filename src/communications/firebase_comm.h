@@ -20,7 +20,7 @@
 #include <ArduinoJson.h>
 
 // Auxiliar para debug print
-constexpr bool FB_DEBUG_MODE = false;
+constexpr bool FB_DEBUG_MODE = true;
 
 
 // ---------- Enum para los returns ----------
@@ -150,7 +150,9 @@ FB_Get_Result ProcessPendingWaypoint(
  * @return FB_State Estado actual de la operación.
  */
 FB_State UpdatePendingWaypoint(
-    volatile float &target_x, volatile float &target_y, volatile uint64_t &target_ts, volatile FB_State &fb_state
+    volatile float &target_x, volatile float &target_y, 
+    volatile uint64_t &target_ts, volatile uint64_t &last_completed_ts,
+    volatile FB_State &fb_state
 );
 
 /**

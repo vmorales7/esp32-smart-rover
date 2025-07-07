@@ -124,8 +124,8 @@ bool set_diferential_waypoint(
     }
     // Actualizar las coordenadas del destino
     theta_d = wrap_to_pi(theta + delta_theta); 
-    x_d +=  dist * cosf(theta_d);
-    y_d += dist * sinf(theta_d);
+    x_d = x + dist * cosf(theta_d);
+    y_d = y + dist * sinf(theta_d);
     reset_pid_state(); // Reiniciar el estado del PID
     reset_backs();
     waypoint_reached = false; // Reiniciar la bandera de waypoint alcanzado

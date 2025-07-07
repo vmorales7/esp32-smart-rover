@@ -247,13 +247,16 @@ void force_measure_distances(GlobalContext* ctx_ptr) {
     vTaskSuspend(handlers.obstacle_handle);
 
     // 2. Espera para estabilizar hardware
-    vTaskDelay(pdMS_TO_TICKS(US_WAIT_TIME_MS + US_PULSE_TIMEOUT_US / 1000.0f));
+    // vTaskDelay(pdMS_TO_TICKS(US_WAIT_TIME_MS + US_PULSE_TIMEOUT_US / 1000.0f));
+    delay(US_WAIT_TIME_MS + ((float)US_PULSE_TIMEOUT_US / 1000.0f));
 
     //3. Forzar lectura de los sensores ultrasónicos
     sens.us_left_dist  = read_distance_mediana(US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN);
-    vTaskDelay(pdMS_TO_TICKS(US_WAIT_TIME_MS)); // Pequeña pausa entre sensores
+    // vTaskDelay(pdMS_TO_TICKS(US_WAIT_TIME_MS)); // Pequeña pausa entre sensores
+    vTaskDelay(US_WAIT_TIME_MS);
     sens.us_mid_dist   = read_distance_mediana(US_MID_TRIG_PIN, US_MID_ECHO_PIN);
-    vTaskDelay(pdMS_TO_TICKS(US_WAIT_TIME_MS)); // Pequeña pausa entre sensores
+    // vTaskDelay(pdMS_TO_TICKS(US_WAIT_TIME_MS)); // Pequeña pausa entre sensores
+    vTaskDelay(US_WAIT_TIME_MS);
     sens.us_right_dist = read_distance_mediana(US_RIGHT_TRIG_PIN, US_RIGHT_ECHO_PIN);
 
     // 9. Reanudar tareas periódicas
