@@ -16,7 +16,7 @@ constexpr bool ONLINE_MODE = true; // Habilita el modo online (conexión a Fireb
 constexpr uint16_t WHEEL_CONTROL_PERIOD_MS = 10;
 constexpr uint16_t ENCODER_READ_PERIOD_MS = 10;
 constexpr uint16_t IMU_READ_PERIOD_MS = 10;
-constexpr uint16_t OBSTACLE_CHECK_PERIOD_MS = 100;
+constexpr uint16_t OBSTACLE_CHECK_PERIOD_MS = 200;
 constexpr uint16_t POSE_ESTIMATOR_PERIOD_MS = 10; 
 constexpr uint16_t POSITION_CONTROL_PERIOD_MS = 100;
 
@@ -26,7 +26,7 @@ constexpr uint16_t POSITION_CONTROL_PERIOD_MS = 100;
 constexpr uint16_t WIFI_CHECK_PERIOD_MS = 1000;
 constexpr uint16_t FB_PUSH_STATUS_PERIOD_MS = 500;
 constexpr uint16_t FB_GET_COMMANDS_PERIOD_MS = 250;
-constexpr uint16_t FB_LOOP_PERIOD_MS = 100;
+constexpr uint16_t FB_LOOP_PERIOD_MS = 20;
 
 
 // Sistema operativo y evasión
@@ -410,7 +410,7 @@ struct ControllerData {
 struct OperationData {
     // Generales
     OS_State state;
-    char last_log[64];
+    char last_log[128];
 
     // Operación en modo offline
     uint8_t local_total_targets;
@@ -448,12 +448,14 @@ struct OperationData {
  */
 struct TaskHandlers {
     TaskHandle_t wheels_handle;
-    TaskHandle_t obstacle_handle;  ///< Manejador de la tarea de chequeo de obstáculos
-    TaskHandle_t encoder_handle;   ///< Manejador de la tarea de lectura de encoders
-    TaskHandle_t imu_handle;       ///< Manejador de la tarea de lectura de IMU
-    TaskHandle_t pose_handle;      ///< Manejador de la tarea de estimación de pose
-    TaskHandle_t position_handle;  ///< Manejador de la tarea de control de posición
-    TaskHandle_t os_handle;        ///< Manejador de la tarea de operación del sistema
+    TaskHandle_t obstacle_handle;        ///< Manejador de la tarea de chequeo de obstáculos
+    TaskHandle_t encoder_handle;         ///< Manejador de la tarea de lectura de encoders
+    TaskHandle_t imu_handle;             ///< Manejador de la tarea de lectura de IMU
+    TaskHandle_t pose_handle;            ///< Manejador de la tarea de estimación de pose
+    TaskHandle_t position_handle;        ///< Manejador de la tarea de control de posición
+    TaskHandle_t os_handle;              ///< Manejador de la tarea de operación del sistema
+    TaskHandle_t fb_push_status_handle;  ///< Manejador de la tarea de chequeo de WiFi (opcional)
+    TaskHandle_t fb_get_commands_handle; ///< Manejador de la tarea de obtención de comandos desde Firebase (opcional)
 
     // Constructor por defecto
     TaskHandlers()

@@ -206,8 +206,7 @@ FB_Get_Result ProcessPendingWaypoint(
     // Hubo resultado, revisar si hay error
     if (async_pending_waypoints_get.isError()) {
         if (FB_DEBUG_MODE) {
-            Serial.println("RequestPendingWaypoint: error al obtener. Reintentando.");
-            Serial.print("Error ->  ");
+            Serial.print("RequestPendingWaypoint: error al obtener. Reintentando. Error ->  ");
             Serial.print(async_pending_waypoints_get.error().code());
             Serial.print(" | ");
             Serial.println(async_pending_waypoints_get.error().message().c_str());
@@ -391,7 +390,7 @@ FB_State ControlledPushReachedWaypoint(
             in_flight = false;
             if (FB_DEBUG_MODE) {
                 Serial.println("PushReachedWaypoint: datos nos se pudieron enviar. Reintentando.");
-                Serial.print("Error ->  ");
+                Serial.print("PushReachedWaypoint: Error ->  ");
                 Serial.print(async_reached_waypoints.error().code());
                 Serial.print(" | ");
                 Serial.println(async_reached_waypoints.error().message().c_str());
@@ -448,7 +447,7 @@ FB_State ControlledRemovePendingWaypoint(
             in_flight = false;
             if (FB_DEBUG_MODE) {
                 Serial.println("RemovePendingWaypoint: error al eliminar waypoint. Reintentando.");
-                Serial.print("Error -> ");
+                Serial.print("PushReachedWaypoint: Error -> ");
                 Serial.print(async_pending_waypoints_remove.error().code());
                 Serial.print(" | ");
                 Serial.println(async_pending_waypoints_remove.error().message().c_str());
@@ -932,8 +931,8 @@ void Task_PushStatus(void *pvParameters) {
     volatile ControllerData& ctrl = *(ctx_ptr->control_ptr);
     // Ejecutar tarea periodicamente
     for (;;) {
-        vTaskDelayUntil(&xLastWakeTime, period);
         if (os.state != OS_State::INIT && os.state != OS_State::IDLE) {
+            // ready();
             PushStatus(
                 static_cast<uint8_t>(os.state), (const char*) os.last_log,
                 pose.x, pose.y, pose.w_L, pose.w_R,
@@ -948,6 +947,7 @@ void Task_PushStatus(void *pvParameters) {
                     os.fb_waypoint_data.wp_x, os.fb_waypoint_data.wp_y);
             }
         }
+        vTaskDelay(period);
     }
 }
 
@@ -960,17 +960,18 @@ void Task_GetCommands(void *pvParameters) {
     volatile OperationData& os = *(ctx_ptr->os_ptr);
     // Ejecutar tarea periódicamente
     for (;;) {
-        vTaskDelayUntil(&xLastWakeTime, period);
         uint8_t action = 0;
         uint8_t controller_type = 0;
         if (os.state != OS_State::INIT)
         {
+            // ready();
             if (UpdateCommands(action, controller_type, os.fb_state) == FB_State::OK)
             {
                 os.fb_last_command    = Int2Cmd(action);
                 os.fb_controller_type = Int2CtrlType(controller_type);
             }
         }
+        vTaskDelay(period);
     }
 }
 
@@ -988,6 +989,20 @@ void Task_Loop(void *pvParameters) {
             if (FB_DEBUG_MODE) Serial.println("Task_Loop: Firebase no está listo.");
         }
     }
+}
+
+void suspend_firebase_tasks(TaskHandlers& tasks) {
+    vTaskSuspend(tasks.fb_get_commands_handle);
+    vTaskSuspend(tasks.fb_push_status_handle);
+    if (FB_DEBUG_MODE) Serial.println("Firebase tasks suspended.");
+}
+
+void resume_firebase_tasks(TaskHandlers& tasks) {
+    async_commands.clear();
+    async_status.clear();
+    vTaskResume(tasks.fb_get_commands_handle);
+    vTaskResume(tasks.fb_push_status_handle);
+    if (FB_DEBUG_MODE) Serial.println("Firebase tasks resumed.");
 }
 
 } // namespace FirebaseComm

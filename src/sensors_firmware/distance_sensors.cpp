@@ -169,7 +169,6 @@ void Task_CheckObstacle(void* pvParameters) {
     volatile SensorsData& sens = *ctx->sensors_ptr;
 
     for (;;) {
-        vTaskDelayUntil(&xLastWakeTime, period); // Sincroniza el ciclo completo
         // Sensor IZQUIERDO
         check_sensor_obstacle(
             US_LEFT_TRIG_PIN, US_LEFT_ECHO_PIN,
@@ -187,6 +186,7 @@ void Task_CheckObstacle(void* pvParameters) {
             US_RIGHT_TRIG_PIN, US_RIGHT_ECHO_PIN,
             sens.us_right_dist, sens.us_right_obst, sens.us_obstacle, sts.distance
         );
+        vTaskDelay(period);
     }
 }
 

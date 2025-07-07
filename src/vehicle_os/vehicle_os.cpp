@@ -180,6 +180,7 @@ namespace OS
         volatile ControllerData &ctrl = *(ctx_ptr->control_ptr);
         volatile OperationData &os = *(ctx_ptr->os_ptr);
         volatile EvadeContext &evade = *(ctx_ptr->evade_ptr);
+        TaskHandlers &tasks = *(ctx_ptr->rtos_task_ptr);
 
         bool ok = true;                    // Se usará para verificar si se pudo entrar a un estado
         FB_State fb_result = FB_State::OK; // Estado de la comunicación con Firebase
@@ -206,12 +207,14 @@ namespace OS
             }
             else if (os.fb_last_command == UserCommand::START || os.fb_last_command == UserCommand::STOP)
             {   // Si se da un start/stop desde Firebase, se entra a STAND_BY y se resetea el estado
+                FirebaseComm::suspend_firebase_tasks(tasks);
                 fb_result = reset_online_status(ctx_ptr);
                 if (fb_result == FB_State::OK)
                 { // Si se pudo resetear el estado online, se entra a STAND_BY
                     enter_stand_by(ctx_ptr);
                     os.state = OS_State::STAND_BY;
                     set_operation_log(OS_State::STAND_BY, OS_State::IDLE, ctx_ptr);
+                    FirebaseComm::resume_firebase_tasks(tasks);
                 }
                 else
                 { // Si no se pudo resetear, se queda en IDLE
@@ -233,6 +236,7 @@ namespace OS
             // Si hay error, se queda en STAND_BY por no poder remover el pendiente
             else if (os.fb_completed_but_not_sent)
             {   // Completar el waypoint pendiente antes de seguir
+                FirebaseComm::suspend_firebase_tasks(tasks);
                 if (OS_DEBUG_MODE) Serial.println("[STAND_BY] Registrando waypoint finalizado.");
                 SendReachedWaypoint(ctx_ptr); 
                 // Sí o sí debe estar completado, sino no se elimina el waypoint pendiente y quedaría pegado 
@@ -240,6 +244,7 @@ namespace OS
             // Último punto alcanzado fue enviado + comando START
             else if (os.fb_last_command == UserCommand::START)
             {   // Hay que pedir el waypoint pendiente mas antiguo a Firebase
+                FirebaseComm::suspend_firebase_tasks(tasks);
                 if (OS_DEBUG_MODE) Serial.println("[STAND_BY] START recibido, pidiendo/esperando waypoint pendiente.");
                 fb_result = FirebaseComm::UpdatePendingWaypoint(
                     os.fb_target_buffer.x, os.fb_target_buffer.y, os.fb_target_buffer.ts, os.fb_last_completed_ts, os.fb_state);
@@ -254,10 +259,12 @@ namespace OS
                     enter_align(ctx_ptr);
                     os.state = OS_State::ALIGN;
                     set_operation_log(OS_State::ALIGN, OS_State::STAND_BY, ctx_ptr);
+                    FirebaseComm::resume_firebase_tasks(tasks);
                 }
             } // Último punto alcanzado fue enviado + comando IDLE
             else if (os.fb_last_command == UserCommand::IDLE)
             {
+                FirebaseComm::suspend_firebase_tasks(tasks);
                 fb_result = FirebaseComm::ClearPendingWaypoints(os.fb_state);
                 if (fb_result != FB_State::PENDING) 
                 {   // Si se pudo eliminar los waypoints pendiente o fue error, se vuelve a IDLE
@@ -266,7 +273,12 @@ namespace OS
                     set_operation_log(OS_State::IDLE, OS_State::STAND_BY, ctx_ptr);
                     if (OS_DEBUG_MODE) 
                         Serial.println("STAND_BY: Comando IDLE recibido, se vuelve a IDLE.");
+                    FirebaseComm::resume_firebase_tasks(tasks);
                 }
+            }
+            else
+            {   // Asegurarnos de reactivar las tareas de Firebase si se suspendieron
+                FirebaseComm::resume_firebase_tasks(tasks);
             }
             break;
         }
@@ -514,15 +526,19 @@ namespace OS
             PositionController::Task_PositionControl, "PositionControl", 3 * BASIC_STACK_SIZE, ctx_ptr, 1, nullptr, 1);
 
         // 4. Lanzar tareas RTOS núcleo 0
-        xTaskCreatePinnedToCore(OS::Task_VehicleOS, "VehicleOS", 6 * BASIC_STACK_SIZE, ctx_ptr, 0, nullptr, 0);
-        xTaskCreatePinnedToCore(
-            DistanceSensors::Task_CheckObstacle, "CheckObstacles", 2 * BASIC_STACK_SIZE, ctx_ptr, 3, &(task_handlers.obstacle_handle), 0);
+        xTaskCreatePinnedToCore(OS::Task_VehicleOS, "VehicleOS", 8 * BASIC_STACK_SIZE, ctx_ptr, 0, nullptr, 0);
+        if (!NO_OBSTACLES_MODE) {
+            xTaskCreatePinnedToCore(
+                DistanceSensors::Task_CheckObstacle, "CheckObstacles", 2 * BASIC_STACK_SIZE, ctx_ptr, 3, &(task_handlers.obstacle_handle), 0);
+        }
         xTaskCreatePinnedToCore(Task_StopOnRiskFlags, "StopOnRiskFlags", BASIC_STACK_SIZE, ctx_ptr, 4, nullptr, 0);
         if (ONLINE_MODE)
         {
             xTaskCreatePinnedToCore(Task_CheckWifi, "CheckWifi", BASIC_STACK_SIZE, ctx_ptr, 2, nullptr, 0);
-            xTaskCreatePinnedToCore(FirebaseComm::Task_PushStatus, "FirebasePushStatus", 4 * BASIC_STACK_SIZE, ctx_ptr, 1, nullptr, 0);
-            xTaskCreatePinnedToCore(FirebaseComm::Task_GetCommands, "FirebaseGetCommands", 4 * BASIC_STACK_SIZE, ctx_ptr, 3, nullptr, 0);
+            xTaskCreatePinnedToCore(
+                FirebaseComm::Task_PushStatus, "FirebasePushStatus", 4 * BASIC_STACK_SIZE, ctx_ptr, 1, &(task_handlers.fb_push_status_handle), 0);
+            xTaskCreatePinnedToCore(
+                FirebaseComm::Task_GetCommands, "FirebaseGetCommands", 4 * BASIC_STACK_SIZE, ctx_ptr, 3, &(task_handlers.fb_get_commands_handle), 0);
             xTaskCreatePinnedToCore(FirebaseComm::Task_Loop, "FirebaseLoop", 2 * BASIC_STACK_SIZE, ctx_ptr, 3, nullptr, 0);
         }
         if (OS_DEBUG_MODE) Serial.println("Sistema operativo del vehículo listo.");
@@ -648,10 +664,11 @@ namespace OS
         // 🟢 Activar sensores de distancia y realizar una primera lectura forzada para estar bien actualizados
         DistanceSensors::set_state(ACTIVE, sts.distance,
                                    sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
-        DistanceSensors::force_check_sensors(ctx_ptr);
-        DistanceSensors::update_global_obstacle_flag(
-            sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
-
+        if (!NO_OBSTACLES_MODE) {
+            DistanceSensors::force_check_sensors(ctx_ptr);
+            DistanceSensors::update_global_obstacle_flag(
+                sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
+        }
         // 🟢 Activar control de posición (v_ref y w_ref) y actualizar el tipo de controlador
         // PositionController::set_controller_type(os.fb_controller_type, ctrl.controller_type, ctrl.iae, ctrl.rmse);
         PositionController::set_control_mode(PositionControlMode::MOVE, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);

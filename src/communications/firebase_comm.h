@@ -353,6 +353,29 @@ void Task_GetCommands(void *pvParameters);
  */
 void Task_Loop(void *pvParameters);
 
+/**
+ * @brief Suspende todas las tareas relacionadas con la comunicación Firebase.
+ *
+ * Esta función detiene temporalmente la ejecución de las tareas RTOS encargadas de la
+ * lectura y escritura asíncrona con Firebase, evitando condiciones de carrera y
+ * corrupción de memoria durante operaciones críticas (como reseteos o cambios de estado).
+ *
+ * @param tasks Referencia a la estructura TaskHandlers que contiene los manejadores de las tareas.
+ */
+void suspend_firebase_tasks(TaskHandlers& tasks);
+
+/**
+ * @brief Reanuda todas las tareas relacionadas con la comunicación Firebase.
+ *
+ * Esta función reactiva la ejecución de las tareas RTOS encargadas de la
+ * comunicación asíncrona con Firebase, permitiendo reanudar el flujo normal
+ * de lectura y escritura tras finalizar operaciones críticas.
+ *
+ * @param tasks Referencia a la estructura TaskHandlers que contiene los manejadores de las tareas.
+ */
+void resume_firebase_tasks(TaskHandlers& tasks);
+
+
 } // namespace FirebaseComm
 
 #endif // FIREBASE_COMM_H
