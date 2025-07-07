@@ -12,13 +12,14 @@ static RealtimeDatabase*  rtdb_ptr         = nullptr;
 // Estados para operaciones asíncronas
 static AsyncResult async_commands;
 static AsyncResult async_status;
-static AsyncResult async_pending_waypoints;
+static AsyncResult async_pending_waypoints_get;
+static AsyncResult async_pending_waypoints_remove;
 static AsyncResult async_reached_waypoints;
 
 bool ConnectFirebase() {
     static bool already_initialized = false;
     if (already_initialized) return true;
-    
+
     // Limpia instancias anteriores (seguro si no estaban inicializadas)
     if (FB_DEBUG_MODE) Serial.println("\n[Firebase] Iniciando conexión...");
     // ResetFirebase();
@@ -107,13 +108,13 @@ FB_Get_Result ProcessRequestCommands(volatile uint8_t &action, volatile uint8_t 
     // Hubo resultado, revisar si hay error
     if (async_commands.isError()) {
         if (FB_DEBUG_MODE) {
-            Serial.println("RequestCommands: error al recibir.");
+            Serial.print("[RequestCommands] Error al recibir. Error ->  ");
             Serial.print(async_commands.error().code());
             Serial.print(" | ");
             Serial.println(async_commands.error().message().c_str());
         }
         return FB_Get_Result::ERROR;
-    } 
+    }
     // No hay error, deserializar y revisar si hay datos
     JsonDocument doc;
     DeserializationError err = deserializeJson(doc, async_commands.c_str());
@@ -134,14 +135,14 @@ FB_Get_Result ProcessRequestCommands(volatile uint8_t &action, volatile uint8_t 
     action = v_action.as<uint8_t>();
     controller_type = v_ctrl.as<uint8_t>();
     if (FB_DEBUG_MODE) {
-        Serial.printf("RequestCommands: datos recibidos correctamente -> action = %u, controller_type = %u\n", 
+        Serial.printf("RequestCommands: datos recibidos correctamente -> action = %u, controller_type = %u\n",
             action, controller_type);
     }
     return FB_Get_Result::OK;
 }
 
 FB_State UpdateCommands(
-    volatile uint8_t &action, volatile uint8_t &controller_type, 
+    volatile uint8_t &action, volatile uint8_t &controller_type,
     volatile FB_State &fb_state
 ) {
     static bool request_in_flight = false;
@@ -161,24 +162,24 @@ FB_State UpdateCommands(
         request_in_flight = false;
         error_count = 0;
         return FB_State::OK;
-    } 
-    else if (result == FB_Get_Result::NO_RESULT) 
+    }
+    else if (result == FB_Get_Result::NO_RESULT)
     {
         if (millis() - time_request_sent > FB_COMMANDS_TIMEOUT_MS) {
             error_count++;
             request_in_flight = false;
         }
-    } 
-    else 
+    }
+    else
     {   // Resultado con error: se suma un error y se fuerza una nueva solicitud
         if (FB_DEBUG_MODE) Serial.println("UpdateCommands: error al recibir comandos.");
         error_count++;
         request_in_flight = false;
     }
 
-    if (error_count >= FB_COMMANDS_MAX_ERRORS) 
+    if (error_count >= FB_COMMANDS_MAX_ERRORS)
     {
-        if (FB_DEBUG_MODE) Serial.println("UpdateCommands: se alcanzó el máximo de errores.");
+        // if (FB_DEBUG_MODE) Serial.println("UpdateCommands: se alcanzó el máximo de errores.");
         fb_state = FB_State::ERROR;
         error_count = 0;
         return FB_State::ERROR;
@@ -190,7 +191,7 @@ FB_State UpdateCommands(
 void RequestPendingWaypoint() {
     DatabaseOptions options;
     options.filter.orderBy("$key").limitToFirst(1);
-    rtdb_ptr->get(*async_client_ptr, "/waypoints_pending", options, async_pending_waypoints);
+    rtdb_ptr->get(*async_client_ptr, "/waypoints_pending", options, async_pending_waypoints_get);
     if (FB_DEBUG_MODE) Serial.println("RequestPendingWaypoint: solicitud enviada.");
 }
 
@@ -198,18 +199,24 @@ FB_Get_Result ProcessPendingWaypoint(
     volatile float &target_x, volatile float &target_y, volatile uint64_t &target_ts
 ) {
     // Revisar si hay un resultado disponible
-    if (!async_pending_waypoints.isResult()) {
-        if (FB_DEBUG_MODE) Serial.println("RequestPendingWaypoint: no hay resultado disponible.");
+    if (!async_pending_waypoints_get.isResult()) {
+        if (FB_DEBUG_MODE) Serial.println("RequestPendingWaypoint: resultado pendiente.");
         return FB_Get_Result::NO_RESULT;
     }
     // Hubo resultado, revisar si hay error
-    if (async_pending_waypoints.isError()) {
-        if (FB_DEBUG_MODE) Serial.println("RequestPendingWaypoint: error al obtener.");
+    if (async_pending_waypoints_get.isError()) {
+        if (FB_DEBUG_MODE) {
+            Serial.println("RequestPendingWaypoint: error al obtener. Reintentando.");
+            Serial.print("Error ->  ");
+            Serial.print(async_pending_waypoints_get.error().code());
+            Serial.print(" | ");
+            Serial.println(async_pending_waypoints_get.error().message().c_str());
+        }
         return FB_Get_Result::ERROR;
     }
     // No hay error, deserializar y revisar si hay datos
     JsonDocument doc;
-    DeserializationError err = deserializeJson(doc, async_pending_waypoints.c_str());
+    DeserializationError err = deserializeJson(doc, async_pending_waypoints_get.c_str());
     if (err) {
         if (FB_DEBUG_MODE) {
             Serial.print("RequestPendingWaypoint: JSON parse error - ");
@@ -219,14 +226,14 @@ FB_Get_Result ProcessPendingWaypoint(
     }
     // Obtener los datos del JSON y avisar si están completos
     JsonObject root = doc.as<JsonObject>();
-    for (JsonPair kv : root) 
+    for (JsonPair kv : root)
     {
         JsonObject obj = kv.value().as<JsonObject>();
         JsonVariant v_x  = obj["wp_x"];
         JsonVariant v_y  = obj["wp_y"];
         JsonVariant v_ts = obj["input_timestamp"];
         if (!v_x.is<double>() || !v_y.is<double>() || !v_ts.is<double>()) {
-            if (FB_DEBUG_MODE) Serial.println("RequestPendingWaypoint: faltan campos.");
+            if (FB_DEBUG_MODE) Serial.println("RequestPendingWaypoint: faltan campos en el resultado recibido.");
             return FB_Get_Result::MISSING_FIELDS;
         }
         // Si están los valores
@@ -234,7 +241,7 @@ FB_Get_Result ProcessPendingWaypoint(
         target_y = v_y.as<float>();
         target_ts = v_ts.as<uint64_t>();
         if (FB_DEBUG_MODE) {
-            Serial.printf("RequestPendingWaypoint: datos recibidos -> wp_x = %.2f, wp_y = %.2f, input_timestamp = %llu\n", 
+            Serial.printf("RequestPendingWaypoint: datos recibidos -> wp_x = %.2f, wp_y = %.2f, input_timestamp = %llu\n",
                 target_x, target_y, target_ts);
         }
         // Validar que los datos no sean nulos o inválidos
@@ -286,7 +293,7 @@ FB_State UpdatePendingWaypoint(
             error_count++;
             request_in_flight = false;
         }
-    } 
+    }
     // Resultado con error: se suma un error y se fuerza una nueva solicitud
     else {
         error_count++;
@@ -294,7 +301,7 @@ FB_State UpdatePendingWaypoint(
     }
     // Verificar si se alcanzó el máximo de errores
     if (error_count >= FB_PENDING_MAX_ERRORS) {
-        if (FB_DEBUG_MODE) Serial.println("RequestPendingWaypoint: se alcanzó el máximo de errores.");
+        // if (FB_DEBUG_MODE) Serial.println("RequestPendingWaypoint: se alcanzó el máximo de errores.");
         fb_state = FB_State::ERROR;
         error_count = 0;
         request_in_flight = false;
@@ -306,9 +313,9 @@ FB_State UpdatePendingWaypoint(
 
 
 void PushReachedWaypoint(
-    const uint64_t input_timestamp, const float wp_x, const float wp_y,  
+    const uint64_t input_timestamp, const float wp_x, const float wp_y,
     const uint64_t start_timestamp, const uint64_t end_timestamp, const bool reached_flag,
-    const float pos_x, const float pos_y, 
+    const float pos_x, const float pos_y,
     const uint8_t controller_type, const float iae, const float rmse
 ) {
     JsonDocument doc;
@@ -331,9 +338,9 @@ void PushReachedWaypoint(
 }
 
 FB_State ControlledPushReachedWaypoint(
-    const uint64_t input_timestamp, const float wp_x, const float wp_y,  
+    const uint64_t input_timestamp, const float wp_x, const float wp_y,
     const uint64_t start_timestamp, const uint64_t end_timestamp, const bool reached_flag,
-    const float pos_x, const float pos_y, 
+    const float pos_x, const float pos_y,
     const uint8_t controller_type, const float iae, const float rmse,
     volatile FB_State &fb_state
 ) {
@@ -343,6 +350,16 @@ FB_State ControlledPushReachedWaypoint(
 
     // Iniciar push si no hay operación en curso
     if (!in_flight) {
+        if (FB_DEBUG_MODE) {
+            Serial.printf(
+                "PushReachedWaypoint: enviando datos -> input_timestamp = %llu, wp_x = %.2f, wp_y = %.2f, "
+                "start_timestamp = %llu, end_timestamp = %llu, reached_flag = %d, pos_x = %.2f, pos_y = %.2f, "
+                "controller_type = %u, iae = %.2f, rmse = %.2f\n",
+                input_timestamp, wp_x, wp_y,
+                start_timestamp, end_timestamp, reached_flag, pos_x, pos_y,
+                controller_type, iae, rmse
+            );
+            }
         PushReachedWaypoint(
             input_timestamp, wp_x, wp_y, start_timestamp, end_timestamp,
             reached_flag, pos_x, pos_y, controller_type, iae, rmse
@@ -357,20 +374,29 @@ FB_State ControlledPushReachedWaypoint(
         if (!async_reached_waypoints.isError()) {
             error_count = 0;
             in_flight = false;
+            if (FB_DEBUG_MODE) Serial.println("PushReachedWaypoint: datos enviados correctamente.");
             return FB_State::OK;
         } else {
             error_count++;
             in_flight = false;
+            if (FB_DEBUG_MODE) {
+                Serial.println("PushReachedWaypoint: datos nos se pudieron enviar. Reintentando.");
+                Serial.print("Error ->  ");
+                Serial.print(async_reached_waypoints.error().code());
+                Serial.print(" | ");
+                Serial.println(async_reached_waypoints.error().message().c_str());
+            }
         }
     } else if (millis() - time_sent > FB_PUSH_REACHED_TIMEOUT_MS) {
         error_count++;
         in_flight = false;
+        if (FB_DEBUG_MODE) Serial.println("PushReachedWaypoint: timeout. Reintentando.");
     }
 
     // Verificar si se alcanzó el máximo de errores
     if (error_count >= FB_PUSH_REACHED_MAX_ERRORS) {
         error_count = 0;
-        if (FB_DEBUG_MODE) Serial.println("ControlledPushReachedWaypoint: error permanente.");
+        // if (FB_DEBUG_MODE) Serial.println("PushReachedWaypoint: máximo de errores alcanzados.");
         fb_state = FB_State::ERROR;
         return FB_State::ERROR;
     }
@@ -380,7 +406,7 @@ FB_State ControlledPushReachedWaypoint(
 
 void RemovePendingWaypoint(const uint64_t input_timestamp) {
     String path = "/waypoints_pending/" + String(input_timestamp);
-    rtdb_ptr->remove(*async_client_ptr, path, async_pending_waypoints);
+    rtdb_ptr->remove(*async_client_ptr, path, async_pending_waypoints_remove);
 }
 
 FB_State ControlledRemovePendingWaypoint(
@@ -395,28 +421,39 @@ FB_State ControlledRemovePendingWaypoint(
         RemovePendingWaypoint(input_timestamp);
         time_sent = millis();
         in_flight = true;
+        if (FB_DEBUG_MODE) {
+            Serial.printf("RemovePendingWaypoint: eliminando waypoint con input_timestamp = %llu\n", input_timestamp);
+        }
         return FB_State::PENDING;
     }
 
     // Evaluar el resultado si ya se hizo la solicitud
-    if (async_pending_waypoints.isResult()) {
-        if (!async_pending_waypoints.isError()) {
+    if (async_pending_waypoints_remove.isResult()) {
+        if (!async_pending_waypoints_remove.isError()) {
             error_count = 0;
             in_flight = false;
             return FB_State::OK;
         } else {
             error_count++;
             in_flight = false;
+            if (FB_DEBUG_MODE) {
+                Serial.println("RemovePendingWaypoint: error al eliminar waypoint. Reintentando.");
+                Serial.print("Error -> ");
+                Serial.print(async_pending_waypoints_remove.error().code());
+                Serial.print(" | ");
+                Serial.println(async_pending_waypoints_remove.error().message().c_str());
+            }
         }
     } else if (millis() - time_sent > FB_PUSH_REMOVE_TIMEOUT_MS) {
         error_count++;
         in_flight = false;
+        if (FB_DEBUG_MODE) Serial.println("RemovePendingWaypoint: timeout. Reintentando.");
     }
 
     // Evaluar si se alcanzó el máximo de errores
     if (error_count >= FB_PUSH_REMOVE_MAX_ERRORS) {
         error_count = 0;
-        if (FB_DEBUG_MODE) Serial.println("ControlledRemovePendingWaypoint: error permanente.");
+        // if (FB_DEBUG_MODE) Serial.println("RemovePendingWaypoint: máximo de errores alcanzados.");
         fb_state = FB_State::ERROR;
         return FB_State::ERROR;
     }
@@ -431,33 +468,126 @@ FB_State CompleteWaypoint(
     const uint8_t controller_type, const float iae, const float rmse,
     volatile FB_State& fb_state
 ) {
+    // Estado para detectar nuevo waypoint y requests lanzados
+    static bool push_initiated = false;
+    static bool remove_initiated = false;
     static FB_State push_state = FB_State::PENDING;
     static FB_State remove_state = FB_State::PENDING;
+    static uint64_t last_input_ts = 0;
 
-    // Llamar a ambos controlled en cada ciclo — ellos manejan sus propios in_flight y retries
-    push_state = ControlledPushReachedWaypoint(
-        input_ts, wp_x, wp_y, start_ts, end_ts, reached_flag,
-        pos_x, pos_y, controller_type, iae, rmse, fb_state
-    );
-    remove_state = ControlledRemovePendingWaypoint(input_ts, fb_state);
+    // Si llegó un nuevo waypoint, resetear todo
+    if (input_ts != last_input_ts) {
+        push_initiated = false;
+        remove_initiated = false;
+        push_state = FB_State::PENDING;
+        remove_state = FB_State::PENDING;
+        last_input_ts = input_ts;
+    }
 
-    // Esperar a que ambas operaciones terminen
+    // 1. Lanzar PUSH y REMOVE solo una vez cada uno por nuevo input_ts
+    if (!push_initiated) {
+        push_state = ControlledPushReachedWaypoint(
+            input_ts, wp_x, wp_y, start_ts, end_ts, reached_flag,
+            pos_x, pos_y, controller_type, iae, rmse, fb_state
+        );
+        push_initiated = true;
+        if (FB_DEBUG_MODE) Serial.println("CompleteWaypoint: PUSH lanzado (paralelo)");
+    } else if (push_state == FB_State::PENDING) {
+        // Verificar si ya terminó el push
+        push_state = ControlledPushReachedWaypoint(
+            input_ts, wp_x, wp_y, start_ts, end_ts, reached_flag,
+            pos_x, pos_y, controller_type, iae, rmse, fb_state
+        );
+    }
+
+    if (!remove_initiated) {
+        remove_state = ControlledRemovePendingWaypoint(input_ts, fb_state);
+        remove_initiated = true;
+        if (FB_DEBUG_MODE) Serial.println("CompleteWaypoint: REMOVE lanzado (paralelo)");
+    } else if (remove_state == FB_State::PENDING) {
+        remove_state = ControlledRemovePendingWaypoint(input_ts, fb_state);
+    }
+
+    // 2. Esperar a que ambas operaciones terminen
     if (push_state == FB_State::PENDING || remove_state == FB_State::PENDING) return FB_State::PENDING;
 
-    // Evaluar resultado
+    // 3. Ambas terminaron: reportar OK solo si remove fue OK
+    FB_State ret_state = FB_State::ERROR;
     if (remove_state == FB_State::OK &&
         (push_state == FB_State::OK || push_state == FB_State::ERROR)) {
         fb_state = FB_State::OK;
-        return FB_State::OK;
+        ret_state = FB_State::OK;
+        if (FB_DEBUG_MODE) Serial.println("CompleteWaypoint: ambas operaciones completadas (paralelo).");
+    } else {
+        fb_state = FB_State::ERROR;
+        ret_state = FB_State::ERROR;
     }
 
-    fb_state = FB_State::ERROR;
-    return FB_State::ERROR;
+    return ret_state;
 }
 
 
+// FB_State CompleteWaypoint(
+//     const uint64_t input_ts, const float wp_x, const float wp_y,
+//     const uint64_t start_ts, const uint64_t end_ts, const bool reached_flag,
+//     const float pos_x, const float pos_y,
+//     const uint8_t controller_type, const float iae, const float rmse,
+//     volatile FB_State& fb_state
+// ) {
+//     static FB_State push_state = FB_State::PENDING;
+//     static FB_State remove_state = FB_State::PENDING;
+//     static bool push_done = false;
+//     static uint64_t last_input_ts = 0;
+
+//     // Si llegó un nuevo waypoint, resetear todo
+//     if (input_ts != last_input_ts) {
+//         push_state = FB_State::PENDING;
+//         remove_state = FB_State::PENDING;
+//         push_done = false;
+//         last_input_ts = input_ts;
+//     }
+
+//     // 1. Ejecutar PUSH solo si aún no termina (y no intentar de nuevo)
+//     if (!push_done) {
+//         push_state = ControlledPushReachedWaypoint(
+//             input_ts, wp_x, wp_y, start_ts, end_ts, reached_flag,
+//             pos_x, pos_y, controller_type, iae, rmse, fb_state
+//         );
+//         if (push_state == FB_State::PENDING) return FB_State::PENDING;
+//         // Al primer OK o ERROR, queda push_done true
+//         push_done = true;
+//         if (FB_DEBUG_MODE) {
+//             Serial.printf("CompleteWaypoint: PUSH terminado con estado %d\n", static_cast<int>(push_state));
+//         }
+//     }
+
+//     // 2. Ahora intentar REMOVE hasta que termine
+//     remove_state = ControlledRemovePendingWaypoint(input_ts, fb_state);
+//     if (remove_state == FB_State::PENDING) return FB_State::PENDING;
+//     if (FB_DEBUG_MODE) {
+//         Serial.printf("CompleteWaypoint: REMOVE terminado con estado %d\n", static_cast<int>(remove_state));
+//     }
+
+//     // 3. Si ambas terminaron, resetear solo cuando cambie el input_ts
+//     FB_State ret_state = FB_State::ERROR;
+//     if (remove_state == FB_State::OK &&
+//         (push_state == FB_State::OK || push_state == FB_State::ERROR)) {
+//         fb_state = FB_State::OK;
+//         ret_state = FB_State::OK;
+//         if (FB_DEBUG_MODE) {
+//             Serial.println("CompleteWaypoint: ambas operaciones completadas con éxito.");
+//         }
+//     } else {
+//         fb_state = FB_State::ERROR;
+//         ret_state = FB_State::ERROR;
+//     }
+
+//     return ret_state;
+// }
+
+
 void PushStatus(
-    const uint8_t state, const char* log_msg, 
+    const uint8_t state, const char* log_msg,
     const float x, const float y, const float wL, const float wR,
     const uint64_t wp_input_ts, const float wp_x, const float wp_y,
     const uint8_t controller_type, const float iae, const float rmse
@@ -486,16 +616,6 @@ void PushStatus(
 }
 
 
-void ForceCommandIdle() {
-    JsonDocument doc;
-    doc["action"] = 2;           // 2 = IDLE
-    doc["controller_type"] = 0;  // 0 = PID
-    String path = "/commands";
-    AsyncResult dummy_result;
-    SetJson(path, doc, dummy_result);  
-    if (FB_DEBUG_MODE) Serial.println("[Firebase] Comando forzado a IDLE y PID en /commands");
-}
-
 FB_State ClearAllLogs(volatile FB_State& fb_state) {
     static bool request_sent = false;
     static bool status_done = false;
@@ -505,7 +625,7 @@ FB_State ClearAllLogs(volatile FB_State& fb_state) {
 
     // 1. Iniciar operación si no se ha enviado aún
     if (!request_sent) {
-        if (FB_DEBUG_MODE) Serial.println("\nClearAllLogs: Enviando solicitudes de eliminación...");
+        if (FB_DEBUG_MODE) Serial.println("ClearAllLogs: Enviando solicitudes de eliminación...");
         rtdb_ptr->remove(*async_client_ptr, "/status_log", async_status);
         rtdb_ptr->remove(*async_client_ptr, "/waypoints_finalized", async_reached_waypoints);
         request_sent   = true;
@@ -584,19 +704,19 @@ FB_State ClearPendingWaypoints(volatile FB_State& fb_state) {
 
     if (!request_sent) {
         if (FB_DEBUG_MODE) Serial.println("ClearPendingWaypoints: Enviando solicitud de eliminación...");
-        rtdb_ptr->remove(*async_client_ptr, "/waypoints_pending", async_pending_waypoints);
+        rtdb_ptr->remove(*async_client_ptr, "/waypoints_pending", async_pending_waypoints_remove);
         request_sent = true;
         time_sent = millis();
         return FB_State::PENDING;
     }
-    if (async_pending_waypoints.isResult()) 
+    if (async_pending_waypoints_remove.isResult())
     {   // Ya se recibió un resultado, revisar si hay error
         request_sent = false;
-        if (async_pending_waypoints.isError()) {
+        if (async_pending_waypoints_remove.isError()) {
             error_count++;
             if (FB_DEBUG_MODE) {
                 Serial.print("ClearPendingWaypoints: Error -> ");
-                Serial.println(async_pending_waypoints.error().message().c_str());
+                Serial.println(async_pending_waypoints_remove.error().message().c_str());
             }
         } else {
             if (FB_DEBUG_MODE) Serial.println("ClearPendingWaypoints: Eliminación exitosa.");
@@ -605,7 +725,7 @@ FB_State ClearPendingWaypoints(volatile FB_State& fb_state) {
             return FB_State::OK;
         }
     }
-    else if (FB_DEBUG_MODE) 
+    else if (FB_DEBUG_MODE)
     {   // Si aún no se ha recibido resultado
         Serial.println("ClearPendingWaypoints: Aún no se ha recibido resultado.");
     }
@@ -690,7 +810,7 @@ FB_State FullReset(volatile FB_State& fb_state) {
         if (FB_DEBUG_MODE) Serial.println("\nFullReset: Enviando solicitudes de eliminación global...");
         rtdb_ptr->remove(*async_client_ptr, "/status_log", async_status);
         rtdb_ptr->remove(*async_client_ptr, "/waypoints_finalized", async_reached_waypoints);
-        rtdb_ptr->remove(*async_client_ptr, "/waypoints_pending", async_pending_waypoints);
+        rtdb_ptr->remove(*async_client_ptr, "/waypoints_pending", async_pending_waypoints_remove);
         request_sent      = true;
         status_done       = false;
         finalized_done    = false;
@@ -728,12 +848,12 @@ FB_State FullReset(volatile FB_State& fb_state) {
     }
 
     // 6. Revisar /waypoints_pending
-    if (!pendings_done && async_pending_waypoints.isResult()) {
-        if (async_pending_waypoints.isError()) {
+    if (!pendings_done && async_pending_waypoints_remove.isResult()) {
+        if (async_pending_waypoints_remove.isError()) {
             error_count++;
             if (FB_DEBUG_MODE) {
                 Serial.print("FullReset: Error al eliminar /waypoints_pending -> ");
-                Serial.println(async_pending_waypoints.error().message().c_str());
+                Serial.println(async_pending_waypoints_remove.error().message().c_str());
             }
         } else {
             if (FB_DEBUG_MODE) Serial.println("FullReset: /waypoints_pending eliminado correctamente.");
@@ -778,7 +898,7 @@ FB_State FullReset(volatile FB_State& fb_state) {
 
 
 void auth_debug_print(AsyncResult &aResult) {
-    if (FB_DEBUG_MODE) {    
+    if (FB_DEBUG_MODE) {
         if (aResult.isEvent()) {
             Firebase.printf("Firebase - Event task: %s, msg: %s, code: %d\n", aResult.uid().c_str(), aResult.eventLog().message().c_str(), aResult.eventLog().code());
         }
@@ -813,7 +933,7 @@ void Task_PushStatus(void *pvParameters) {
             );
             if (FB_DEBUG_MODE) {
                 Serial.printf("Task_PushStatus: Estado %u, pos (%f, %f), RPMs (%d, %d), WP (%f, %f)\n",
-                    static_cast<uint8_t>(os.state), pose.x, pose.y, 
+                    static_cast<uint8_t>(os.state), pose.x, pose.y,
                     static_cast<int>(round(pose.w_L * 60.0 / (2 * 3.14))),
                     static_cast<int>(round(pose.w_R * 60.0 / (2 * 3.14))),
                     os.fb_waypoint_data.wp_x, os.fb_waypoint_data.wp_y);
@@ -834,16 +954,12 @@ void Task_GetCommands(void *pvParameters) {
         vTaskDelayUntil(&xLastWakeTime, period);
         uint8_t action = 0;
         uint8_t controller_type = 0;
-        if (os.state != OS_State::INIT) 
+        if (os.state != OS_State::INIT)
         {
-            if (UpdateCommands(action, controller_type, os.fb_state) == FB_State::OK) 
+            if (UpdateCommands(action, controller_type, os.fb_state) == FB_State::OK)
             {
                 os.fb_last_command    = Int2Cmd(action);
                 os.fb_controller_type = Int2CtrlType(controller_type);
-                if (FB_DEBUG_MODE) {
-                    Serial.printf("Task_GetCommands: action=%u → cmd=%d, ctrl_type=%u → ctrl=%d\n",
-                        action, (int)os.fb_last_command, controller_type, (int)os.fb_controller_type);
-                }
             }
         }
     }

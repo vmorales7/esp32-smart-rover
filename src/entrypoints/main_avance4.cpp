@@ -3,7 +3,7 @@
 
 GlobalContext* ctx_ptr = nullptr;
 constexpr ControlType CONTROLLER_TYPE = ControlType::PID;// Tipo de controlador a utilizar
-constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::ENCODER;
+constexpr PoseEstimatorType POSE_ESTIMATOR_TYPE = PoseEstimatorType::COMPLEMENTARY;
 const bool INCLUDE_EVADE = true; // Habilita el controlador de evasión
 
 void setup() {

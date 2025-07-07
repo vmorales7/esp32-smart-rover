@@ -188,7 +188,6 @@ namespace OS
         {
         case OS_State::INIT:
         { // Solo se ejecuta como paso hacia IDLE
-            // FirebaseComm::ForceCommandIdle();
             fb_result = reset_online_status(ctx_ptr); // Se hace no bloqueante para poder usarla en otras partes
             if (fb_result == FB_State::OK)
             { // Si se pudo resetear el estado online, se entra a IDLE
@@ -200,7 +199,7 @@ namespace OS
         }
         case OS_State::IDLE:
         {   
-            if (OS_DEBUG_MODE) Serial.printf("[IDLE] Instrucción: %d\n", Cmd2Int(os.fb_last_command));
+            if (OS_DEBUG_MODE) Serial.printf("\n[IDLE] Instrucción: %d\n", Cmd2Int(os.fb_last_command));
             if (CheckOnlineStatus(ctx_ptr) == false)
             {   // Si no hay conexión WiFi o Firebase no está verificado, se mantiene en IDLE
                 set_operation_log(OS_State::IDLE, OS_State::IDLE, ctx_ptr);
@@ -223,23 +222,25 @@ namespace OS
         }
         case OS_State::STAND_BY:
         {   
-            if (OS_DEBUG_MODE) Serial.printf("[STAND-BY] Instrucción: %d\n", Cmd2Int(os.fb_last_command));
+            if (OS_DEBUG_MODE) Serial.printf("\n[STAND-BY] Instrucción: %d\n", Cmd2Int(os.fb_last_command));
             // Si no hay conexión WiFi o Firebase no está verificado, se espera a que se conecte
             if (CheckOnlineStatus(ctx_ptr) == false)
             {   
-                if (OS_DEBUG_MODE) Serial.println("STAND_BY: No hay conexión WiFi o Firebase no verificado.");
+                if (OS_DEBUG_MODE) Serial.println("[STAND_BY] No hay conexión WiFi o Firebase no verificado.");
                 set_operation_log(OS_State::STAND_BY, OS_State::STAND_BY, ctx_ptr);
             }
             // Siempre se verifica si el último punto completado fue enviado a Firebase
             // Si hay error, se queda en STAND_BY por no poder remover el pendiente
             else if (os.fb_completed_but_not_sent)
             {   // Completar el waypoint pendiente antes de seguir
+                if (OS_DEBUG_MODE) Serial.println("[STAND_BY] Registrando waypoint finalizado.");
                 SendReachedWaypoint(ctx_ptr); 
                 // Sí o sí debe estar completado, sino no se elimina el waypoint pendiente y quedaría pegado 
             }
             // Último punto alcanzado fue enviado + comando START
             else if (os.fb_last_command == UserCommand::START)
             {   // Hay que pedir el waypoint pendiente mas antiguo a Firebase
+                if (OS_DEBUG_MODE) Serial.println("[STAND_BY] START recibido, pidiendo/esperando waypoint pendiente.");
                 fb_result = FirebaseComm::UpdatePendingWaypoint(
                     os.fb_target_buffer.x, os.fb_target_buffer.y, os.fb_target_buffer.ts, os.fb_state);
                 // Si se recibe un punto invalido, internamente se tratará de eliminar y pedir el siguiente
@@ -247,12 +248,12 @@ namespace OS
                 if (fb_result == FB_State::OK)
                 {
                     set_online_waypoint(ctx_ptr);
+                    if (OS_DEBUG_MODE) 
+                        Serial.printf("[STAND_BY] START recibido, se pasa a ALIGN con waypoint (%f, %f).\n", 
+                            os.fb_target_buffer.x, os.fb_target_buffer.y);
                     enter_align(ctx_ptr);
                     os.state = OS_State::ALIGN;
                     set_operation_log(OS_State::ALIGN, OS_State::STAND_BY, ctx_ptr);
-                    if (OS_DEBUG_MODE) 
-                        Serial.printf("STAND_BY: Comando START recibido, se pasa a ALIGN con waypoint (%f, %f).\n", 
-                            os.fb_target_buffer.x, os.fb_target_buffer.y);
                 }
             } // Último punto alcanzado fue enviado + comando IDLE
             else if (os.fb_last_command == UserCommand::IDLE)
@@ -263,13 +264,20 @@ namespace OS
                     enter_idle(ctx_ptr);
                     os.state = OS_State::IDLE;
                     set_operation_log(OS_State::IDLE, OS_State::STAND_BY, ctx_ptr);
+                    if (OS_DEBUG_MODE) 
+                        Serial.println("STAND_BY: Comando IDLE recibido, se vuelve a IDLE.");
                 }
             }
             break;
         }
         case OS_State::ALIGN:
         {   // Este estado se usa para alinear el vehículo hacia el objetivo
-            if (OS_DEBUG_MODE) Serial.printf("[ALIGN] Instrucción: %d\n", Cmd2Int(os.fb_last_command));
+            if (OS_DEBUG_MODE) {
+                Serial.printf("\n[ALIGN] Instrucción y waypoint: %d, (%f, %f)\n", 
+                    Cmd2Int(os.fb_last_command), ctrl.x_d, ctrl.y_d);
+                Serial.printf("[ALIGN] Waypoint en buffer: (%f, %f)\n", 
+                    os.fb_target_buffer.x, os.fb_target_buffer.y);
+            }
             ok = CheckOnlineStatus(ctx_ptr);
             if (!ok || os.fb_last_command != UserCommand::START)
             { // Si hay error de conexión o STOP/IDLE, se frena el movimiento y se vuelve a STAND_BY cuando se detiene
@@ -292,7 +300,10 @@ namespace OS
                 enter_move(ctx_ptr);
                 os.state = OS_State::MOVE;
                 set_operation_log(OS_State::MOVE, OS_State::ALIGN, ctx_ptr);
-                if (OS_DEBUG_MODE) Serial.println("ALIGN: Alineación completada. Transición a MOVE.");
+                if (OS_DEBUG_MODE) {
+                    Serial.printf("ALIGN: Alineación completada. Transición a MOVE con waypoint (%f, %f).\n", 
+                        os.fb_target_buffer.x, os.fb_target_buffer.y);
+                }
             }
             else
             {   // Se vuelve a fijar el modo de control, ya que un stop_movement lo deja en modo manual
@@ -300,14 +311,23 @@ namespace OS
                 // Si no ocurrió stop_movement, set_control_mode no hace nada porque ya está en ALIGN
                 PositionController::set_control_mode(
                     PositionControlMode::ALIGN, sts.position, ctrl.w_L_ref, ctrl.w_R_ref);
+                if (OS_DEBUG_MODE) Serial.println("[ALIGN]: Alineando hacia waypoint");
             }
             break;
         }
         case OS_State::MOVE:
         {   // Estado de desplazamiento recto hacia el waypoint
+            if (OS_DEBUG_MODE) {
+                Serial.printf("\n[MOVE] Instrucción y waypoint: %d, (%f, %f)\n", 
+                    Cmd2Int(os.fb_last_command), ctrl.x_d, ctrl.y_d);
+                Serial.printf("[MOVE] Waypoint en buffer: (%f, %f)\n", 
+                    os.fb_target_buffer.x, os.fb_target_buffer.y);
+            }
             ok = CheckOnlineStatus(ctx_ptr);
             if (ctrl.waypoint_reached)
             {   // Si se alcanza el waypoint, se detiene, se registra y se pasa a STAND_BY
+                if (OS_DEBUG_MODE) 
+                    Serial.println("MOVE: Waypoint alcanzado");
                 register_finished_waypoint_data(true, ctx_ptr); // Registrar datos del waypoint alcanzado
                 enter_stand_by(ctx_ptr);
                 os.state = OS_State::STAND_BY;
@@ -332,8 +352,10 @@ namespace OS
                     } 
                     else 
                     {   // Detención por obstáculo
+                        if (OS_DEBUG_MODE) Serial.println("[MOVE]: Obstáculo detectado.");
                         if (check_skip_evade(ctx_ptr) == true) 
                         {   // Si el waypoint está tapado por un obstáculo y se puede saltar, se completa el waypoint
+                            if (OS_DEBUG_MODE) Serial.println("MOVE: Waypoint tapado por obstáculo, se pasa marca como fallido.");
                             register_finished_waypoint_data(false, ctx_ptr);
                             enter_stand_by(ctx_ptr);
                             os.state = OS_State::STAND_BY;
@@ -341,6 +363,7 @@ namespace OS
                         } 
                         else
                         {
+                            if (OS_DEBUG_MODE) Serial.println("MOVE: Obstáculo detectado, se inicia evasión.");
                             if (evade.include_evade)
                             {   // Está activa la evasión, se inicia y se entra al estado EVADE
                                 enter_evade(ctx_ptr);
@@ -366,6 +389,10 @@ namespace OS
         }
         case OS_State::EVADE:
         {
+            if (OS_DEBUG_MODE) {
+                Serial.printf("\n[EVADE] Estado de evasión con waypoint: %d, (%f, %f)\n", 
+                    Cmd2Int(os.fb_last_command), os.fb_waypoint_data.wp_x, os.fb_waypoint_data.wp_y);
+            }
             ok = CheckOnlineStatus(ctx_ptr);
             if (!ok || os.fb_last_command != UserCommand::START)
             {   // Si se recibe STOP/IDLE o hay error de conexión, se detiene el movimiento y se pasa a STAND_BY
@@ -377,17 +404,19 @@ namespace OS
                     os.state = OS_State::STAND_BY;
                     set_operation_log(OS_State::STAND_BY, OS_State::EVADE, ctx_ptr);
                     if (OS_DEBUG_MODE) {
-                        if (!ok) Serial.println("EVADE: Error de conexión, se vuelve a STAND_BY.");
-                        else Serial.println("EVADE: Comando STOP/IDLE recibido, se vuelve a STAND_BY.");
+                        if (!ok) Serial.println("[EVADE] Error de conexión, se vuelve a STAND_BY.");
+                        else Serial.println("[EVADE] Comando STOP/IDLE recibido, se vuelve a STAND_BY.");
                     }
                 }
             }
             else if (evade.include_evade)
             {   // Si hay controlador de posición, se utiliza la máquina de estados de evasión
                 EvadeController::update_evade(ctx_ptr);
+                if (OS_DEBUG_MODE) Serial.printf("[EVADE] Estado de evasión: %d\n", static_cast<int>(evade.state));
                 if (evade.state == EvadeState::FINISHED)
                 {   // Si se completó la evasión, se vuelve a ALIGN
                     // Solo se entrega FINISHED desde estados detenidos, por lo que no es necesario detener el movimiento
+                    if (OS_DEBUG_MODE) Serial.println("[EVADE] Evasión completada, se vuelve a ALIGN.");
                     enter_align(ctx_ptr);
                     os.state = OS_State::ALIGN;
                     set_operation_log(OS_State::ALIGN, OS_State::EVADE, ctx_ptr);
@@ -395,6 +424,7 @@ namespace OS
                 else if (evade.state == EvadeState::FAIL)
                 {   // Si falla la evasión, se vuelve a STAND_BY y se avisa punto fallido
                     // Notar que solo se entrega FAIL desde estados detenidos, por lo que no es necesario detener el movimiento
+                    if (OS_DEBUG_MODE) Serial.println("[EVADE] Evasión fallida, se vuelve a STAND_BY y se marca punto fallido.");
                     register_finished_waypoint_data(false, ctx_ptr); // Registrar datos del waypoint fallado
                     enter_stand_by(ctx_ptr);
                     os.state = OS_State::STAND_BY;
@@ -407,9 +437,14 @@ namespace OS
                     sens.us_left_obst, sens.us_mid_obst, sens.us_right_obst, sens.us_obstacle);
                 if (!sens.us_obstacle)
                 {
+                    set_operation_log(OS_State::MOVE, OS_State::EVADE, ctx_ptr);
+                    if (OS_DEBUG_MODE) Serial.println("[EVADE] Camino libre, se vuelve a MOVE.");
                     enter_move(ctx_ptr);
                     os.state = OS_State::MOVE;
-                    set_operation_log(OS_State::MOVE, OS_State::EVADE, ctx_ptr);
+                } 
+                else
+                {   // Si hay obstáculo, se espera a que se libere el camino
+                    if (OS_DEBUG_MODE) Serial.println("[EVADE] Esperando a que se libere el camino.");
                 }
             }
             break;
@@ -486,8 +521,8 @@ namespace OS
         if (ONLINE_MODE)
         {
             xTaskCreatePinnedToCore(Task_CheckWifi, "CheckWifi", BASIC_STACK_SIZE, ctx_ptr, 2, nullptr, 0);
-            xTaskCreatePinnedToCore(FirebaseComm::Task_PushStatus, "FirebasePushStatus", 4 * BASIC_STACK_SIZE, ctx_ptr, 1, nullptr, 0);
-            xTaskCreatePinnedToCore(FirebaseComm::Task_GetCommands, "FirebaseGetCommands", 6 * BASIC_STACK_SIZE, ctx_ptr, 3, nullptr, 0);
+            // xTaskCreatePinnedToCore(FirebaseComm::Task_PushStatus, "FirebasePushStatus", 4 * BASIC_STACK_SIZE, ctx_ptr, 1, nullptr, 0);
+            xTaskCreatePinnedToCore(FirebaseComm::Task_GetCommands, "FirebaseGetCommands", 4 * BASIC_STACK_SIZE, ctx_ptr, 3, nullptr, 0);
             xTaskCreatePinnedToCore(FirebaseComm::Task_Loop, "FirebaseLoop", 2 * BASIC_STACK_SIZE, ctx_ptr, 3, nullptr, 0);
         }
         if (OS_DEBUG_MODE) Serial.println("Sistema operativo del vehículo listo.");
@@ -895,6 +930,15 @@ namespace OS
 
         // Avisar que se alcanzó un waypoint y que falta enviar
         os.fb_completed_but_not_sent = true; // Marcar que se alcanzó un waypoint pero no se envió
+
+        if (OS_DEBUG_MODE) {
+            Serial.println("Waypoint alcanzado, datos registrados:");
+            Serial.printf("Waypoint alcanzado: (%.2f, %.2f) - Reached: %d\n", 
+                os.fb_waypoint_data.pos_x, os.fb_waypoint_data.pos_y, reached_flag);
+            Serial.printf("Timestamps: Input: %d, Start: %d, End: %d\n",
+                os.fb_waypoint_data.input_ts, os.fb_waypoint_data.start_ts, os.fb_waypoint_data.end_ts);
+            Serial.printf("Position: (%.2f, %.2f)\n", os.fb_waypoint_data.pos_x, os.fb_waypoint_data.pos_y);
+        }
     }
 
     void Task_VehicleOS(void *pvParameters) {
@@ -932,12 +976,14 @@ namespace OS
             if (ONLINE_MODE) 
             {   // Estas condiciones son para el modo online
                 stop_cmd = (os.fb_last_command != UserCommand::START);
-                offline =!CheckOnlineStatus(ctx); 
+                offline =!CheckOnlineStatus(ctx);
+                if (OS_DEBUG_MODE && offline) Serial.println("[STOP_ON_RISK] Desconexión detectada, se detiene movimiento.");
             }
             if ((is_moving && obstacle) || ((is_moving || is_aligning) && (stop_cmd || offline)))
             {   // Movimiento + obstáculo o comando de parada o desconexión
                 if (sts.position != PositionControlMode::MANUAL && sts.position != PositionControlMode::INACTIVE)
                     PositionController::stop_movement(pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
+                    if (OS_DEBUG_MODE) Serial.println("[STOP_ON_RISK] Deteniendo movimiento por STOP/OBSTACULO.");
             }
         }
     }

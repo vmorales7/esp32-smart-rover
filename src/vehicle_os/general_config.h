@@ -9,6 +9,37 @@ constexpr bool GENERAL_DEBUG_MODE = true; // Habilita el modo de depuración
 constexpr bool ONLINE_MODE = true; // Habilita el modo online (conexión a Firebase y WiFi)
 
 
+/* -------------- Tiempos de poleo para tareas RTOS --------------*/
+
+// Operación general
+
+constexpr uint16_t WHEEL_CONTROL_PERIOD_MS = 10;
+constexpr uint16_t ENCODER_READ_PERIOD_MS = 10;
+constexpr uint16_t IMU_READ_PERIOD_MS = 10;
+constexpr uint16_t OBSTACLE_CHECK_PERIOD_MS = 100;
+constexpr uint16_t POSE_ESTIMATOR_PERIOD_MS = 10; 
+constexpr uint16_t POSITION_CONTROL_PERIOD_MS = 100;
+
+
+// Firebase y WiFi
+
+constexpr uint16_t WIFI_CHECK_PERIOD_MS = 1000;
+constexpr uint16_t FB_PUSH_STATUS_PERIOD_MS = 1000;
+constexpr uint16_t FB_GET_COMMANDS_PERIOD_MS = 250;
+constexpr uint16_t FB_LOOP_PERIOD_MS = 100;
+
+
+// Sistema operativo y evasión
+
+constexpr uint16_t OS_CHECK_STOP_PERIOD_MS = 50; // Verifica flags de obstaculo y comando de parada
+constexpr uint16_t OS_UPDATE_PERIOD_MS = 500;
+
+
+// Tamaño de stack básico para tareas RTOS
+
+constexpr uint16_t BASIC_STACK_SIZE = 2048; 
+
+
 /* -------------- Definiciones de los pines de la ESP32 --------------*/
 
 // Para control del L298N
@@ -66,6 +97,7 @@ constexpr float MS_TO_S = 0.001f;
 constexpr uint8_t MAX_TRAJECTORY_POINTS = 10; // Define máximo de puntos
 constexpr float NULL_WAYPOINT_XY = 99.9f;
 constexpr uint64_t NULL_TIMESTAMP = 0;
+
 
 /* ----------------------------- Constantes motores ----------------------------*/
 
@@ -136,42 +168,11 @@ enum class WifiStatus : uint8_t {
 };
 
 enum class FB_State : uint8_t {
-    OK,
     PENDING,
+    OK,
     ERROR,
     CONNECTION_ERROR
 };
-
-
-/* -------------- Tiempos de poleo para tareas RTOS --------------*/
-
-// Operación general
-
-constexpr uint16_t WHEEL_CONTROL_PERIOD_MS = 10;
-constexpr uint16_t ENCODER_READ_PERIOD_MS = 10;
-constexpr uint16_t IMU_READ_PERIOD_MS = 10;
-constexpr uint16_t OBSTACLE_CHECK_PERIOD_MS = 100;
-constexpr uint16_t POSE_ESTIMATOR_PERIOD_MS = 10; 
-constexpr uint16_t POSITION_CONTROL_PERIOD_MS = 50;
-
-
-// Firebase y WiFi
-
-constexpr uint16_t WIFI_CHECK_PERIOD_MS = 1000;
-constexpr uint16_t FB_PUSH_STATUS_PERIOD_MS = 1000;
-constexpr uint16_t FB_GET_COMMANDS_PERIOD_MS = 250;
-constexpr uint16_t FB_LOOP_PERIOD_MS = 100;
-
-
-// Sistema operativo y evasión
-
-constexpr uint16_t OS_CHECK_STOP_PERIOD_MS = 50; // Verifica flags de obstaculo y comando de parada
-constexpr uint16_t OS_UPDATE_PERIOD_MS = 500;
-
-// Tamaño de stack básico para tareas RTOS
-
-constexpr uint16_t BASIC_STACK_SIZE = 2048; 
-
 
 
 /* -------------- Struct auxiliares --------------*/

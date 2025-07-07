@@ -20,7 +20,7 @@
 #include <ArduinoJson.h>
 
 // Auxiliar para debug print
-constexpr bool FB_DEBUG_MODE = true;
+constexpr bool FB_DEBUG_MODE = false;
 
 
 // ---------- Enum para los returns ----------
@@ -36,20 +36,20 @@ enum class FB_Get_Result : uint8_t {
 
 // ---------- Constantes y configuraciones ----------
 
-constexpr uint32_t FB_COMMANDS_TIMEOUT_MS = 5000;
-constexpr uint8_t FB_COMMANDS_MAX_ERRORS = 3; 
+constexpr uint32_t FB_COMMANDS_TIMEOUT_MS = 1100;
+constexpr uint8_t FB_COMMANDS_MAX_ERRORS = 10; 
 
-constexpr uint32_t FB_PENDING_TIMEOUT_MS = 5000;
-constexpr uint8_t FB_PENDING_MAX_ERRORS = 3;
+constexpr uint32_t FB_PENDING_TIMEOUT_MS = 3000;
+constexpr uint8_t FB_PENDING_MAX_ERRORS = 10;
 
-constexpr uint32_t FB_PUSH_REACHED_TIMEOUT_MS = 5000;
-constexpr uint8_t FB_PUSH_REACHED_MAX_ERRORS = 3; 
+constexpr uint32_t FB_PUSH_REACHED_TIMEOUT_MS = 10000;
+constexpr uint8_t FB_PUSH_REACHED_MAX_ERRORS = 10; 
 
-constexpr uint32_t FB_PUSH_REMOVE_TIMEOUT_MS = 5000;
-constexpr uint8_t FB_PUSH_REMOVE_MAX_ERRORS = 3; 
+constexpr uint32_t FB_PUSH_REMOVE_TIMEOUT_MS = 10000;
+constexpr uint8_t FB_PUSH_REMOVE_MAX_ERRORS = 10; 
 
 constexpr uint32_t FB_PUSH_CLEAR_TIMEOUT_MS = 5000;
-constexpr uint8_t FB_PUSH_CLEAR_MAX_ERRORS = 3;
+constexpr uint8_t FB_PUSH_CLEAR_MAX_ERRORS = 10;
 
 
 // ---------- Funciones para la comunicación con Firebase ----------
@@ -279,15 +279,6 @@ void PushStatus(
     const uint64_t wp_input_ts, const float wp_x, const float wp_y,
     const uint8_t controller_type, const float iae, const float rmse
 );
-
-/**
- * @brief Fuerza el comando global a IDLE en Firebase.
- * 
- * Esta función debe llamarse solo en el arranque del sistema (INIT).
- * Sobrescribe el nodo /commands en Firebase para evitar que la interfaz o
- * el sistema queden en un estado inseguro tras reinicio.
- */
-void ForceCommandIdle();
 
 /**
  * @brief Elimina todos los registros de estado y waypoints finalizados en Firebase.
