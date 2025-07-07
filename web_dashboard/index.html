@@ -205,7 +205,7 @@
   </style>
 </head>
 
-  <!-- Formato -->
+<!-- Formato -->
 <body>
   <div class="header-banner">
     <div class="project-title">RoboNauta Alpha</div>
@@ -412,7 +412,8 @@
       tbody.appendChild(row);
 
       // --- Agregar punto pendiente al gráfico ---
-      pendientes.push({ x: wp.wp_x, y: wp.wp_y });
+      // pendientes.push({ x: wp.wp_x, y: wp.wp_y });
+      pendientes.push({ x: wp.wp_y, y: wp.wp_x });
     });
 
     // --- Actualizar dataset de trayectoriaChart (posición 3 = Pending Waypoints) ---
@@ -564,16 +565,30 @@
         }
       ]
     },
+    // options: {
+    //   plugins: { legend: { position: 'bottom' } },
+    //   scales: {
+    //     x: {
+    //       offset: true,
+    //       title: { display: true, text: 'X [m]' }
+    //     },
+    //     y: {
+    //       offset: true,
+    //       title: { display: true, text: 'Y [m]' }
+    //     }
+    //   }
+    // }
     options: {
       plugins: { legend: { position: 'bottom' } },
       scales: {
         x: {
           offset: true,
-          title: { display: true, text: 'X [m]' }
+          title: { display: true, text: 'Y [m]' },  // Ahora el eje X muestra Y físico
+          reverse: true  // Invertir eje X para que Y sea positivo hacia la izquierda
         },
         y: {
           offset: true,
-          title: { display: true, text: 'Y [m]' }
+          title: { display: true, text: 'X [m]' }  // Ahora el eje Y muestra X físico
         }
       }
     }
@@ -639,7 +654,8 @@
 
     entries.forEach(([ts, wp], index) => {
       // Actualizar arrays para el gráfico de trayectoria
-      const pos = { x: wp.pos_x, y: wp.pos_y };
+      // const pos = { x: wp.pos_x, y: wp.pos_y };}
+      const pos = { x: wp.pos_y, y: wp.pos_x };
       wp.reached ? success.push(pos) : fail.push(pos);
       trayectoria.push(pos);
 

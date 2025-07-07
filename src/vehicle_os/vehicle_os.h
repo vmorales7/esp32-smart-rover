@@ -26,10 +26,10 @@
 
 /* ------------------------ Constantes ------------------------*/
 
-constexpr bool OS_DEBUG_MODE = true;
+constexpr bool OS_DEBUG_MODE = false;
 constexpr float MIN_EVADE_BEHIND_DIST = 0.2f; // Distancia mínima obstáculo-waypoint para iniciar evasión [m]
 constexpr float MAX_EVADE_SKIP_DIST = 0.4f; // Distancia máxima para saltar un waypoint evasión [m]
-constexpr bool NO_OBSTACLES_MODE = true; // Desactivar detección de obstáculos y evasión (para pruebas)
+constexpr bool NO_OBSTACLES_MODE = false; // Desactivar detección de obstáculos y evasión (para pruebas)
 
 
 /* ------------------------ Funciones ------------------------*/
