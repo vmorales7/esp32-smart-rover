@@ -24,7 +24,7 @@ namespace OS
             break;
         }
         case OS_State::IDLE: 
-        {   // No se hace nada en IDLE
+        {   // No se hace nada en IDLE, solo se cambia si se tienen waypoints pendientes
             if (os.local_total_targets > 0)
             {
                 enter_stand_by(ctx_ptr);
@@ -38,14 +38,14 @@ namespace OS
             PositionController::stop_movement(pose.v, pose.w, ctrl.w_L_ref, ctrl.w_R_ref, sts.position);
             ok = set_local_waypoint(ctx_ptr);
             if (ok) 
-            {                                 // Si hay puntos pendientes, se entra al estado ALIGN
+            {   // Si hay puntos pendientes, se entra al estado ALIGN
                 enter_align(ctx_ptr);         // El controlador intentará alinear el vehículo hacia el objetivo
                 os.state = OS_State::ALIGN;
                 set_operation_log(OS_State::ALIGN, OS_State::STAND_BY, ctx_ptr);
                 EvadeController::reset_evade_state(ctx_ptr);
             }
             else 
-            {   // Si no se poner punto nuevo, nos quedamos en STAND_BY
+            {   // Si no se pone punto nuevo, nos quedamos en STAND_BY
                 set_operation_log(OS_State::STAND_BY, OS_State::STAND_BY, ctx_ptr);
             }
             break;

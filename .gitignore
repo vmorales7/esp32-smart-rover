@@ -38,3 +38,5 @@ node_modules/
 
 # Archivos de datos sensibles
 secrets.h
+
+dummy.cpp
