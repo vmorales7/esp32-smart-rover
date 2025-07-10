@@ -20,7 +20,7 @@ constexpr float US_CM_PER_US = 0.01715f;
  * 
  * Si la distancia medida es menor a este valor, se considera que hay un obstáculo.
  */
-constexpr uint8_t OBSTACLE_THRESHOLD_CM = 45U;
+constexpr uint8_t OBSTACLE_THRESHOLD_CM = 40U;
 
 /**
  * @brief Distancia máxima considerada válida para el sensor [cm].
@@ -197,23 +197,6 @@ bool check_sensor_obstacle(
     volatile bool& sensor_obstacle_flag,
     volatile bool& global_obstacle_flag,
     const uint8_t distance_state
-);
-
-/**
- * @brief Calcula la presencia de un obstáculo global a partir de las banderas individuales.
- *
- * Esta función retorna `true` si al menos uno de los sensores ultrasónicos
- * (izquierdo, medio o derecho) ha detectado un obstáculo.
- *
- * @param left_obst Referencia al flag de obstáculo detectado por el sensor izquierdo.
- * @param mid_obst Referencia al flag de obstáculo detectado por el sensor central.
- * @param right_obst Referencia al flag de obstáculo detectado por el sensor derecho.
- * @return `true` si hay al menos un obstáculo detectado por alguno de los sensores.
- */
-bool compute_global_obstacle_flag(
-    const bool left_obst,
-    const bool mid_obst,
-    const bool right_obst
 );
 
 /**

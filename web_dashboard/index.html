@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>RoboNauta: Control Panel</title>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-database-compat.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Estilos -->
+  <style>
+    /* === GENERAL === */
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f4f6f8;
+      margin: 0;
+      padding: 2rem;
+      color: #333;
+    }
+
+    h2 {
+      margin-top: 2rem;
+      color: #005a8d;
+    }
+
+    label {
+      font-weight: 600;
+      margin-right: 0.3rem;
+    }
+
+    select,
+    input[type="number"],
+    button {
+      margin: 0.5rem 0.5rem 0.5rem 0;
+      padding: 0.4rem;
+      font-size: 1rem;
+    }
+
+    input[type="number"] {
+      width: 6rem;
+    }
+
+    button {
+      background-color: #007acc;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    button:hover {
+      background-color: #005f99;
+    }
+
+    ul {
+      background-color: white;
+      padding: 1rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      list-style: none;
+    }
+
+    li {
+      padding: 0.3rem 0;
+    }
+
+    /* === HEADER === */
+    .header-banner {
+      background-color: #007acc;
+      color: white;
+      padding: 0.5rem 2rem;
+      border-radius: 6px;
+      margin: 0 0 0.5rem 0;
+      position: relative;
+    }
+
+    .header-banner .project-title {
+      font-size: 2.5rem;
+      font-weight: 700;
+      font-style: italic;
+    }
+
+    .header-banner .subtitle {
+      position: absolute;
+      bottom: 0.5rem;
+      right: 2rem;
+      font-size: 1.5rem;
+      font-style: italic;
+    }
+
+    /* === LAYOUT === */
+    .main-container {
+      display: flex;
+      flex-direction: row;
+      gap: 2rem;
+      align-items: flex-start;
+    }
+
+    .column {
+      flex: 1;
+    }
+
+    .grid-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-areas:
+        "control trayectoria"
+        "estado  rmse"
+        "pend    finalizados";
+      gap: 2rem;
+      align-items: start;
+    }
+
+    .section {
+      background-color: transparent;
+    }
+
+    .section.control-status>div {
+      margin-bottom: 1.2rem;
+    }
+
+    /* === GRID AREAS === */
+    .control-panel {
+      grid-area: control;
+    }
+
+    .chart-trayectoria {
+      grid-area: trayectoria;
+    }
+
+    .estado-iae {
+      grid-area: estado;
+    }
+
+    .chart-rmse {
+      grid-area: rmse;
+    }
+
+    .tabla-pendientes {
+      grid-area: pend;
+    }
+
+    .tabla-finalizados {
+      grid-area: finalizados;
+    }
+
+    /* === TABLES === */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+      background-color: white;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    }
+
+    th,
+    td {
+      padding: 0.6rem;
+      text-align: left;
+      border: 1px solid #ddd;
+    }
+
+    th {
+      background-color: #e0ecf8;
+      font-weight: bold;
+    }
+
+    .centered-table th,
+    .centered-table td {
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    #waypointTable td {
+      padding: 0.05rem 0.1rem;
+    }
+
+    td.button-cell {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+    }
+
+    /* === CHARTS === */
+    canvas {
+      width: 100%;
+      margin-top: 1rem;
+      background-color: #fff;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+
+    canvas#rmseChart,
+    canvas#iaeChart {
+      height: 250px !important;
+      max-height: 250px;
+    }
+  </style>
+</head>
+
+<!-- Formato -->
+<body>
+  <div class="header-banner">
+    <div class="project-title">RoboNauta Alpha</div>
+    <div class="subtitle">by NetBotics</div>
+  </div>
+
+  <div class="grid-container">
+
+    <!-- Comandos + Último estado -->
+    <div class="section control-status">
+      <h2>Control Panel</h2>
+
+      <div class="subsection">
+        <strong>Command:</strong><br>
+        <button onclick="enviarAccion(1)">▶️ START</button>
+        <button onclick="enviarAccion(0)">⏸️ STOP</button>
+        <button onclick="enviarAccion(2)">🟥 IDLE</button>
+      </div>
+
+      <div class="subsection">
+        <strong>Controller Type:</strong><br>
+        <button onclick="enviarTipoControlador(0)">⚙️ PID</button>
+        <button onclick="enviarTipoControlador(1)">🧠 Backstepping</button>
+      </div>
+
+      <div class="subsection">
+        <strong>Add Waypoint:</strong><br>
+        <label for="new_wp_x">X:</label>
+        <input type="number" id="new_wp_x" step="any">
+        <label for="new_wp_y">Y:</label>
+        <input type="number" id="new_wp_y" step="any">
+        <button onclick="enviarWaypoint()">send</button>
+      </div>
+
+      <h2>Last Status</h2>
+      <table border="1" id="statusTable">
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Trayectoria -->
+    <div class="section trajectory plot">
+      <h2>Trajectory History</h2>
+      <canvas id="trayectoriaChart" height="640" width="700"></canvas>
+    </div>
+
+    <!-- IAE -->
+    <div class="section iae">
+      <h2>Performance: IAE</h2>
+      <canvas id="iaeChart"></canvas>
+    </div>
+
+    <!-- RMSE -->
+    <div class="section rmse">
+      <h2>Performance: RMSE</h2>
+      <canvas id="rmseChart"></canvas>
+    </div>
+
+    <!-- Pending Waypoints -->
+    <div class="section pendientes">
+      <h2>Pending Waypoints</h2>
+      <table border="1" id="waypointTable" class="centered-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>X</th>
+            <th>Y</th>
+            <th>Delete</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Finished Waypoints -->
+    <div class="section finalizados">
+      <h2>Finished Waypoints</h2>
+      <table border="1" id="finalizedTable" class="centered-table">
+        <thead>
+          <tr>
+            <th>Index</th>
+            <th>Controlador</th>
+            <th>Input</th>
+            <th>Start</th>
+            <th>End</th>
+            <th>wp_x</th>
+            <th>wp_y</th>
+            <th>Reached</th>
+            <th>pos_x</th>
+            <th>pos_y</th>
+            <th>IAE</th>
+            <th>RMSE</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+  </div>
+</body>
+
+<!-- Scripts -->
+<script src="config.js"></script>
+<script>
+  // --- CONFIGURACIÓN FIREBASE ---
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  // --- FUNCIONES DE COMANDO Y CONTROL ---
+  function enviarAccion(action) {
+    db.ref("commands/action").set(action);
+  }
+
+  function enviarTipoControlador(tipo) {
+    db.ref("commands/controller_type").set(tipo);
+  }
+
+  function enviarWaypoint() {
+    const x = parseFloat(document.getElementById("new_wp_x").value);
+    const y = parseFloat(document.getElementById("new_wp_y").value);
+    if (isNaN(x) || isNaN(y)) {
+      alert("Debes ingresar valores válidos para X e Y.");
+      return;
+    }
+    const input_timestamp = Math.floor(Date.now() / 1000);
+    db.ref("waypoints_pending/" + input_timestamp).set({
+      input_timestamp, wp_x: x, wp_y: y
+    });
+  }
+
+  function eliminarWaypoint() {
+    const ts = document.getElementById("del_timestamp").value;
+    if (!ts) return alert("Debes ingresar un timestamp.");
+    const ref = db.ref("waypoints_pending/" + ts);
+    ref.once("value", snap => {
+      if (snap.exists()) {
+        ref.remove().then(() => alert("Waypoint eliminado correctamente."))
+          .catch(err => alert("Error al eliminar waypoint: " + err));
+      } else {
+        alert("No existe un waypoint con ese timestamp.");
+      }
+    });
+  }
+
+  // --- LISTENER DE Pending Waypoints ---
+  db.ref("waypoints_pending").on("value", snapshot => {
+    const tbody = document.querySelector("#waypointTable tbody");
+    tbody.innerHTML = "";
+
+    const data = snapshot.val();
+    const pendientes = [];
+    const timestampsToIgnore = ["0000000000"];
+
+    if (!data) {
+      // Limpiar también del gráfico si no hay datos
+      if (trayectoriaChart.data.datasets[3]) {
+        trayectoriaChart.data.datasets[3].data = [];
+        trayectoriaChart.update();
+      }
+      return;
+    }
+
+    const entries = Object.entries(data)
+      .filter(([ts]) => !timestampsToIgnore.includes(ts))
+      .sort((a, b) => a[0] - b[0]);
+
+    entries.forEach(([ts, wp], index) => {
+      // --- Actualizar tabla ---
+      const row = document.createElement("tr");
+
+      const indexCell = document.createElement("td");
+      indexCell.textContent = `#${index + 1}`;
+
+      const xCell = document.createElement("td");
+      xCell.textContent = wp.wp_x;
+
+      const yCell = document.createElement("td");
+      yCell.textContent = wp.wp_y;
+
+      const actionCell = document.createElement("td");
+      actionCell.classList.add("button-cell");
+      actionCell.style.textAlign = "right";
+
+      const btn = document.createElement("button");
+      btn.textContent = "❌";
+      btn.title = "Eliminar waypoint";
+      btn.style.backgroundColor = "transparent";
+      btn.style.border = "none";
+      btn.style.color = "red";
+      btn.style.fontSize = "1.2rem";
+      btn.style.cursor = "pointer";
+      btn.onclick = () => {
+        db.ref("waypoints_pending/" + ts).remove()
+          .then(() => console.log(`Waypoint ${ts} eliminado.`))
+          .catch(err => alert("Error al eliminar waypoint: " + err));
+      };
+
+      actionCell.appendChild(btn);
+
+      row.appendChild(indexCell);
+      row.appendChild(xCell);
+      row.appendChild(yCell);
+      row.appendChild(actionCell);
+      tbody.appendChild(row);
+
+      // --- Agregar punto pendiente al gráfico ---
+      // pendientes.push({ x: wp.wp_x, y: wp.wp_y });
+      pendientes.push({ x: wp.wp_y, y: wp.wp_x });
+    });
+
+    // --- Actualizar dataset de trayectoriaChart (posición 3 = Pending Waypoints) ---
+    if (trayectoriaChart.data.datasets.length > 3) {
+      trayectoriaChart.data.datasets[3].data = pendientes;
+      trayectoriaChart.update();
+    }
+  });
+
+
+
+  // --- LISTENER DE STATUS ACTUAL ---
+  db.ref("status_log").on("value", snapshot => {
+    const tbody = document.querySelector("#statusTable tbody");
+    tbody.innerHTML = "";
+
+    const data = snapshot.val();
+    if (!data) return;
+
+    const timestampsToIgnore = ["0000000000"]; // tus timestamps a ignorar
+
+    // Filtrar y ordenar
+    const entries = Object.entries(data)
+      .filter(([ts]) => !timestampsToIgnore.includes(ts))
+      .sort((a, b) => a[1].timestamp - b[1].timestamp);
+
+    if (entries.length === 0) return;
+
+    const last = entries[entries.length - 1][1];
+
+    // Mostrar tabla "Last Status"
+    const desiredOrder = [
+      "timestamp", "state", "log_msg",
+      "pos_x", "pos_y", "rpm_left", "rpm_right",
+      "controller_type", "wp_input_timestamp", "wp_x", "wp_y",
+      "iae", "rmse"
+    ];
+
+    const prettyLabels = {
+      controller_type: "Controller Type",
+      state: "Current State",
+      log_msg: "Log Message",
+      pos_x: "Position X",
+      pos_y: "Position Y",
+      rpm_left: "Left Wheel Speed (RPM)",
+      rpm_right: "Right Wheel Speed (RPM)",
+      wp_x: "Target X",
+      wp_y: "Target Y",
+      wp_input_timestamp: "Waypoint Input Timestamp",
+      iae: "IAE",
+      rmse: "RMSE",
+      timestamp: "Log Timestamp"
+    };
+
+    desiredOrder.forEach(key => {
+      if (last.hasOwnProperty(key)) {
+        const row = document.createElement("tr");
+        const cellKey = document.createElement("td");
+        const cellVal = document.createElement("td");
+
+        cellKey.textContent = prettyLabels[key] || key;
+        cellKey.style.fontWeight = "bold";
+
+        let val = last[key];
+        if (key === "state") {
+          const estados = ["INIT", "IDLE", "STAND_BY", "ALIGN", "MOVE", "EVADE"];
+          val = estados[val] ?? val;
+        }
+        if (key === "controller_type") {
+          val = val === 0 ? "PID" : val === 1 ? "Backstepping" : val;
+        }
+
+        cellVal.textContent = val;
+        row.appendChild(cellKey);
+        row.appendChild(cellVal);
+        tbody.appendChild(row);
+      }
+    });
+
+    // Actualizar gráficos
+    let rmse_acumulado = 0, iae_acumulado = 0;
+    rmseChart.data.labels = [];
+    rmseChart.data.datasets[0].data = [];
+    iaeChart.data.labels = [];
+    iaeChart.data.datasets[0].data = [];
+
+    entries.forEach(([_, item], i) => {
+      const rmse = item.rmse || 0;
+      const iae = item.iae || 0;
+
+      rmse_acumulado += rmse;
+      iae_acumulado += iae;
+
+      rmseChart.data.labels.push('');
+      iaeChart.data.labels.push('');
+
+      rmseChart.data.datasets[0].data.push((rmse_acumulado / (i + 1)).toFixed(2));
+      iaeChart.data.datasets[0].data.push((iae_acumulado / (i + 1)).toFixed(2));
+    });
+
+    rmseChart.update();
+    iaeChart.update();
+  });
+
+
+
+  // --- GRÁFICOS Chart.js ---
+  const ctx1 = document.getElementById('trayectoriaChart').getContext('2d');
+  const ctx2 = document.getElementById('rmseChart').getContext('2d');
+  const ctx3 = document.getElementById('iaeChart').getContext('2d');
+
+  const trayectoriaChart = new Chart(ctx1, {
+    type: 'scatter',
+    data: {
+      datasets: [
+        {
+          label: 'Reached Waypoints',
+          data: [],
+          borderColor: 'green',
+          backgroundColor: 'green',
+          showLine: false,
+          pointRadius: 6
+        },
+        {
+          label: 'Failed Waypoints',
+          data: [],
+          borderColor: 'red',
+          backgroundColor: 'red',
+          showLine: false,
+          pointRadius: 6
+        },
+        {
+          label: 'Trajectory',
+          data: [],
+          borderColor: '#007acc',
+          backgroundColor: '#007acc',
+          showLine: true,
+          pointRadius: 0
+        },
+        {
+          label: 'Pending Waypoints',
+          data: [],
+          borderColor: '#3399ff',
+          backgroundColor: '#ffffff',
+          showLine: false,
+          pointRadius: 5,
+          pointBorderWidth: 2,
+          pointStyle: 'circle'
+        }
+      ]
+    },
+    // options: {
+    //   plugins: { legend: { position: 'bottom' } },
+    //   scales: {
+    //     x: {
+    //       offset: true,
+    //       title: { display: true, text: 'X [m]' }
+    //     },
+    //     y: {
+    //       offset: true,
+    //       title: { display: true, text: 'Y [m]' }
+    //     }
+    //   }
+    // }
+    options: {
+      plugins: { legend: { position: 'bottom' } },
+      scales: {
+        x: {
+          offset: true,
+          title: { display: true, text: 'Y [m]' },  // Ahora el eje X muestra Y físico
+          reverse: true  // Invertir eje X para que Y sea positivo hacia la izquierda
+        },
+        y: {
+          offset: true,
+          title: { display: true, text: 'X [m]' }  // Ahora el eje Y muestra X físico
+        }
+      }
+    }
+  });
+
+  const rmseChart = new Chart(ctx2, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label: 'Performance: RMSE',
+        data: [],
+        borderColor: 'orange',
+        backgroundColor: 'rgba(255,165,0,0.2)',
+        fill: true,
+        tension: 0.2
+      }]
+    },
+    options: {
+      plugins: { legend: { position: 'bottom', display: false } },
+      scales: {
+        x: { title: { display: false } },
+        y: { title: { display: false, text: 'RMSE' } }
+      }
+    }
+  });
+
+  const iaeChart = new Chart(ctx3, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label: 'Performance: IAE',
+        data: [],
+        borderColor: 'purple',
+        backgroundColor: 'rgba(128,0,128,0.2)',
+        fill: true,
+        tension: 0.2
+      }]
+    },
+    options: {
+      plugins: { legend: { position: 'bottom', display: false } },
+      scales: {
+        x: { title: { display: false } },
+        y: { title: { display: false, text: 'IAE' } }
+      }
+    }
+  });
+
+  // --- GRÁFICO DE TRAYECTORIA Y TABLA FINALIZADOS ---
+  db.ref("waypoints_finalized").on("value", snapshot => {
+    const tbody = document.querySelector("#finalizedTable tbody");
+    const data = snapshot.val();
+    tbody.innerHTML = "";
+    if (!data) return;
+
+    const timestampsToIgnore = ["0000000000"];
+
+    const entries = Object.entries(data)
+      .filter(([ts]) => !timestampsToIgnore.includes(ts))  // ← IGNORA timestamps específicos
+      .sort((a, b) => a[1].reached_timestamp - b[1].reached_timestamp);
+    const success = [], fail = [], trayectoria = [];
+
+    entries.forEach(([ts, wp], index) => {
+      // Actualizar arrays para el gráfico de trayectoria
+      // const pos = { x: wp.pos_x, y: wp.pos_y };}
+      const pos = { x: wp.pos_y, y: wp.pos_x };
+      wp.reached ? success.push(pos) : fail.push(pos);
+      trayectoria.push(pos);
+
+      // Crear nueva fila para la tabla
+      const row = document.createElement("tr");
+
+      // Agregar índice manualmente
+      const indexCell = document.createElement("td");
+      indexCell.textContent = index + 1;
+      row.appendChild(indexCell);
+
+      // Campos en el orden del <thead>
+      const fields = {
+        controller_type: wp.controller_type === 0 ? "PID" :
+          wp.controller_type === 1 ? "Backs" :
+            wp.controller_type ?? "—",
+        input_timestamp: new Date(wp.input_timestamp * 1000).toLocaleString(),
+        start_timestamp: new Date(wp.start_timestamp * 1000).toLocaleString(),
+        end_timestamp: new Date(wp.end_timestamp * 1000).toLocaleString(),
+        wp_x: wp.wp_x,
+        wp_y: wp.wp_y,
+        reached: wp.reached ? "YES" : "NO",
+        pos_x: wp.pos_x,
+        pos_y: wp.pos_y,
+        iae: wp.iae,
+        rmse: wp.rmse
+      };
+
+      for (let key in fields) {
+        const cell = document.createElement("td");
+        cell.textContent = fields[key];
+        row.appendChild(cell);
+      }
+
+      tbody.appendChild(row);
+    });
+
+    // Actualizar datos del gráfico de trayectoria
+    trayectoriaChart.data.datasets[0].data = success;
+    trayectoriaChart.data.datasets[1].data = fail;
+    trayectoriaChart.data.datasets[2].data = trayectoria;
+    trayectoriaChart.update();
+  });
+
+
+  // --- GRÁFICOS DE RMSE Y IAE ACUMULADOS DESDE status_log ---
+  db.ref("status_log").on("value", snapshot => {
+    const data = snapshot.val();
+    if (!data) return;
+
+    const entries = Object.entries(data).sort((a, b) => a[1].timestamp - b[1].timestamp);
+    let rmse_acumulado = 0, iae_acumulado = 0;
+
+    rmseChart.data.labels = [];
+    rmseChart.data.datasets[0].data = [];
+    iaeChart.data.labels = [];
+    iaeChart.data.datasets[0].data = [];
+
+    entries.forEach(([_, item], i) => {
+      const rmse = item.rmse || 0;
+      const iae = item.iae || 0;
+
+      rmse_acumulado += rmse;
+      iae_acumulado += iae;
+
+      const label = '';
+      rmseChart.data.labels.push(label);
+      iaeChart.data.labels.push(label);
+
+      rmseChart.data.datasets[0].data.push(rmse_acumulado / (i + 1));
+      iaeChart.data.datasets[0].data.push(iae_acumulado / (i + 1));
+    });
+
+    rmseChart.update();
+    iaeChart.update();
+  });
+</script>
+
+</html>

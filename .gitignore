@@ -35,3 +35,8 @@ node_modules/
 
 # Archivos ocultos comunes
 .env
+
+# Archivos de datos sensibles
+secrets.h
+
+dummy.cpp
